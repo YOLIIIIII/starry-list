@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useImperativeHandle,
@@ -19,6 +20,7 @@ import {
   Circle,
   Orbit,
   Sparkles,
+  PencilLine,
 } from "lucide-react";
 import { taskSchema, type Category, type Task, dayProgress } from "./domain";
 import { store } from "./store";
@@ -57,7 +59,17 @@ export function Empty({ small = false }: { small?: boolean }) {
     </div>
   );
 }
-export function QuickAdd({ date }: { date: string }) {
+export function QuickAdd({
+  date,
+  autoFocus = false,
+  onAdded,
+  onCancel,
+}: {
+  date: string;
+  autoFocus?: boolean;
+  onAdded?: () => void;
+  onCancel?: () => void;
+}) {
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
@@ -82,7 +94,8 @@ export function QuickAdd({ date }: { date: string }) {
         updated_at: now,
       });
       setTitle("");
-      ref.current?.focus();
+      if (onAdded) onAdded();
+      else ref.current?.focus();
     } catch {
       /* Keep the user's title on disk failure. */
     } finally {
@@ -94,12 +107,18 @@ export function QuickAdd({ date }: { date: string }) {
       <Plus size={15} />
       <input
         ref={ref}
+        autoFocus={autoFocus}
         value={title}
         maxLength={500}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing) return;
-          if (e.key === "Escape") setTitle("");
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            setTitle("");
+            onCancel?.();
+          }
         }}
         placeholder="添加一件小事…"
         aria-label={`${date} 新任务标题`}
@@ -188,8 +207,58 @@ export function TaskRow({
     </div>
   );
 }
+export function TaskReader({
+  task,
+  categories,
+  onEdit,
+  onClose,
+}: {
+  task: Task;
+  categories: Category[];
+  onEdit: () => void;
+  onClose: () => void;
+}) {
+  const category = categories.find((c) => c.id === task.category_id);
+  return (
+    <section className="task-reader" aria-label="任务详情阅读">
+      <div className="reader-heading">
+        <h3>{task.title}</h3>
+        <button className="reader-edit" onClick={onEdit}>
+          <PencilLine size={14} />
+          编辑
+        </button>
+        <button aria-label="收起任务详情" onClick={onClose}>
+          <X size={15} />
+        </button>
+      </div>
+      <div className="reader-meta">
+        <span>{task.date}</span>
+        {category && (
+          <span className="category-label" style={{ color: category.color }}>
+            {category.name}
+          </span>
+        )}
+        <span>
+          <Priority value={task.priority} />
+          {["普通", "重要", "非常重要"][task.priority]}
+        </span>
+      </div>
+      {task.description && (
+        <div
+          className="reader-description"
+          role="region"
+          aria-label="详细计划（只读）"
+          tabIndex={0}
+        >
+          {task.description}
+        </div>
+      )}
+    </section>
+  );
+}
 export interface EditorHandle {
   save(): Promise<boolean>;
+  isDirty(): boolean;
 }
 export const TaskEditor = forwardRef<
   EditorHandle,
@@ -198,11 +267,20 @@ export const TaskEditor = forwardRef<
     categories: Category[];
     onDelete: (task: Task) => void;
     onClose: () => void;
+    onSaved: () => void;
   }
->(function TaskEditor({ task, categories, onDelete, onClose }, ref) {
+>(function TaskEditor({ task, categories, onDelete, onClose, onSaved }, ref) {
   const [draft, setDraft] = useState(task);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = descriptionRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${Math.min(340, Math.max(156, el.scrollHeight + 2))}px`;
+  }, [draft.description]);
   const dirty = [
     "title",
     "description",
@@ -243,161 +321,198 @@ export const TaskEditor = forwardRef<
     saving.current = operation;
     return operation;
   }
-  useImperativeHandle(ref, () => ({ save: saveDraft }));
+  useImperativeHandle(ref, () => ({ save: saveDraft, isDirty: () => dirty }));
+  async function finish() {
+    if (await saveDraft()) onSaved();
+  }
+  function requestCancel() {
+    if (busy) return;
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  }
   function patch(p: Partial<Task>) {
     setDraft((d) => ({ ...d, ...p }));
   }
   return (
-    <section
-      className="editor"
-      aria-label="任务详情编辑"
-      onKeyDown={(e) => {
-        if (e.nativeEvent.isComposing) return;
-        if (e.key === "Escape") {
-          e.stopPropagation();
-          setDraft(task);
-          setError(null);
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-          e.preventDefault();
-          void saveDraft();
-        }
-      }}
-    >
-      <div className="editor-heading">
-        <span>任务详情</span>
-        <span className="save-status">
-          {busy
-            ? "保存中…"
-            : dirty
-              ? "未保存 · 切换时自动保存"
-              : "已保存到本机"}
-        </span>
-        <button
-          aria-label="收起任务详情"
-          onClick={async () => {
-            if (await saveDraft()) onClose();
+    <>
+      <Dialog
+        title="编辑任务"
+        className="drawer-dialog"
+        onClose={requestCancel}
+      >
+        <section
+          className="editor"
+          aria-label="任务详情编辑"
+          onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+              e.preventDefault();
+              void finish();
+            }
           }}
         >
-          <X size={16} />
-        </button>
-      </div>
-      <label className="field">
-        任务标题
-        <input
-          autoFocus
-          value={draft.title}
-          maxLength={500}
-          onChange={(e) => patch({ title: e.target.value })}
-          disabled={busy}
-        />
-      </label>
-      <label className="field">
-        详细计划
-        <textarea
-          value={draft.description ?? ""}
-          maxLength={100000}
-          placeholder={"想法、步骤、会议准备…\n在这里慢慢写，不必急着完成。"}
-          onChange={(e) => patch({ description: e.target.value || null })}
-          disabled={busy}
-        />
-      </label>
-      <div className="editor-options">
-        <label className="field">
-          任务日期
-          <input
-            type="date"
-            min="1900-01-01"
-            max="9999-12-31"
-            value={draft.date}
-            onChange={(e) => patch({ date: e.target.value })}
-            disabled={busy}
-          />
-        </label>
-        <fieldset>
-          <legend>重要程度</legend>
-          <div className="pills">
-            {([0, 1, 2] as const).map((p) => (
-              <button
-                key={p}
-                aria-label={["普通", "重要", "非常重要"][p]}
-                aria-pressed={draft.priority === p}
-                className={draft.priority === p ? "selected" : ""}
-                onClick={() => patch({ priority: p })}
+          <div className="editor-scroll">
+            <p className="save-status" role="status">
+              {busy
+                ? "保存中…"
+                : dirty
+                  ? "未保存 · 切换时自动保存"
+                  : "已保存到本机"}
+            </p>
+            <label className="field">
+              任务标题
+              <input
+                autoFocus
+                value={draft.title}
+                maxLength={500}
+                onChange={(e) => patch({ title: e.target.value })}
                 disabled={busy}
-              >
-                <Priority value={p} />
-                {["普通", "重要", "非常重要"][p]}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-      </div>
-      <fieldset>
-        <legend>
-          分类 <span className="optional">可选</span>
-        </legend>
-        <div className="pills">
-          <button
-            className={draft.category_id === null ? "selected" : ""}
-            aria-pressed={draft.category_id === null}
-            onClick={() => patch({ category_id: null })}
-            disabled={busy}
-          >
-            不选择
-          </button>
-          {categories.map((c) => (
+              />
+            </label>
+            <label className="field">
+              详细计划
+              <textarea
+                ref={descriptionRef}
+                value={draft.description ?? ""}
+                maxLength={100000}
+                placeholder={
+                  "想法、步骤、会议准备…\n在这里慢慢写，不必急着完成。"
+                }
+                onChange={(e) => patch({ description: e.target.value || null })}
+                disabled={busy}
+              />
+            </label>
+            <div className="editor-options">
+              <label className="field">
+                任务日期
+                <input
+                  type="date"
+                  min="1900-01-01"
+                  max="9999-12-31"
+                  value={draft.date}
+                  onChange={(e) => patch({ date: e.target.value })}
+                  disabled={busy}
+                />
+              </label>
+              <fieldset>
+                <legend>重要程度</legend>
+                <div className="pills">
+                  {([0, 1, 2] as const).map((p) => (
+                    <button
+                      key={p}
+                      aria-label={["普通", "重要", "非常重要"][p]}
+                      aria-pressed={draft.priority === p}
+                      className={draft.priority === p ? "selected" : ""}
+                      onClick={() => patch({ priority: p })}
+                      disabled={busy}
+                    >
+                      <Priority value={p} />
+                      {["普通", "重要", "非常重要"][p]}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+            <fieldset>
+              <legend>
+                分类 <span className="optional">可选</span>
+              </legend>
+              <div className="pills">
+                <button
+                  className={draft.category_id === null ? "selected" : ""}
+                  aria-pressed={draft.category_id === null}
+                  onClick={() => patch({ category_id: null })}
+                  disabled={busy}
+                >
+                  不选择
+                </button>
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    className={draft.category_id === c.id ? "selected" : ""}
+                    aria-pressed={draft.category_id === c.id}
+                    onClick={() => patch({ category_id: c.id })}
+                    disabled={busy}
+                  >
+                    <i style={{ background: c.color }} />
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <details className="advanced">
+              <summary>更多选项</summary>
+              <label className="field">
+                日历简称 <span className="optional">留空时显示原标题</span>
+                <input
+                  value={draft.short_label ?? ""}
+                  maxLength={100}
+                  placeholder="例如：AI 调研"
+                  onChange={(e) =>
+                    patch({ short_label: e.target.value || null })
+                  }
+                  disabled={busy}
+                />
+              </label>
+            </details>
             <button
-              key={c.id}
-              className={draft.category_id === c.id ? "selected" : ""}
-              aria-pressed={draft.category_id === c.id}
-              onClick={() => patch({ category_id: c.id })}
+              className="danger subtle editor-delete"
+              onClick={() => onDelete(task)}
               disabled={busy}
             >
-              <i style={{ background: c.color }} />
-              {c.name}
+              <Trash2 size={14} />
+              删除任务
             </button>
-          ))}
-        </div>
-      </fieldset>
-      <details className="advanced">
-        <summary>更多选项</summary>
-        <label className="field">
-          日历简称 <span className="optional">留空时显示原标题</span>
-          <input
-            value={draft.short_label ?? ""}
-            maxLength={100}
-            placeholder="例如：AI 调研"
-            onChange={(e) => patch({ short_label: e.target.value || null })}
-            disabled={busy}
-          />
-        </label>
-      </details>
-      {error && (
-        <p role="alert" className="inline-error">
-          {error}
-        </p>
+          </div>
+          {error && (
+            <p role="alert" className="inline-error">
+              {error}
+            </p>
+          )}
+          <div className="editor-footer">
+            <span className="key-hint">Ctrl + Enter 保存</span>
+            <button onClick={requestCancel} disabled={busy}>
+              取消
+            </button>
+            <button
+              className="primary"
+              onClick={() => void finish()}
+              disabled={busy}
+            >
+              <Save size={14} />
+              {busy ? "保存中…" : "保存并收起"}
+            </button>
+          </div>
+        </section>
+      </Dialog>
+      {confirmDiscard && (
+        <Dialog title="保留这次修改？" onClose={() => setConfirmDiscard(false)}>
+          <p className="dialog-copy">
+            还有未保存的修改。你可以继续编辑、保存后收起，或明确放弃这次修改。
+          </p>
+          {error && (
+            <p className="inline-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="dialog-actions">
+            <button disabled={busy} onClick={() => setConfirmDiscard(false)}>
+              继续编辑
+            </button>
+            <button className="danger subtle" disabled={busy} onClick={onClose}>
+              放弃修改
+            </button>
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={() => void finish()}
+            >
+              保存并收起
+            </button>
+          </div>
+        </Dialog>
       )}
-      <div className="editor-footer">
-        <button
-          className="danger subtle"
-          onClick={() => onDelete(task)}
-          disabled={busy}
-        >
-          <Trash2 size={14} />
-          删除任务
-        </button>
-        <span className="key-hint">Esc 撤销编辑 · Ctrl + Enter 保存</span>
-        <button
-          className="primary"
-          onClick={() => void saveDraft()}
-          disabled={busy || !dirty}
-        >
-          <Save size={14} />
-          {busy ? "保存中" : "保存"}
-        </button>
-      </div>
-    </section>
+    </>
   );
 });
 export function Dialog({
@@ -405,11 +520,13 @@ export function Dialog({
   children,
   onClose,
   error,
+  className = "",
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   error?: string | null;
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -417,8 +534,17 @@ export function Dialog({
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const el = ref.current!;
-    el.querySelector<HTMLElement>("button,input,select")?.focus();
+    (
+      el.querySelector<HTMLElement>(".editor input") ??
+      el.querySelector<HTMLElement>("button,input,select")
+    )?.focus();
     function key(e: KeyboardEvent) {
+      if (
+        e.defaultPrevented ||
+        e.isComposing ||
+        Array.from(document.querySelectorAll('[role="dialog"]')).at(-1) !== el
+      )
+        return;
       if (e.key === "Escape") {
         e.preventDefault();
         onCloseRef.current();
@@ -445,19 +571,19 @@ export function Dialog({
     document.addEventListener("keydown", key);
     return () => {
       document.removeEventListener("keydown", key);
-      previous?.focus();
+      if (previous?.isConnected) previous.focus();
     };
   }, []);
   return (
     <div
-      className="modal-backdrop"
+      className={`modal-backdrop ${className === "drawer-dialog" ? "drawer-backdrop" : ""}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         ref={ref}
-        className="dialog"
+        className={`dialog ${className}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}

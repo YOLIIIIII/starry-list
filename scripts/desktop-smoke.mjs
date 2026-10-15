@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 const testDir = resolve(".cache/desktop-smoke-" + Date.now());
 const screenshots = resolve("docs/screenshots");
 await mkdir(testDir, { recursive: true });
@@ -67,13 +68,22 @@ const today = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Asia/Shanghai",
 }).format(new Date());
 const title = "讨论新版本方案";
-const longText =
+let longText =
   "调研范围：\n1. 产品 A 的功能设计\n2. 产品 B 的主要交互\n3. 用户反馈和优缺点\n\n下一步：整理对比表，形成初稿。\n".repeat(
     80,
   );
 const results = [];
 try {
   await launch();
+  assert.equal(
+    await page
+      .getByRole("region", { name: "七天日程" })
+      .getByRole("textbox")
+      .count(),
+    0,
+  );
+  assert.equal(await page.locator(".agenda-empty-hint").count(), 1);
+  await click(`为 ${today} 添加任务`);
   await page.getByRole("textbox", { name: `${today} 新任务标题` }).fill(title);
   await page
     .getByRole("textbox", { name: `${today} 新任务标题` })
@@ -82,11 +92,19 @@ try {
     .getByRole("region", { name: "七天日程" })
     .getByRole("button", { name: title, exact: true })
     .waitFor();
-  const nextDate = await page
-    .getByRole("region", { name: "七天日程" })
-    .locator("input")
-    .nth(1)
-    .getAttribute("aria-label");
+  assert.equal(
+    await page
+      .getByRole("region", { name: "七天日程" })
+      .getByRole("textbox")
+      .count(),
+    0,
+  );
+  const nextDay = await page.evaluate(
+    async (date) => (await import("/src/domain.ts")).shiftDay(date, 1),
+    today,
+  );
+  const nextDate = `${nextDay} 新任务标题`;
+  await click(`为 ${nextDay} 添加任务`);
   await page
     .getByRole("textbox", { name: nextDate, exact: true })
     .fill("整理调研大纲");
@@ -103,9 +121,197 @@ try {
     .getByRole("region", { name: "月历" })
     .getByRole("button", { name: new RegExp(title) })
     .click();
-  await page.getByLabel("详细计划").fill(longText);
+  await page.getByRole("region", { name: "任务详情阅读" }).waitFor();
+  assert.ok(
+    (await page.getByRole("region", { name: "任务详情阅读" }).boundingBox())
+      .height < 150,
+    "Empty description should stay compact",
+  );
+  assert.equal(await page.getByLabel("详细计划", { exact: true }).count(), 0);
+  await click("编辑");
+  await page
+    .getByRole("textbox", { name: "详细计划", exact: true })
+    .fill(longText);
   await click("非常重要");
   await click("工作");
+  for (const [width, height] of [
+    [980, 680],
+    [380, 480],
+  ]) {
+    await invoke("plugin:window|set_size", {
+      label: "main",
+      value: { Logical: { width, height } },
+    });
+    await page.waitForTimeout(250);
+    const metrics = await page.locator(".drawer-dialog").evaluate((el) => {
+      const footer = el.querySelector(".editor-footer").getBoundingClientRect();
+      const header = el
+        .querySelector(".dialog-heading")
+        .getBoundingClientRect();
+      const textarea = el.querySelector("textarea");
+      const scroll = el.querySelector(".editor-scroll");
+      const panel = el.getBoundingClientRect();
+      const save = el.querySelector(".editor-footer .primary");
+      const saveBounds = save.getBoundingClientRect();
+      return {
+        footerTop: footer.top,
+        footerBottom: footer.bottom,
+        headerTop: header.top,
+        panelWidth: panel.width,
+        panelRight: panel.right,
+        windowWidth: innerWidth,
+        windowHeight: innerHeight,
+        textareaHeight: textarea.getBoundingClientRect().height,
+        textareaScroll: textarea.scrollHeight,
+        formOverflow: scroll.scrollHeight > scroll.clientHeight,
+        docWidth: document.documentElement.scrollWidth,
+        saveHitTarget: save.contains(
+          document.elementFromPoint(
+            saveBounds.left + saveBounds.width / 2,
+            saveBounds.top + saveBounds.height / 2,
+          ),
+        ),
+      };
+    });
+    assert.ok(
+      metrics.footerTop >= 0 && metrics.footerBottom <= metrics.windowHeight,
+      `Save footer clipped at ${width}`,
+    );
+    assert.ok(
+      metrics.docWidth <= metrics.windowWidth &&
+        metrics.panelRight <= metrics.windowWidth,
+      `Drawer overflow at ${width}`,
+    );
+    assert.ok(metrics.textareaHeight >= 156 && metrics.textareaHeight <= 340);
+    assert.ok(metrics.textareaScroll > metrics.textareaHeight);
+    assert.equal(
+      metrics.saveHitTarget,
+      true,
+      "Save action is covered by another element",
+    );
+    if (width === 980)
+      assert.ok(metrics.panelWidth >= 480 && metrics.panelWidth <= 560);
+    await page.locator(".editor-scroll").evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    const after = await page.locator(".editor-footer").boundingBox();
+    assert.ok(
+      Math.abs(after.y - metrics.footerTop) < 1,
+      "Footer moved while form scrolled",
+    );
+    await page.getByRole("button", { name: "保存并收起", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    assert.equal(
+      await page.evaluate(() =>
+        document.activeElement.getAttribute("aria-label"),
+      ),
+      "关闭对话框",
+    );
+    await page.locator(".editor-scroll").evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    await page.locator(".drawer-dialog textarea").evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    await page.screenshot({
+      path: resolve(
+        screenshots,
+        width === 980 ? "editor.png" : "editor-compact.png",
+      ),
+    });
+    console.log("Drawer metrics:", { width, height, ...metrics });
+  }
+  results.push(
+    "Wide/narrow native drawer: fixed visible save footer, independent form scroll, 156–340px growing textarea and keyboard focus trap",
+  );
+  await click("保存并收起");
+  await page
+    .getByRole("dialog", { name: "编辑任务" })
+    .waitFor({ state: "detached" });
+  assert.equal(
+    await page.getByRole("region", { name: "任务详情阅读" }).count(),
+    0,
+  );
+  await invoke("plugin:window|set_size", {
+    label: "main",
+    value: { Logical: { width: 980, height: 680 } },
+  });
+  await page.getByRole("button", { name: new RegExp(`^${title}`) }).click();
+  assert.equal(
+    await page.getByRole("region", { name: "详细计划（只读）" }).textContent(),
+    longText,
+  );
+  results.push(
+    "Task opens in plain read mode; successful explicit save closes drawer and collapses task, full multiline text reopens intact",
+  );
+  await click("编辑");
+  await page
+    .getByRole("textbox", { name: "详细计划", exact: true })
+    .fill(longText + "取消草稿");
+  await page.keyboard.press("Escape");
+  await click("继续编辑");
+  assert.equal(
+    await page
+      .getByRole("textbox", { name: "详细计划", exact: true })
+      .inputValue(),
+    longText + "取消草稿",
+  );
+  await page.keyboard.press("Escape");
+  await click("放弃修改");
+  assert.equal(
+    (await invoke("load_snapshot")).tasks.find((t) => t.title === title)
+      .description,
+    longText,
+  );
+  results.push(
+    "Escape protects unsaved text; continue editing preserves draft; explicit discard leaves real SQLite unchanged",
+  );
+  const testDb = new DatabaseSync(resolve(testDir, "starry-list.db"));
+  try {
+    testDb.exec(
+      "CREATE TRIGGER ux_reject_save BEFORE UPDATE ON tasks WHEN NEW.title='写入失败测试' BEGIN SELECT RAISE(ABORT,'UX simulated write failure'); END;",
+    );
+    await click("编辑");
+    await page.getByLabel("任务标题", { exact: true }).fill("写入失败测试");
+    await page
+      .getByRole("textbox", { name: "详细计划", exact: true })
+      .fill(longText + "失败后保留并重试");
+    await click("保存并收起");
+    await page
+      .getByText("保存失败，你的输入仍保留在这里。", { exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("textbox", { name: "详细计划", exact: true })
+        .inputValue(),
+      longText + "失败后保留并重试",
+    );
+    assert.equal(
+      (await invoke("load_snapshot")).tasks.find((t) => t.title === title)
+        .description,
+      longText,
+    );
+    testDb.exec("DROP TRIGGER ux_reject_save;");
+    await page.getByLabel("任务标题", { exact: true }).fill(title);
+    await page
+      .getByRole("textbox", { name: "详细计划", exact: true })
+      .press("Control+Enter");
+    await page
+      .getByRole("dialog", { name: "编辑任务" })
+      .waitFor({ state: "detached" });
+    longText += "失败后保留并重试";
+    assert.equal(
+      (await invoke("load_snapshot")).tasks.find((t) => t.title === title)
+        .description,
+      longText,
+    );
+  } finally {
+    testDb.exec("DROP TRIGGER IF EXISTS ux_reject_save;");
+    testDb.close();
+  }
+  results.push(
+    "Real isolated SQLite trigger rejects save: drawer retains draft, original row intact, retry via Ctrl Enter persists successfully",
+  );
   await click("统筹总览");
   assert.equal(
     (await invoke("load_snapshot")).tasks.find((t) => t.title === title)
@@ -168,7 +374,7 @@ try {
     .getByRole("region", { name: "月历" })
     .getByRole("button", { name: new RegExp(title) })
     .click();
-  await page.getByLabel("详细计划").waitFor();
+  await page.getByRole("region", { name: "任务详情阅读" }).waitFor();
   await page.screenshot({ path: resolve(screenshots, "focus.png") });
   await click("设置");
   await page.getByRole("checkbox", { name: /^始终置顶/ }).click();
@@ -270,7 +476,10 @@ try {
     .getByRole("region", { name: "月历" })
     .getByRole("button", { name: new RegExp(title) })
     .click();
-  await page.getByLabel("详细计划").fill(longText + "关闭前保存");
+  await click("编辑");
+  await page
+    .getByRole("textbox", { name: "详细计划", exact: true })
+    .fill(longText + "关闭前保存");
   await invoke("plugin:window|set_size", {
     label: "main",
     value: { Logical: { width: 760, height: 600 } },
@@ -290,7 +499,7 @@ try {
     await invoke("plugin:window|is_decorated", { label: "main" }),
   );
   const exitPromise = new Promise((r) => child.once("exit", r));
-  await click("关闭应用");
+  await invoke("plugin:window|close", { label: "main" });
   await Promise.race([
     exitPromise,
     new Promise((_, reject) =>
@@ -357,6 +566,7 @@ try {
       await page
         .locator("body")
         .innerText()
+        .then((text) => text.slice(0, 1800))
         .catch(() => ""),
     );
     await page

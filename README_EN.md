@@ -8,8 +8,8 @@ New to the app? Read the [Chinese user guide](docs/USER_GUIDE.md), including a f
 
 ## Features
 
-- **Overview:** Monday-first month calendar and a continuous seven-day agenda starting from the selected date. Add tasks directly under each date with Enter.
-- **Focus:** compact daily list with an inline editor for long, multiline plain text, dates, priorities, optional categories and calendar labels.
+- **Overview:** Monday-first month calendar and a continuous seven-day agenda starting from the selected date. Empty dates stay compact; click a date's plus button to reveal its Enter-to-add field.
+- **Focus:** compact rows open plain read-only details. Edit opens a separate drawer with a fixed header and save/cancel footer. The form and long text scroll independently. Saving successfully collapses the task; cancelling protects unsaved edits.
 - Completion is independent of priority. Completed tasks move below unfinished tasks; reorder within a day and completion group with arrow buttons.
 - Real local SQLite, versioned migrations, serialized writes, explicit errors, delete confirmation and undo. Draft details are saved before switching or normal application close; failed writes keep the editor open.
 - Built-in official mainland China holidays and makeup workdays for 2026, plus separate personal day marks. Unknown years are clearly disclosed.
@@ -22,6 +22,8 @@ The following captures are from the actual Windows Tauri/WebView2 application, u
 ![Focus](docs/screenshots/focus.png)
 
 [Compact window](docs/screenshots/compact.png) · [Settings](docs/screenshots/settings.png)
+
+[Edit drawer](docs/screenshots/editor.png) · [Compact editor](docs/screenshots/editor-compact.png)
 
 ## Install
 

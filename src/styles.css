@@ -977,8 +977,145 @@ h1 {
   background: #e8def340;
 }
 .editor {
-  padding: 15px 17px 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
   animation: expand 0.18s ease-out;
+}
+.editor-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 20px 18px;
+}
+.editor-delete {
+  margin-top: 8px;
+  padding: 7px 0;
+}
+.editor .save-status {
+  margin: 0 0 17px;
+  font-size: 11px;
+}
+.modal-backdrop.drawer-backdrop {
+  justify-content: flex-end;
+  padding: 12px;
+  background: #352b472b;
+  backdrop-filter: none;
+}
+.dialog.drawer-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 520px;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: #fffaf3;
+  box-shadow: -8px 0 35px #352b471c;
+}
+.drawer-dialog .dialog-heading {
+  flex-shrink: 0;
+  padding: 20px;
+  margin: 0;
+}
+.drawer-dialog .dialog-heading h2 {
+  font-size: 18px;
+}
+.drawer-dialog .editor > .inline-error {
+  flex-shrink: 0;
+  margin: 0 20px 10px;
+  max-height: 65px;
+  overflow-y: auto;
+}
+.task-reader {
+  padding: 14px;
+}
+.reader-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.reader-heading h3 {
+  flex: 1;
+  min-width: 0;
+  max-height: 6em;
+  overflow-y: auto;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.reader-heading button {
+  flex-shrink: 0;
+  padding: 5px;
+  font-size: 11px;
+}
+.reader-edit {
+  color: var(--purple-dark);
+  background: #e8def366;
+}
+.reader-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 9px 0 0;
+  color: #817089;
+  font-size: 10px;
+}
+.reader-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.reader-description {
+  max-height: min(280px, 40vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 14px;
+  padding-right: 8px;
+  color: #352b47;
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.agenda-empty-day {
+  padding: 10px 0;
+}
+.agenda-empty-day .agenda-date {
+  margin-bottom: 0;
+}
+.agenda-date .agenda-day-add {
+  flex-shrink: 0;
+  justify-content: center;
+  width: 24px;
+  min-height: 24px;
+  color: #8b749e;
+  border-radius: 7px;
+}
+.agenda-heading {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.agenda-heading .nav-buttons .agenda-add {
+  margin-left: 5px;
+  padding: 5px 7px;
+  background: #e8def37a;
+  color: var(--purple-dark);
+  gap: 3px;
+  font-size: 10px;
+}
+.agenda-empty-hint {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #94819e;
+  padding: 12px 0 0;
+}
+.agenda-panel .task-open {
+  font-size: 13px;
 }
 .editor-heading {
   display: flex;
@@ -1017,9 +1154,10 @@ h1 {
   font-size: 12px;
 }
 .field textarea {
-  min-height: 150px;
-  max-height: 400px;
-  resize: vertical;
+  min-height: 156px;
+  max-height: 340px;
+  overflow-y: auto;
+  resize: none;
   line-height: 1.9;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1091,7 +1229,9 @@ legend {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-top: 9px;
+  flex-shrink: 0;
+  padding: 13px 20px;
+  background: #fffaf3;
   border-top: 1px solid var(--line);
 }
 .editor-footer > button {
@@ -1101,7 +1241,26 @@ legend {
 .key-hint {
   font-size: 8px;
   color: #a493af;
-  margin-left: auto;
+  margin-right: auto;
+}
+@media (max-width: 619px) {
+  .modal-backdrop.drawer-backdrop {
+    padding: 5px;
+  }
+  .dialog.drawer-dialog {
+    width: 100%;
+    border-radius: 13px;
+  }
+  .drawer-dialog .dialog-heading {
+    padding: 15px;
+  }
+  .editor-scroll {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  .editor-footer {
+    padding: 12px 15px;
+  }
 }
 .primary {
   background: var(--purple);

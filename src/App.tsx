@@ -6,7 +6,7 @@ import {
   Settings as SettingsIcon,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
+  Plus,
   Minus,
   X,
   Pin,
@@ -52,6 +52,7 @@ import {
   Progress,
   QuickAdd,
   TaskEditor,
+  TaskReader,
   TaskRow,
   type EditorHandle,
 } from "./components";
@@ -64,6 +65,7 @@ export default function App() {
   const [selected, setSelected] = useState(today);
   const [month, setMonth] = useState(today);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [undo, setUndo] = useState<Task | null>(null);
@@ -80,9 +82,7 @@ export default function App() {
   const [nativeTransparent, setNativeTransparent] = useState(true);
   const calendarGrid = useRef<HTMLDivElement>(null);
   const [previewLimit, setPreviewLimit] = useState(1);
-  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [addingDates, setAddingDates] = useState<Set<string>>(() => new Set());
   const safe = async (action: () => Promise<unknown>) => {
     try {
       await action();
@@ -94,7 +94,12 @@ export default function App() {
     if (transition.current) return;
     transition.current = true;
     try {
-      if (editor.current && !(await editor.current.save())) return;
+      if (editor.current) {
+        const hadChanges = editor.current.isDirty();
+        if (!(await editor.current.save())) return;
+        setEditing(null);
+        if (hadChanges) setNotice("修改已保存");
+      }
       await action();
     } catch (e) {
       store.reportError(e);
@@ -184,6 +189,44 @@ export default function App() {
   function goToday() {
     select(today);
   }
+  function closeEditor(collapse = false) {
+    const id = editing;
+    setEditing(null);
+    if (collapse) setExpanded(null);
+    requestAnimationFrame(() => {
+      if (id)
+        document
+          .getElementById(`task-${id}`)
+          ?.querySelector<HTMLButtonElement>(".task-open")
+          ?.focus();
+    });
+  }
+  function startAdding(date: string) {
+    setAddingDates((current) => new Set(current).add(date));
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLInputElement>(`[aria-label="${date} 新任务标题"]`)
+        ?.focus(),
+    );
+  }
+  function stopAdding(date: string, added = false) {
+    setAddingDates((current) => {
+      const next = new Set(current);
+      next.delete(date);
+      return next;
+    });
+    document
+      .querySelector<HTMLButtonElement>(`[aria-label="为 ${date} 添加任务"]`)
+      ?.focus();
+    if (added) setNotice("任务已添加");
+  }
+  useEffect(() => {
+    if (!expanded) return;
+    document
+      .getElementById(`task-${expanded}`)
+      ?.querySelector(".task-row")
+      ?.scrollIntoView?.({ block: "nearest", behavior: "instant" });
+  }, [expanded, settings.active_view]);
   async function saveSetting(patch: Partial<Settings>) {
     if (patch.always_on_top !== undefined) {
       const old = store.getSnapshot().data.settings.always_on_top;
@@ -573,6 +616,15 @@ export default function App() {
                 >
                   <ChevronRight size={16} />
                 </button>
+                <button
+                  className="agenda-add"
+                  aria-label="新增任务"
+                  title="为选中日期新增任务"
+                  onClick={() => startAdding(selected)}
+                >
+                  <Plus size={14} />
+                  <span>新增</span>
+                </button>
               </div>
             </div>
             <div className="agenda-scroll">
@@ -581,7 +633,7 @@ export default function App() {
                 return (
                   <div
                     key={date}
-                    className={`agenda-day ${date === today ? "agenda-today" : ""}`}
+                    className={`agenda-day ${list.length === 0 && !addingDates.has(date) ? "agenda-empty-day" : ""} ${date === today ? "agenda-today" : ""}`}
                   >
                     <div className="agenda-date">
                       <button onClick={() => select(date)}>
@@ -592,26 +644,19 @@ export default function App() {
                       </button>
                       <span className="day-badges">{dateBadges(date)}</span>
                       <span className="task-count">
-                        {list.filter((t) => !t.completed).length} 项待办
+                        {list.filter((t) => !t.completed).length}{" "}
+                        {list.length ? "项待办" : "项"}
                       </span>
-                      {list.length === 0 && (
-                        <button
-                          className="collapse-day"
-                          aria-label={`${collapsedDays.has(date) ? "展开" : "折叠"} ${date} 空日期`}
-                          aria-expanded={!collapsedDays.has(date)}
-                          aria-controls={`agenda-input-${date}`}
-                          onClick={() =>
-                            setCollapsedDays((current) => {
-                              const next = new Set(current);
-                              if (next.has(date)) next.delete(date);
-                              else next.add(date);
-                              return next;
-                            })
-                          }
-                        >
-                          <ChevronDown size={12} />
-                        </button>
-                      )}
+                      <button
+                        className="agenda-day-add"
+                        aria-label={`为 ${date} 添加任务`}
+                        title="添加任务"
+                        aria-expanded={addingDates.has(date)}
+                        aria-controls={`agenda-input-${date}`}
+                        onClick={() => startAdding(date)}
+                      >
+                        <Plus size={14} />
+                      </button>
                     </div>
                     {list.map((task) => (
                       <TaskRow
@@ -621,16 +666,25 @@ export default function App() {
                         onOpen={() => openTask(task)}
                       />
                     ))}
-                    <div
-                      id={`agenda-input-${date}`}
-                      hidden={list.length === 0 && collapsedDays.has(date)}
-                    >
-                      <QuickAdd date={date} />
-                    </div>
+                    {addingDates.has(date) && (
+                      <div id={`agenda-input-${date}`}>
+                        <QuickAdd
+                          date={date}
+                          autoFocus
+                          onAdded={() => stopAdding(date, true)}
+                          onCancel={() => stopAdding(date)}
+                        />
+                      </div>
+                    )}
                     {list.length > 0 && <Progress tasks={list} />}
                   </div>
                 );
               })}
+              {seven.every((date) => !byDate.get(date)?.length) && (
+                <p className="agenda-empty-hint">
+                  这七天还没有任务，点日期旁的加号开始安排。
+                </p>
+              )}
             </div>
             {settings.show_holidays &&
               seven.some((date) => !dayInfo(date).known) && (
@@ -697,6 +751,7 @@ export default function App() {
             {focusTasks.map((task, index) => (
               <div
                 key={task.id}
+                id={`task-${task.id}`}
                 className={expanded === task.id ? "expanded-task" : ""}
               >
                 <TaskRow
@@ -718,11 +773,10 @@ export default function App() {
                   onMove={(delta) => void safe(() => moveTask(task, delta))}
                 />
                 {expanded === task.id && (
-                  <TaskEditor
-                    ref={editor}
+                  <TaskReader
                     task={task}
                     categories={categories}
-                    onDelete={setDeleteTarget}
+                    onEdit={() => setEditing(task.id)}
                     onClose={() => setExpanded(null)}
                   />
                 )}
@@ -757,6 +811,20 @@ export default function App() {
           <Grip size={13} />
         </button>
       </footer>
+      {editing && tasks.find((t) => t.id === editing) && (
+        <TaskEditor
+          key={editing}
+          ref={editor}
+          task={tasks.find((t) => t.id === editing)!}
+          categories={categories}
+          onDelete={setDeleteTarget}
+          onClose={() => closeEditor()}
+          onSaved={() => {
+            closeEditor(true);
+            setNotice("修改已保存");
+          }}
+        />
+      )}
       <div className="resize-edges" aria-hidden="true">
         {(
           [
@@ -781,7 +849,7 @@ export default function App() {
           />
         ))}
       </div>
-      {(undo || notice) && (
+      {(undo || notice) && !editing && (
         <div className="toast" role="status">
           <Check size={15} />
           <span>{undo ? "任务已删除" : notice}</span>
@@ -831,6 +899,7 @@ export default function App() {
                   setUndo(deleteTarget);
                   setDeleteTarget(null);
                   setExpanded(null);
+                  setEditing(null);
                 })
               }
             >
@@ -1034,6 +1103,7 @@ export default function App() {
               onClick={() =>
                 void safe(async () => {
                   setImporting(true);
+                  setEditing(null);
                   setExpanded(null);
                   setUndo(null);
                   try {

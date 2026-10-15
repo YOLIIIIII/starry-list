@@ -56,7 +56,7 @@ npm run tauri build -- --config src-tauri/tauri.opaque.conf.json
 
 ## Publish a GitHub Release
 
-Push the repository to your own GitHub remote, pass CI, align the versions in package.json, Cargo.toml and tauri.conf.json, and update the changelog. Push a matching `v1.0.0` tag. The Windows release workflow runs checks and native tests, then uses the [official Tauri Action](https://v2.tauri.app/distribute/pipelines/github/) to create a **draft** with x64 NSIS transparent and opaque installers. Review assets and publish the draft manually. Code signing is not configured. This task does not push code or publish a release.
+Push the repository to your own GitHub remote, pass CI, align the versions in package.json, Cargo.toml and tauri.conf.json, and update the changelog. Push a matching `v1.0.0` tag. The Windows release workflow runs checks and native tests, then uses the [official Tauri Action](https://v2.tauri.app/distribute/pipelines/github/) to create a **draft** with x64 NSIS transparent and opaque installers. Review assets and publish the draft manually. Code signing is not configured. Source commits and pushes do not constitute a release; tags and releases require separate explicit authorization.
 
 ## Architecture and privacy
 
@@ -72,9 +72,9 @@ No accounts, cloud services, telemetry, remote fonts or network icons. Data is u
 
 See the [roadmap](docs/ROADMAP.md), [product backlog](docs/PRODUCT_BACKLOG.md) and [decision log](docs/DECISIONS.md) (Chinese). The Markdown backlog is the authoritative source for detailed requirements, priorities, states and acceptance criteria. Recording a request does not authorize implementation; no unassessed version scope or release date is promised.
 
-The recommended next step is the SL-002 quick-add dismissal follow-up and final review of SL-001 / SL-002, followed by visual readability and typography. Windows desktop residency requires feasibility research first. Natural-week navigation and switching performance may be assessed independently. Earlier V1.1 / V2.0 ideas remain candidates in the backlog.
+The next suggested small UX round covers SL-002 quick-add dismissal, SL-019 accessible task edit/delete menus, and SL-004-A quick-add font sizing. These follow-ups have not been implemented. Broader transparency, global typography settings and top-area refinements follow later. Windows desktop residency requires feasibility research first. Natural-week navigation and switching performance may be assessed independently. Earlier V1.1 / V2.0 ideas remain candidates in the backlog.
 
-The initial V1.0 source is pushed. First-round UX changes remain in the local working tree, pending acceptance and a separate implementation commit; there is no published GitHub Release. Planned capabilities are not implemented features.
+The initial V1.0 source is pushed. First-round UX changes are recorded separately in implementation commit [`23a7cd3`](https://github.com/YOLIIIIII/starry-list/commit/23a7cd3941a28d0724e254ca7b9bb71c9b8fd5c8); SL-001 / SL-002 remain In Review pending final user acceptance. There is no published GitHub Release. Planned capabilities are not implemented features.
 
 ## License
 

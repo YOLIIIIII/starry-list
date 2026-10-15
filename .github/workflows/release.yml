@@ -1,0 +1,48 @@
+name: Windows Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.90.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Verify version matches tag
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag must match package.json version' }
+      - run: npm run check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Starry List ${{ github.ref_name }}"
+          releaseBody: "下载 Windows x64 的 -setup.exe 安装包。当前未配置代码签名，Windows 可能显示发布者警告。详情见 README。"
+          releaseDraft: true
+          prerelease: false
+          args: --bundles nsis --target x86_64-pc-windows-msvc
+      - name: Build opaque fallback installer
+        run: npm run tauri build -- --config src-tauri/tauri.opaque.conf.json --bundles nsis --target x86_64-pc-windows-msvc
+      - name: Attach opaque fallback
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $installer = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          $dest = "Starry-List-$env:GITHUB_REF_NAME-x64-opaque-setup.exe"
+          Copy-Item -LiteralPath $installer.FullName -Destination $dest
+          gh release upload $env:GITHUB_REF_NAME $dest --clobber

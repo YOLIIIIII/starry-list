@@ -4,6 +4,8 @@ A cozy offline desktop calendar and task list in lavender, pastel yellow and cre
 
 New to the app? Read the [Chinese user guide](docs/USER_GUIDE.md), including a five-minute quick start.
 
+[Development Roadmap](docs/ROADMAP.md) · [Product Backlog](docs/PRODUCT_BACKLOG.md) · [User Guide (Chinese)](docs/USER_GUIDE.md)
+
 ## Features
 
 - **Overview:** Monday-first month calendar and a continuous seven-day agenda starting from the selected date. Add tasks directly under each date with Enter.
@@ -64,8 +66,14 @@ The database is located at `%APPDATA%\app.starrylist.desktop\starry-list.db`, re
 
 No accounts, cloud services, telemetry, remote fonts or network icons. Data is unencrypted and protected by the operating system's user permissions. Export before uninstalling. Never commit your personal database or backup.
 
-## Roadmap and license
+## Development Roadmap
 
-V1.1: themes, category management, filtering/search, recurring tasks, a seven-day board and cross-date dragging. V2.0: macOS validation and packaging, optional sync and desktop integration experiments. These future features are not included in V1.0. Windows GPU/DPI/multiple-monitor combinations still need manual release testing.
+See the [roadmap](docs/ROADMAP.md), [product backlog](docs/PRODUCT_BACKLOG.md) and [decision log](docs/DECISIONS.md) (Chinese). The Markdown backlog is the authoritative source for detailed requirements, priorities, states and acceptance criteria. Recording a request does not authorize implementation; no unassessed version scope or release date is promised.
+
+The recommended next step is the SL-002 quick-add dismissal follow-up and final review of SL-001 / SL-002, followed by visual readability and typography. Windows desktop residency requires feasibility research first. Natural-week navigation and switching performance may be assessed independently. Earlier V1.1 / V2.0 ideas remain candidates in the backlog.
+
+The initial V1.0 source is pushed. First-round UX changes remain in the local working tree, pending acceptance and a separate implementation commit; there is no published GitHub Release. Planned capabilities are not implemented features.
+
+## License
 
 [MIT License](LICENSE). Copyright (c) 2026 yoli. Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -6,6 +6,8 @@ Lavender × Pastel Yellow × Cream。一个无需登录、可以留在桌面角�
 
 第一次使用？请阅读 [中文用户手册](docs/USER_GUIDE.md)，从「首次使用五分钟快速上手」开始。
 
+[开发路线图 / Development Roadmap](docs/ROADMAP.md) · [需求池 / Product Backlog](docs/PRODUCT_BACKLOG.md) · [使用手册 / User Guide](docs/USER_GUIDE.md)
+
 ## 核心特点
 
 - **统筹总览**：周一开始的完整月历、重要任务预览及从选中日期开始的连续七天日程；每个分组可按 Enter 添加任务。
@@ -132,12 +134,13 @@ scripts/desktop-smoke.mjs  真正的 WebView2/SQLite 冒烟验证
 docs/VALIDATION.md     验证范围与限制
 ```
 
-## Roadmap
+## 开发路线图 / Development Roadmap
 
-- V1.1：主题配色、分类管理与筛选、搜索、周期任务、独立七天看板、跨日期拖动。
-- V2.0：macOS 验证与打包、桌面嵌入实验、多设备同步和可选云备份。
+详细计划见 [开发路线图](docs/ROADMAP.md)，需求、优先级、状态与验收标准见 [产品需求池](docs/PRODUCT_BACKLOG.md)，重要取舍见 [产品决策记录](docs/DECISIONS.md)。登记需求不会自动启动开发，不承诺未经评估的版本范围或发布日期。
 
-V1.0 不包含以上未来能力。macOS 暂未验证，Windows 10/11 各类显卡、DPI、多显示器组合仍需要发布前人工回归。
+近期建议先补齐 SL-002 快速新增收起反馈并完成 SL-001 / SL-002 验收，再评审透明视觉、字号和顶部空间。桌面驻留先研究可行性；自然周与切换流畅度可独立评估。主题、分类管理、重复任务、搜索、位置锁定、macOS 和可选云端能力均保留在需求池中。
+
+当前初始 V1.0 源码已同步；第一轮 UX 改进仍在本地工作区、待验收且未合入。本项目尚无正式 GitHub Release。原 V1.1 / V2.0 列表作为候选想法整合到需求池，不代表已实现功能或发布日期。
 
 ## 许可证
 

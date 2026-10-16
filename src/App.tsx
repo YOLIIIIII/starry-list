@@ -82,7 +82,12 @@ export default function App() {
   const [nativeTransparent, setNativeTransparent] = useState(true);
   const calendarGrid = useRef<HTMLDivElement>(null);
   const [previewLimit, setPreviewLimit] = useState(1);
-  const [addingDates, setAddingDates] = useState<Set<string>>(() => new Set());
+  const [quickDraft, setQuickDraft] = useState<{
+    date: string;
+    title: string;
+  } | null>(null);
+  const [quickConfirm, setQuickConfirm] = useState(false);
+  const quickIntent = useRef<(() => void | Promise<void>) | null>(null);
   const safe = async (action: () => Promise<unknown>) => {
     try {
       await action();
@@ -90,8 +95,21 @@ export default function App() {
       store.reportError(e);
     }
   };
-  async function guard(action: () => void | Promise<void>) {
+  async function guard(action: () => void | Promise<void>, skipQuick = false) {
     if (transition.current) return;
+    if (!skipQuick && quickDraft?.title.trim()) {
+      quickIntent.current = action;
+      setQuickConfirm(true);
+      requestAnimationFrame(() => {
+        document
+          .querySelector(".quick-add-area")
+          ?.scrollIntoView?.({ block: "nearest" });
+        document
+          .querySelector<HTMLInputElement>(".quick-add input")
+          ?.focus({ preventScroll: true });
+      });
+      return;
+    }
     transition.current = true;
     try {
       if (editor.current) {
@@ -100,6 +118,9 @@ export default function App() {
         setEditing(null);
         if (hadChanges) setNotice("修改已保存");
       }
+      setQuickDraft(null);
+      setQuickConfirm(false);
+      quickIntent.current = null;
       await action();
     } catch (e) {
       store.reportError(e);
@@ -180,6 +201,15 @@ export default function App() {
       setExpanded(task.id);
     });
   }
+  function editTask(task: Task) {
+    void guard(async () => {
+      await store.saveSettings({ active_view: "focus" });
+      setSelected(task.date);
+      setMonth(task.date);
+      setExpanded(task.id);
+      setEditing(task.id);
+    });
+  }
   function changeView(view: Settings["active_view"]) {
     void guard(async () => {
       await store.saveSettings({ active_view: view });
@@ -202,23 +232,60 @@ export default function App() {
     });
   }
   function startAdding(date: string) {
-    setAddingDates((current) => new Set(current).add(date));
-    requestAnimationFrame(() =>
-      document
-        .querySelector<HTMLInputElement>(`[aria-label="${date} 新任务标题"]`)
-        ?.focus(),
-    );
+    if (quickDraft?.date === date) {
+      void guard(() => {});
+      return;
+    }
+    void guard(() => setQuickDraft({ date, title: "" }));
   }
-  function stopAdding(date: string, added = false) {
-    setAddingDates((current) => {
-      const next = new Set(current);
-      next.delete(date);
-      return next;
-    });
-    document
-      .querySelector<HTMLButtonElement>(`[aria-label="为 ${date} 添加任务"]`)
-      ?.focus();
+  function finishQuick(date: string, added: boolean) {
+    const intent = quickIntent.current;
+    quickIntent.current = null;
+    setQuickDraft(null);
+    setQuickConfirm(false);
     if (added) setNotice("任务已添加");
+    if (intent) void guard(intent, true);
+    else {
+      const target =
+        document.querySelector<HTMLElement>(
+          `[aria-label="为 ${date} 添加任务"]`,
+        ) ?? document.querySelector<HTMLInputElement>(".quick-add input");
+      target?.focus();
+    }
+  }
+  function quickInput(date: string, autoFocus = false) {
+    return (
+      <QuickAdd
+        date={date}
+        autoFocus={autoFocus}
+        title={quickDraft?.date === date ? quickDraft.title : ""}
+        onTitleChange={(title) => setQuickDraft({ date, title })}
+        onAdded={() => finishQuick(date, true)}
+        onCancel={() => void guard(() => {})}
+        onOutside={
+          autoFocus
+            ? () => {
+                if (!quickDraft?.title.trim()) {
+                  setQuickDraft(null);
+                  setQuickConfirm(false);
+                  quickIntent.current = null;
+                }
+              }
+            : undefined
+        }
+        confirmCancel={quickConfirm}
+        onContinue={() => {
+          quickIntent.current = null;
+          setQuickConfirm(false);
+          document
+            .querySelector<HTMLInputElement>(
+              `[aria-label="${date} 新任务标题"]`,
+            )
+            ?.focus();
+        }}
+        onDiscard={() => finishQuick(date, false)}
+      />
+    );
   }
   useEffect(() => {
     if (!expanded) return;
@@ -618,6 +685,7 @@ export default function App() {
                 </button>
                 <button
                   className="agenda-add"
+                  data-quick-add-trigger
                   aria-label="新增任务"
                   title="为选中日期新增任务"
                   onClick={() => startAdding(selected)}
@@ -633,7 +701,7 @@ export default function App() {
                 return (
                   <div
                     key={date}
-                    className={`agenda-day ${list.length === 0 && !addingDates.has(date) ? "agenda-empty-day" : ""} ${date === today ? "agenda-today" : ""}`}
+                    className={`agenda-day ${list.length === 0 && quickDraft?.date !== date ? "agenda-empty-day" : ""} ${date === today ? "agenda-today" : ""}`}
                   >
                     <div className="agenda-date">
                       <button onClick={() => select(date)}>
@@ -649,9 +717,10 @@ export default function App() {
                       </span>
                       <button
                         className="agenda-day-add"
+                        data-quick-add-trigger
                         aria-label={`为 ${date} 添加任务`}
                         title="添加任务"
-                        aria-expanded={addingDates.has(date)}
+                        aria-expanded={quickDraft?.date === date}
                         aria-controls={`agenda-input-${date}`}
                         onClick={() => startAdding(date)}
                       >
@@ -664,16 +733,13 @@ export default function App() {
                         task={task}
                         categories={categories}
                         onOpen={() => openTask(task)}
+                        onEdit={() => editTask(task)}
+                        onDelete={() => void guard(() => setDeleteTarget(task))}
                       />
                     ))}
-                    {addingDates.has(date) && (
+                    {quickDraft?.date === date && (
                       <div id={`agenda-input-${date}`}>
-                        <QuickAdd
-                          date={date}
-                          autoFocus
-                          onAdded={() => stopAdding(date, true)}
-                          onCancel={() => stopAdding(date)}
-                        />
+                        {quickInput(date, true)}
                       </div>
                     )}
                     {list.length > 0 && <Progress tasks={list} />}
@@ -771,18 +837,20 @@ export default function App() {
                       focusTasks[index + 1].completed !== task.completed,
                   }}
                   onMove={(delta) => void safe(() => moveTask(task, delta))}
+                  onEdit={() => editTask(task)}
+                  onDelete={() => void guard(() => setDeleteTarget(task))}
                 />
                 {expanded === task.id && (
                   <TaskReader
                     task={task}
                     categories={categories}
-                    onEdit={() => setEditing(task.id)}
+                    onEdit={() => editTask(task)}
                     onClose={() => setExpanded(null)}
                   />
                 )}
               </div>
             ))}
-            <QuickAdd key={selected} date={selected} />
+            {quickInput(selected)}
           </div>
         </main>
       )}

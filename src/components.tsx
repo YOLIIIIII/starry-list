@@ -5,8 +5,10 @@ import {
   useState,
   useImperativeHandle,
   forwardRef,
+  useId,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   Check,
   Crown,
@@ -21,6 +23,7 @@ import {
   Orbit,
   Sparkles,
   PencilLine,
+  Ellipsis,
 } from "lucide-react";
 import { taskSchema, type Category, type Task, dayProgress } from "./domain";
 import { store } from "./store";
@@ -64,18 +67,47 @@ export function QuickAdd({
   autoFocus = false,
   onAdded,
   onCancel,
+  title,
+  onTitleChange,
+  confirmCancel = false,
+  onContinue,
+  onDiscard,
+  onOutside,
 }: {
   date: string;
   autoFocus?: boolean;
   onAdded?: () => void;
   onCancel?: () => void;
+  title: string;
+  onTitleChange: (value: string) => void;
+  confirmCancel?: boolean;
+  onContinue?: () => void;
+  onDiscard?: () => void;
+  onOutside?: () => void;
 }) {
-  const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const composing = useRef(false);
+  const saving = useRef(false);
+  useEffect(() => {
+    function outside(e: PointerEvent) {
+      const target = e.target as Element;
+      if (
+        !saving.current &&
+        !composing.current &&
+        !root.current?.contains(target) &&
+        !target.closest?.("[data-quick-add-trigger]")
+      )
+        onOutside?.();
+    }
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [onOutside]);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || busy) return;
+    if (!title.trim() || saving.current || composing.current) return;
+    saving.current = true;
     setBusy(true);
     const now = new Date().toISOString();
     const tasks = store.getSnapshot().data.tasks.filter((t) => t.date === date);
@@ -93,47 +125,102 @@ export function QuickAdd({
         created_at: now,
         updated_at: now,
       });
-      setTitle("");
+      onTitleChange("");
       if (onAdded) onAdded();
       else ref.current?.focus();
     } catch {
       /* Keep the user's title on disk failure. */
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   }
   return (
-    <form className="quick-add" onSubmit={submit}>
-      <Plus size={15} />
-      <input
-        ref={ref}
-        autoFocus={autoFocus}
-        value={title}
-        maxLength={500}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.nativeEvent.isComposing) return;
-          if (e.key === "Escape") {
-            e.preventDefault();
-            e.stopPropagation();
-            setTitle("");
-            onCancel?.();
-          }
-        }}
-        placeholder="添加一件小事…"
-        aria-label={`${date} 新任务标题`}
-        disabled={busy}
-      />
-      {title && (
+    <div ref={root} className="quick-add-area">
+      <form className="quick-add" onSubmit={submit}>
+        <Plus size={15} />
+        <input
+          ref={ref}
+          autoFocus={autoFocus}
+          value={title}
+          maxLength={500}
+          onChange={(e) => onTitleChange(e.target.value)}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onCompositionEnd={() => {
+            composing.current = false;
+          }}
+          onKeyDown={(e) => {
+            if (
+              e.nativeEvent.isComposing ||
+              composing.current ||
+              e.keyCode === 229
+            ) {
+              if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
+              return;
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              onCancel?.();
+            }
+          }}
+          placeholder="添加一件小事…"
+          aria-label={`${date} 新任务标题`}
+          disabled={busy}
+        />
+        {title && (
+          <button
+            type="submit"
+            disabled={busy || !title.trim()}
+            aria-label={`添加到 ${date}`}
+          >
+            {busy ? "保存中" : "添加"}
+          </button>
+        )}
         <button
-          type="submit"
-          disabled={busy || !title.trim()}
-          aria-label={`添加到 ${date}`}
+          type="button"
+          className="quick-cancel"
+          aria-label="取消快速新增"
+          disabled={busy}
+          onClick={onCancel}
         >
-          {busy ? "保存中" : "添加"}
+          <X size={14} />
         </button>
+      </form>
+      {confirmCancel && (
+        <div
+          className="quick-draft-prompt"
+          role="group"
+          aria-label="处理未添加的任务"
+        >
+          <span>还有未添加的内容，请先添加或明确放弃，再继续。</span>
+          <div>
+            <button type="button" onClick={onContinue} disabled={busy}>
+              继续填写
+            </button>
+            <button
+              type="button"
+              className="danger subtle"
+              onClick={onDiscard}
+              disabled={busy}
+            >
+              放弃草稿
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                root.current?.querySelector("form")?.requestSubmit()
+              }
+            >
+              添加并继续
+            </button>
+          </div>
+        </div>
       )}
-    </form>
+    </div>
   );
 }
 export function TaskRow({
@@ -142,12 +229,16 @@ export function TaskRow({
   onOpen,
   order,
   onMove,
+  onEdit,
+  onDelete,
 }: {
   task: Task;
   categories: Category[];
   onOpen: () => void;
   order?: { first: boolean; last: boolean };
   onMove?: (delta: number) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const category = categories.find((c) => c.id === task.category_id);
@@ -204,7 +295,185 @@ export function TaskRow({
           </button>
         </div>
       )}
+      <TaskActions task={task} onEdit={onEdit} onDelete={onDelete} />
     </div>
+  );
+}
+function TaskActions({
+  task,
+  onEdit,
+  onDelete,
+}: {
+  task: Task;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 8, top: 8 });
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const id = useId();
+  function close(restore = true) {
+    setOpen(false);
+    if (restore) trigger.current?.focus();
+  }
+  useLayoutEffect(() => {
+    if (!open) return;
+    const rect = trigger.current!.getBoundingClientRect();
+    const width = menu.current!.offsetWidth || 176;
+    const height = menu.current!.offsetHeight || 100;
+    setPosition({
+      left: Math.max(
+        8,
+        Math.min(rect.right - width, window.innerWidth - width - 8),
+      ),
+      top: Math.max(
+        8,
+        rect.bottom + height + 8 <= window.innerHeight
+          ? rect.bottom + 5
+          : rect.top - height - 5,
+      ),
+    });
+    menu.current
+      ?.querySelector<HTMLButtonElement>("button")
+      ?.focus({ preventScroll: true });
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    function outside(e: PointerEvent) {
+      if (
+        !menu.current?.contains(e.target as Node) &&
+        !trigger.current?.contains(e.target as Node)
+      )
+        close(false);
+    }
+    function reposition(e: Event) {
+      if (e.target instanceof Node && menu.current?.contains(e.target)) return;
+      const rect = trigger.current?.getBoundingClientRect();
+      if (!rect || rect.bottom <= 0 || rect.top >= window.innerHeight) {
+        close(false);
+        return;
+      }
+      const width = menu.current?.offsetWidth || 176;
+      const height = menu.current?.offsetHeight || 100;
+      setPosition({
+        left: Math.max(
+          8,
+          Math.min(rect.right - width, window.innerWidth - width - 8),
+        ),
+        top: Math.max(
+          8,
+          rect.bottom + height + 8 <= window.innerHeight
+            ? rect.bottom + 5
+            : rect.top - height - 5,
+        ),
+      });
+    }
+    document.addEventListener("pointerdown", outside);
+    window.addEventListener("resize", reposition);
+    document.addEventListener("scroll", reposition, true);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      window.removeEventListener("resize", reposition);
+      document.removeEventListener("scroll", reposition, true);
+    };
+  }, [open]);
+  return (
+    <>
+      <button
+        ref={trigger}
+        className="task-actions-trigger"
+        aria-label={`任务操作 ${task.title}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        title="任务操作"
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+      >
+        <Ellipsis size={17} />
+      </button>
+      {open &&
+        createPortal(
+          <div
+            ref={menu}
+            id={id}
+            className="task-actions-menu"
+            role="menu"
+            aria-label={`${task.title} 操作菜单`}
+            style={position}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                close();
+              } else if (e.key === "Tab") {
+                e.preventDefault();
+                const buttons = Array.from(
+                  document.querySelectorAll<HTMLElement>(
+                    'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]',
+                  ),
+                ).filter(
+                  (el) =>
+                    !menu.current?.contains(el) &&
+                    el.getClientRects().length > 0,
+                );
+                const index = buttons.indexOf(trigger.current!);
+                close(false);
+                buttons[index + (e.shiftKey ? -1 : 1)]?.focus();
+              } else if (
+                ["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)
+              ) {
+                e.preventDefault();
+                const buttons = Array.from(
+                  menu.current!.querySelectorAll("button"),
+                );
+                const index = buttons.indexOf(
+                  document.activeElement as HTMLButtonElement,
+                );
+                buttons[
+                  e.key === "Home"
+                    ? 0
+                    : e.key === "End"
+                      ? buttons.length - 1
+                      : (index +
+                          (e.key === "ArrowDown" ? 1 : -1) +
+                          buttons.length) %
+                        buttons.length
+                ]?.focus();
+              }
+            }}
+          >
+            <button
+              role="menuitem"
+              onClick={() => {
+                close();
+                onEdit();
+              }}
+            >
+              <PencilLine size={15} />
+              编辑任务
+            </button>
+            <button
+              role="menuitem"
+              className="danger"
+              onClick={() => {
+                close();
+                onDelete();
+              }}
+            >
+              <Trash2 size={15} />
+              删除任务
+            </button>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 export function TaskReader({

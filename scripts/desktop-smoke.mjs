@@ -113,6 +113,135 @@ try {
     .press("Enter");
   const snap = await invoke("load_snapshot");
   assert.equal(snap.tasks.length, 2);
+  // Round two UX: all mutations below remain in the verified isolated database.
+  await click(`为 ${nextDay} 添加任务`);
+  await page.getByRole("textbox", { name: nextDate, exact: true }).fill("   ");
+  await page.getByRole("heading", { name: /接下来七天/ }).click();
+  assert.equal(await page.locator(".agenda-scroll input").count(), 0);
+  await click(`为 ${nextDay} 添加任务`);
+  await click(`为 ${nextDay} 添加任务`);
+  assert.equal(await page.locator(".agenda-scroll input").count(), 0);
+  await click(`为 ${today} 添加任务`);
+  await click(`为 ${nextDay} 添加任务`);
+  assert.equal(await page.locator(".agenda-scroll input").count(), 1);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".agenda-scroll input").count(), 0);
+  results.push(
+    "Native pointer/focus ordering: empty outside click, same plus, Escape and unique quick-add region",
+  );
+  await click(`为 ${nextDay} 添加任务`);
+  await page
+    .getByRole("textbox", { name: nextDate, exact: true })
+    .fill("整理下周计划");
+  await page.getByRole("heading", { name: /接下来七天/ }).click();
+  assert.equal(
+    await page
+      .getByRole("textbox", { name: nextDate, exact: true })
+      .inputValue(),
+    "整理下周计划",
+  );
+  await click("下一周");
+  await page.getByRole("group", { name: "处理未添加的任务" }).waitFor();
+  await page.screenshot({ path: resolve(screenshots, "quick-add.png") });
+  const roundTwoDb = new DatabaseSync(resolve(testDir, "starry-list.db"));
+  try {
+    roundTwoDb.exec(
+      "CREATE TRIGGER ux2_insert_failure BEFORE INSERT ON tasks BEGIN SELECT RAISE(ABORT,'UX2 INSERT failure'); END;",
+    );
+    await click("添加并继续");
+    await page
+      .getByText(/UX2 INSERT failure/)
+      .first()
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("textbox", { name: nextDate, exact: true })
+        .inputValue(),
+      "整理下周计划",
+    );
+    assert.equal((await invoke("load_snapshot")).tasks.length, 2);
+  } finally {
+    roundTwoDb.exec("DROP TRIGGER IF EXISTS ux2_insert_failure");
+    roundTwoDb.close();
+  }
+  await click("添加并继续");
+  await page
+    .getByRole("textbox", { name: nextDate, exact: true })
+    .waitFor({ state: "detached" });
+  const addedSnapshot = await invoke("load_snapshot");
+  const probe = addedSnapshot.tasks.find((t) => t.title === "整理下周计划");
+  assert.equal(probe.date, nextDay);
+  await invoke("delete_task", { id: probe.id });
+  await page.reload();
+  await page.getByRole("region", { name: "七天日程" }).waitFor();
+  await click("七天日程回到今天");
+  results.push(
+    "Native nonempty draft protection across range changes, real SQLite INSERT failure retains draft, retry persists original date then continues",
+  );
+  const beforeDelete = (await invoke("load_snapshot")).tasks.find(
+    (t) => t.title === title,
+  );
+  await click(`任务操作 ${title}`);
+  await page.getByRole("menuitem", { name: "删除任务" }).click();
+  await click("保留");
+  assert.equal((await invoke("load_snapshot")).tasks.length, 2);
+  await click(`任务操作 ${title}`);
+  await page.screenshot({ path: resolve(screenshots, "task-menu.png") });
+  await page.getByRole("menuitem", { name: "删除任务" }).click();
+  const deleteDb = new DatabaseSync(resolve(testDir, "starry-list.db"));
+  try {
+    deleteDb.exec(
+      "CREATE TRIGGER ux2_delete_failure BEFORE DELETE ON tasks BEGIN SELECT RAISE(ABORT,'UX2 DELETE failure'); END;",
+    );
+    await page
+      .getByRole("dialog", { name: "删除这件任务？" })
+      .getByRole("button", { name: "删除任务", exact: true })
+      .click();
+    await page
+      .getByText(/UX2 DELETE failure/)
+      .first()
+      .waitFor();
+    assert.equal((await invoke("load_snapshot")).tasks.length, 2);
+    assert.equal(
+      await page.getByText("任务已删除", { exact: true }).count(),
+      0,
+    );
+  } finally {
+    deleteDb.exec("DROP TRIGGER IF EXISTS ux2_delete_failure");
+    deleteDb.close();
+  }
+  await page
+    .getByRole("dialog", { name: "删除这件任务？" })
+    .getByRole("button", { name: "删除任务", exact: true })
+    .click();
+  await page.getByRole("button", { name: "撤销", exact: true }).waitFor();
+  assert.equal((await invoke("load_snapshot")).tasks.length, 1);
+  await click("撤销");
+  await page.getByText("任务已恢复", { exact: true }).waitFor();
+  assert.deepEqual(
+    (await invoke("load_snapshot")).tasks.find((t) => t.id === beforeDelete.id),
+    beforeDelete,
+  );
+  await click(`任务操作 ${title}`);
+  await page.getByRole("menuitem", { name: "编辑任务" }).click();
+  assert.equal(
+    await page.getByLabel("任务日期", { exact: true }).inputValue(),
+    today,
+  );
+  await click("取消");
+  await click(`任务操作 ${title}`);
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Escape");
+  assert.equal(
+    await page.evaluate(() =>
+      document.activeElement.getAttribute("aria-label"),
+    ),
+    `任务操作 ${title}`,
+  );
+  await click("统筹总览");
+  results.push(
+    "Native task menu: overview edit targets correct date, focus keyboard/Escape restores focus, cancellation, real SQLite DELETE failure, retry and complete undo",
+  );
   assert.notEqual(snap.tasks[0].date, snap.tasks[1].date);
   results.push(
     "7-day quick add binds group date; real SQLite contains both tasks",
@@ -427,6 +556,51 @@ try {
       await page.getByRole("region", { name: "七天日程" }).isVisible(),
       true,
     );
+    await click(`任务操作 ${title}`);
+    const menuMetrics = await page.getByRole("menu").evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        r.x + r.width / 2,
+        r.y + r.height / 2,
+      );
+      return {
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        bottom: r.bottom,
+        width: innerWidth,
+        height: innerHeight,
+        visibleHit: el.contains(hit),
+        parentIsBody: el.parentElement === document.body,
+      };
+    });
+    assert.ok(
+      menuMetrics.left >= 0 &&
+        menuMetrics.right <= menuMetrics.width &&
+        menuMetrics.top >= 0 &&
+        menuMetrics.bottom <= menuMetrics.height,
+      `Menu clipped at ${width}`,
+    );
+    assert.equal(menuMetrics.visibleHit, true);
+    assert.equal(menuMetrics.parentIsBody, true);
+    await page.keyboard.press("Escape");
+    await click(`为 ${today} 添加任务`);
+    const fontMetrics = await page.evaluate(() => {
+      const input = document.querySelector(".quick-add input");
+      return {
+        input: getComputedStyle(input).fontSize,
+        placeholder: getComputedStyle(input, "::placeholder").fontSize,
+        task: getComputedStyle(
+          document.querySelector(".agenda-panel .task-open"),
+        ).fontSize,
+      };
+    });
+    assert.deepEqual(fontMetrics, {
+      input: "15px",
+      placeholder: "15px",
+      task: "15px",
+    });
+    await page.keyboard.press("Escape");
     if (width === 380)
       await page.screenshot({ path: resolve(screenshots, "compact.png") });
   }

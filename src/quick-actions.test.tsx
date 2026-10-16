@@ -6,7 +6,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { UndoToast } from "./quick-actions";
+import { NotificationRail, UndoToast } from "./quick-actions";
 import { makeTask } from "./test-fixtures";
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -25,9 +25,9 @@ describe("独立撤销提示计时", () => {
     );
     return { close, undo, toast: screen.getByRole("status") };
   }
-  it("八秒后结束操作窗口，不执行数据库撤销", () => {
+  it("五秒后结束操作窗口，不执行数据库撤销", () => {
     const { close, undo } = setup();
-    act(() => vi.advanceTimersByTime(7999));
+    act(() => vi.advanceTimersByTime(4999));
     expect(close).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(1));
     expect(close).toHaveBeenCalledOnce();
@@ -44,7 +44,32 @@ describe("独立撤销提示计时", () => {
     act(() => vi.advanceTimersByTime(12000));
     expect(close).not.toHaveBeenCalled();
     fireEvent.blur(toast, { relatedTarget: document.body });
-    act(() => vi.advanceTimersByTime(4999));
+    act(() => vi.advanceTimersByTime(1999));
+    expect(close).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(close).toHaveBeenCalledOnce();
+  });
+  it("弹窗隐藏通知时暂停，恢复后继续剩余时间", () => {
+    const close = vi.fn();
+    const entry = { id: "pause", kind: "added" as const, task: makeTask() };
+    const ui = (suspended: boolean) => (
+      <NotificationRail count={1} suspended={suspended}>
+        <UndoToast
+          entry={entry}
+          onUndo={async () => {}}
+          onClose={close}
+          suspended={suspended}
+        />
+      </NotificationRail>
+    );
+    const { rerender } = render(ui(false));
+    act(() => vi.advanceTimersByTime(2000));
+    rerender(ui(true));
+    expect(screen.queryByRole("status")).toBeNull();
+    act(() => vi.advanceTimersByTime(20000));
+    expect(close).not.toHaveBeenCalled();
+    rerender(ui(false));
+    act(() => vi.advanceTimersByTime(2999));
     expect(close).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(1));
     expect(close).toHaveBeenCalledOnce();

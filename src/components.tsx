@@ -74,6 +74,7 @@ export const QuickAdd = forwardRef<
     date: string;
     autoFocus?: boolean;
     onAdded?: (task: Task) => void;
+    onEnterSubmit?: () => (() => void) | undefined;
     onCancel?: () => void;
     title: string;
     onTitleChange: (value: string) => void;
@@ -87,6 +88,7 @@ export const QuickAdd = forwardRef<
     date,
     autoFocus = false,
     onAdded,
+    onEnterSubmit,
     onCancel,
     title,
     onTitleChange,
@@ -172,7 +174,7 @@ export const QuickAdd = forwardRef<
       document.removeEventListener("click", outside);
     };
   }, [onOutside]);
-  async function save() {
+  async function save(afterSaved?: () => void) {
     if (composing.current) return false;
     if (saving.current) return saving.current;
     if (!title.trim() || committed.current) return true;
@@ -199,6 +201,7 @@ export const QuickAdd = forwardRef<
         onTitleChange("");
         if (onAdded) onAdded(task);
         else ref.current?.focus();
+        afterSaved?.();
         return true;
       })
       .catch(() => {
@@ -274,6 +277,11 @@ export const QuickAdd = forwardRef<
               cancelled.current = true;
               deferred.current = false;
               onCancel?.();
+            }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!e.repeat) void save(onEnterSubmit?.());
             }
           }}
           placeholder="添加一件小事…"

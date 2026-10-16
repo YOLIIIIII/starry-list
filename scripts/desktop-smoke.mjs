@@ -104,6 +104,45 @@ try {
     0,
   );
   const nextDay = shiftDay(today, 1);
+  await invoke("plugin:window|set_focus", { label: "main" });
+  // Enter returns to its own date only after the actual SQLite INSERT succeeds.
+  for (const date of [today, nextDay, shiftDay(today, 3)]) {
+    await click(`为 ${date} 添加任务`);
+    const ids = [];
+    for (let index = 0; index < 3; index++) {
+      const input = page.getByRole("textbox", {
+        name: `${date} 新任务标题`,
+        exact: true,
+      });
+      const text = `UX23 连续新增 ${date} ${index}`;
+      await input.fill(text);
+      await input.press("Enter");
+      await page.waitForFunction(
+        (date) =>
+          document.activeElement?.getAttribute("aria-label") ===
+          `为 ${date} 添加任务`,
+        date,
+      );
+      assert.equal(
+        await input.count(),
+        0,
+        "First Enter only saves, never reopens",
+      );
+      const saved = (await invoke("load_snapshot")).tasks.filter(
+        (task) => task.title === text,
+      );
+      assert.equal(saved.length, 1);
+      assert.equal(saved[0].date, date);
+      ids.push(saved[0].id);
+      if (index < 2) await page.keyboard.press("Enter");
+    }
+    for (const id of ids) await invoke("delete_task", { id });
+    await page.reload();
+    await page.getByRole("region", { name: "七天日程" }).waitFor();
+  }
+  results.push(
+    "UX2.3 native Enter/second Enter adds three tasks each to three original dates, with correct focus return and no duplicates",
+  );
   const nextDate = `${nextDay} 新任务标题`;
   await click(`为 ${nextDay} 添加任务`);
   await page
@@ -218,6 +257,11 @@ try {
     );
     assert.equal(added.length, 1);
     assert.equal(added[0].date, nextDay);
+    assert.equal(
+      await invoke("plugin:window|is_focused", { label: "main" }),
+      false,
+      "Autosave must not reactivate Starry List",
+    );
   } finally {
     await otherBrowser.close();
   }
@@ -331,6 +375,7 @@ try {
       .getByRole("status", { name: `已删除 ${task.title}`, exact: true })
       .waitFor();
   }
+  await page.getByRole("button", { name: "下一条通知（共 2 条）" }).click();
   const toastA = page.getByRole("status", {
     name: "已删除 UX22 独立撤销甲",
     exact: true,
@@ -347,7 +392,7 @@ try {
   );
   await toastA.getByRole("button", { name: "撤销", exact: true }).focus();
   await page.mouse.move(5, 5);
-  await page.waitForTimeout(8300);
+  await page.waitForTimeout(5300);
   assert.equal(await toastA.count(), 1);
   assert.equal(await toastB.count(), 0);
   assert.equal((await invoke("load_snapshot")).tasks.length, 2);
@@ -366,7 +411,84 @@ try {
   await page.reload();
   await page.getByRole("region", { name: "七天日程" }).waitFor();
   results.push(
-    "UX2.2 native independent deletion toasts: 8-second expiry, hover/focus pause and real complete task restore",
+    "UX2.2 native independent deletion toasts: 5-second expiry, hover/focus pause and real complete task restore",
+  );
+  await click(`为 ${today} 添加任务`);
+  await page
+    .getByRole("textbox", { name: `${today} 新任务标题`, exact: true })
+    .fill("UX23 通知布局检查");
+  await page.keyboard.press("Enter");
+  const layoutToast = page.getByRole("status", {
+    name: "已添加 UX23 通知布局检查",
+    exact: true,
+  });
+  await layoutToast.hover();
+  for (const view of ["统筹总览", "专注编辑"]) {
+    await click(view);
+    for (const width of [980, 860, 760, 500, 380]) {
+      await invoke("plugin:window|set_size", {
+        label: "main",
+        value: { Logical: { width, height: 680 } },
+      });
+      await page.waitForTimeout(100);
+      await layoutToast.hover();
+      const geometry = await page.evaluate(() => {
+        const region = document.querySelector(".notification-region");
+        const rect = region.getBoundingClientRect();
+        const overlaps = [
+          ...document.querySelectorAll(
+            ".brand,.window-buttons,.view-switch,.nav-buttons,.quick-add,.section-heading h1,.focus-heading h1",
+          ),
+        ]
+          .filter((el) => {
+            const b = el.getBoundingClientRect();
+            return (
+              b.width &&
+              b.height &&
+              rect.left < b.right &&
+              rect.right > b.left &&
+              rect.top < b.bottom &&
+              rect.bottom > b.top
+            );
+          })
+          .map((el) => el.className || el.tagName);
+        return {
+          overlaps,
+          centered: Math.abs((rect.left + rect.right) / 2 - innerWidth / 2) < 1,
+          clickThrough: !document
+            .elementFromPoint(5, rect.top + 12)
+            ?.closest(".notification-region"),
+          height: rect.height,
+        };
+      });
+      assert.deepEqual(
+        geometry.overlaps,
+        [],
+        `${view} ${width}px notification overlaps controls`,
+      );
+      assert.equal(geometry.centered, true);
+      assert.equal(geometry.clickThrough, true);
+      assert.equal(geometry.height, 24);
+    }
+  }
+  await page.getByRole("button", { name: title, exact: true }).click();
+  await click("编辑");
+  assert.equal(
+    await layoutToast.count(),
+    0,
+    "Drawer hides notifications without destroying undo state",
+  );
+  await page.waitForTimeout(5300);
+  await click("取消");
+  await layoutToast.getByRole("button", { name: "撤销", exact: true }).click();
+  assert.equal((await invoke("load_snapshot")).tasks.length, 2);
+  await click("统筹总览");
+  await invoke("plugin:window|set_size", {
+    label: "main",
+    value: { Logical: { width: 980, height: 680 } },
+  });
+  results.push(
+    "UX2.3 top-center compact notifications avoid primary controls at 980/860/760/500/380px in both views; outside hit testing passes, drawer hides/pauses undo beyond five seconds",
   );
   const beforeDelete = (await invoke("load_snapshot")).tasks.find(
     (t) => t.title === title,

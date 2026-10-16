@@ -6,6 +6,7 @@ import {
   within,
   waitFor,
   fireEvent,
+  act,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { defaults, type Snapshot, type Task } from "./domain";
@@ -88,6 +89,139 @@ async function startFocus() {
   await user.click(screen.getByRole("button", { name: "今天" }));
   return user;
 }
+describe("UX2.3 连续新增焦点", () => {
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  });
+  afterEach(() => {
+    vi.mocked(document.hasFocus).mockRestore();
+  });
+  async function setup(date = "2026-10-16") {
+    const user = userEvent.setup();
+    render(<App />);
+    const plus = await screen.findByRole("button", {
+      name: `为 ${date} 添加任务`,
+    });
+    await user.click(plus);
+    return {
+      user,
+      plus,
+      input: screen.getByRole("textbox", { name: `${date} 新任务标题` }),
+    };
+  }
+  it.each(["2026-10-14", "2026-10-16", "2026-10-19"])(
+    "%s Enter 成功才返回原加号，第二次 Enter 可连续新增三条",
+    async (date) => {
+      const { user, plus } = await setup(date);
+      for (let index = 0; index < 3; index++) {
+        const input = screen.getByRole("textbox", {
+          name: `${date} 新任务标题`,
+        });
+        await user.type(input, `连续新增${index}`);
+        await user.keyboard("{Enter}");
+        await waitFor(() => expect(document.activeElement).toBe(plus));
+        expect(
+          screen.queryByRole("textbox", { name: `${date} 新任务标题` }),
+        ).toBeNull();
+        if (index < 2) await user.keyboard("{Enter}");
+      }
+      expect(
+        backend
+          .data!.tasks.filter((t) => t.title.startsWith("连续新增"))
+          .map((t) => t.date),
+      ).toEqual([date, date, date]);
+    },
+  );
+  it.each(["pointer", "blur", "navigation", "tab"])(
+    "异步保存中的 %s 取消迟到的焦点恢复",
+    async (intent) => {
+      const { user, plus, input } = await setup();
+      await user.type(input, "慢速保存");
+      let finish!: () => void;
+      backend.saveWait = new Promise<void>((r) => {
+        finish = r;
+      });
+      try {
+        await user.keyboard("{Enter}");
+        expect(document.activeElement).not.toBe(plus);
+        if (intent === "pointer")
+          await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
+        if (intent === "blur") fireEvent(window, new Event("blur"));
+        if (intent === "navigation")
+          await user.click(screen.getByRole("button", { name: "专注编辑" }));
+        if (intent === "tab") await user.tab();
+      } finally {
+        await act(async () => {
+          finish();
+        });
+      }
+      await waitFor(() =>
+        expect(backend.data!.tasks.some((t) => t.title === "慢速保存")).toBe(
+          true,
+        ),
+      );
+      await new Promise((r) => setTimeout(r, 50));
+      expect(document.activeElement).not.toBe(plus);
+      expect(
+        backend.data!.tasks.filter((t) => t.title === "慢速保存"),
+      ).toHaveLength(1);
+    },
+  );
+  it("输入 Enter 失败保留草稿，重试成功才恢复焦点", async () => {
+    const { user, plus, input } = await setup();
+    await user.type(input, "失败重试");
+    backend.fail = true;
+    await user.keyboard("{Enter}");
+    await screen.findByRole("button", { name: "添加到 2026-10-16" });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "添加到 2026-10-16" }).textContent,
+      ).toBe("重试添加"),
+    );
+    expect(input).toHaveProperty("value", "失败重试");
+    expect(document.activeElement).not.toBe(plus);
+    backend.fail = false;
+    await user.click(input);
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(document.activeElement).toBe(plus));
+  });
+  it("按住第一次 Enter 不提前返回加号或重复添加，释放后才返回", async () => {
+    const { user, plus, input } = await setup();
+    await user.type(input, "长按 Enter");
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.keyDown(input, { key: "Enter", repeat: true });
+    await waitFor(() =>
+      expect(backend.data!.tasks.some((t) => t.title === "长按 Enter")).toBe(
+        true,
+      ),
+    );
+    expect(document.activeElement).not.toBe(plus);
+    fireEvent.keyUp(document, { key: "Enter" });
+    await waitFor(() => expect(document.activeElement).toBe(plus));
+    expect(
+      backend.data!.tasks.filter((t) => t.title === "长按 Enter"),
+    ).toHaveLength(1);
+  });
+  it.each(["button", "outside"])("%s 新增成功不返回旧加号", async (source) => {
+    const { user, plus, input } = await setup();
+    await user.type(input, "非键盘主动保存");
+    if (source === "button")
+      await user.click(
+        screen.getByRole("button", { name: "添加到 2026-10-16" }),
+      );
+    else await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
+    await waitFor(() =>
+      expect(
+        backend.data!.tasks.some((t) => t.title === "非键盘主动保存"),
+      ).toBe(true),
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    expect(document.activeElement).not.toBe(plus);
+    expect(
+      screen.queryByRole("textbox", { name: "2026-10-16 新任务标题" }),
+    ).toBeNull();
+  });
+});
 describe("双视图实际交互", () => {
   it("中文输入法组合期间 Escape 不清空详情草稿", async () => {
     const user = await startFocus();

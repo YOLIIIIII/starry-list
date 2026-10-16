@@ -1,9 +1,11 @@
 import {
   InlineTitleEditor,
+  NotificationRail,
   UndoToast,
   type InlineTitleHandle,
   type UndoEntry,
 } from "./quick-actions";
+import { useEnterReturn } from "./use-enter-return";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CalendarDays,
@@ -68,6 +70,11 @@ const pretty = (date: string, pattern: string) =>
 export default function App() {
   const { data, loading, initialized, error, pending } = useStore();
   const { settings, tasks, categories, day_marks } = data;
+  const {
+    buttons: dayAddButtons,
+    prepare: prepareEnterReturn,
+    cancel: cancelEnterReturn,
+  } = useEnterReturn(settings.active_view);
   const [today, setToday] = useState(() => dayKey(new Date()));
   const [selected, setSelected] = useState(today);
   const [month, setMonth] = useState(today);
@@ -114,6 +121,7 @@ export default function App() {
     }
   };
   async function guard(action: () => void | Promise<void>) {
+    cancelEnterReturn();
     if (
       transition.current ||
       quick.current?.isComposing() ||
@@ -192,7 +200,10 @@ export default function App() {
     let unlisten: (() => void) | undefined;
     void getCurrentWindow()
       .onFocusChanged(({ payload }) => {
-        if (!payload) quick.current?.focusLost();
+        if (!payload) {
+          cancelEnterReturn();
+          quick.current?.focusLost();
+        }
       })
       .then((fn) => {
         if (disposed) fn();
@@ -203,7 +214,7 @@ export default function App() {
       disposed = true;
       unlisten?.();
     };
-  }, []);
+  }, [cancelEnterReturn]);
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(""), 4000);
@@ -304,6 +315,7 @@ export default function App() {
         ref={quick}
         date={date}
         autoFocus={autoFocus}
+        onEnterSubmit={() => prepareEnterReturn(date)}
         title={quickDraft?.date === date ? quickDraft.title : ""}
         onTitleChange={(title) => setQuickDraft({ date, title })}
         onAdded={(task) => finishQuick(date, true, task)}
@@ -755,6 +767,10 @@ export default function App() {
                       </span>
                       <button
                         className="agenda-day-add"
+                        ref={(button) => {
+                          if (button) dayAddButtons.current.set(date, button);
+                          else dayAddButtons.current.delete(date);
+                        }}
                         data-quick-add-trigger
                         aria-label={`为 ${date} 添加任务`}
                         title="添加任务"
@@ -968,11 +984,17 @@ export default function App() {
           />
         ))}
       </div>
-      <div className="toast-stack" aria-label="操作通知">
+      <NotificationRail
+        count={undos.length + (notice ? 1 : 0)}
+        suspended={Boolean(editing || deleteTarget || settingsOpen || backup)}
+      >
         {undos.map((entry) => (
           <UndoToast
             key={entry.id}
             entry={entry}
+            suspended={Boolean(
+              editing || deleteTarget || settingsOpen || backup,
+            )}
             onClose={() => closeUndo(entry.id)}
             onUndo={async () => {
               if (entry.kind === "deleted") {
@@ -994,7 +1016,7 @@ export default function App() {
             </button>
           </div>
         )}
-      </div>
+      </NotificationRail>
       {deleteTarget && (
         <Dialog
           title="删除这件任务？"
@@ -1003,7 +1025,7 @@ export default function App() {
         >
           <p className="dialog-copy">
             “{deleteTarget.title}”<br />
-            删除后可以通过底部通知撤销。
+            删除后可以通过顶部通知撤销。
           </p>
           <div className="dialog-actions">
             <button onClick={() => setDeleteTarget(null)}>保留</button>

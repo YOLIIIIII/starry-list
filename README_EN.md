@@ -72,7 +72,7 @@ No accounts, cloud services, telemetry, remote fonts or network icons. Data is u
 
 See the [roadmap](docs/ROADMAP.md), [product backlog](docs/PRODUCT_BACKLOG.md) and [decision log](docs/DECISIONS.md) (Chinese). The Markdown backlog is the authoritative source for detailed requirements, priorities, states and acceptance criteria. Recording a request does not authorize implementation; no unassessed version scope or release date is promised.
 
-UX2.2 adds reliable quick-add saving on region/native-window blur, independent timed undo notifications and inline agenda title editing (SL-021). The existing 14px text remains unchanged. These changes remain In Review pending user acceptance. Daily stars (SL-022) and the galaxy/orbit space (SL-023) are planning only. See the backlog and validation record for current evidence.
+UX2.3 restores keyboard focus to the original date's add button after a successful Enter submission and moves independent undo notifications to a compact top-center area with a five-second lifetime. SL-002 / SL-019 remain In Review. Inline agenda title editing (SL-021) is Done following user confirmation, but has not been formally released. The existing 14px text and SL-004-A review status remain unchanged. Daily stars (SL-022) and the galaxy/orbit space (SL-023) are planning only. See the backlog and validation record for current evidence.
 
 The initial V1.0 source is pushed. First-round UX changes are recorded separately in implementation commit [`23a7cd3`](https://github.com/YOLIIIIII/starry-list/commit/23a7cd3941a28d0724e254ca7b9bb71c9b8fd5c8); SL-001 / SL-002 remain In Review pending final user acceptance. There is no published GitHub Release. Planned capabilities are not implemented features.
 

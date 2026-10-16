@@ -66,13 +66,14 @@ export interface QuickAddHandle {
   save(): Promise<boolean>;
   isComposing(): boolean;
   isSaving(): boolean;
+  focusLost(): void;
 }
 export const QuickAdd = forwardRef<
   QuickAddHandle,
   {
     date: string;
     autoFocus?: boolean;
-    onAdded?: () => void;
+    onAdded?: (task: Task) => void;
     onCancel?: () => void;
     title: string;
     onTitleChange: (value: string) => void;
@@ -101,51 +102,112 @@ export const QuickAdd = forwardRef<
   const root = useRef<HTMLDivElement>(null);
   const composing = useRef(false);
   const saving = useRef<Promise<boolean> | null>(null);
+  const deferred = useRef(false);
+  const cancelled = useRef(false);
+  const committed = useRef(false);
+  const pointerGesture = useRef(false);
+  const alive = useRef(true);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const [failed, setFailed] = useState(false);
+  const latest = useRef({ save, focusLost, date });
+  latest.current = { save, focusLost, date };
+  function focusLost() {
+    if (!composing.current && !title.trim()) {
+      onOutside?.();
+      return;
+    }
+    if (cancelled.current || confirmCancel) return;
+    if (composing.current) {
+      deferred.current = true;
+      return;
+    }
+    deferred.current = false;
+    void save();
+  }
+  function scheduleBlur() {
+    clearTimeout(blurTimer.current);
+    const origin = date;
+    blurTimer.current = setTimeout(() => {
+      if (latest.current.date === origin) latest.current.focusLost();
+    }, 0);
+  }
   useEffect(() => {
-    function outside(e: PointerEvent) {
+    alive.current = true;
+    const blur = () => latest.current.focusLost();
+    window.addEventListener("blur", blur);
+    return () => {
+      alive.current = false;
+      window.removeEventListener("blur", blur);
+      clearTimeout(blurTimer.current);
+    };
+  }, []);
+  useEffect(() => {
+    function outside(e: MouseEvent) {
       const target = e.target as Element;
       if (
-        !saving.current &&
-        !composing.current &&
         !root.current?.contains(target) &&
+        !e.composedPath().includes(root.current as EventTarget) &&
         !target.closest?.("[data-quick-add-trigger]")
       )
-        onOutside?.();
+        latest.current.focusLost();
     }
-    document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
+    const down = () => {
+      pointerGesture.current = true;
+    };
+    const up = () => {
+      pointerGesture.current = false;
+    };
+    // Finish the click before collapsing a row, so a date button cannot move
+    // away between pointerdown and pointerup. Keyboard blur still saves below.
+    document.addEventListener("pointerdown", down);
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
+    document.addEventListener("click", outside);
+    return () => {
+      document.removeEventListener("pointerdown", down);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+      document.removeEventListener("click", outside);
+    };
   }, [onOutside]);
   async function save() {
     if (composing.current) return false;
     if (saving.current) return saving.current;
-    if (!title.trim()) return true;
+    if (!title.trim() || committed.current) return true;
     setBusy(true);
     const now = new Date().toISOString();
     const tasks = store.getSnapshot().data.tasks.filter((t) => t.date === date);
+    const task: Task = {
+      id: crypto.randomUUID(),
+      date,
+      title: title.trim(),
+      short_label: null,
+      description: null,
+      completed: false,
+      priority: 0,
+      category_id: null,
+      sort_order: Math.max(-1, ...tasks.map((t) => t.sort_order)) + 1,
+      created_at: now,
+      updated_at: now,
+    };
     const operation = store
-      .add({
-        id: crypto.randomUUID(),
-        date,
-        title: title.trim(),
-        short_label: null,
-        description: null,
-        completed: false,
-        priority: 0,
-        category_id: null,
-        sort_order: Math.max(-1, ...tasks.map((t) => t.sort_order)) + 1,
-        created_at: now,
-        updated_at: now,
-      })
+      .add(task)
       .then(() => {
+        committed.current = true;
         onTitleChange("");
-        if (onAdded) onAdded();
+        if (onAdded) onAdded(task);
         else ref.current?.focus();
         return true;
       })
-      .catch(() => false)
+      .catch(() => {
+        if (alive.current) setFailed(true);
+        return false;
+      })
       .finally(() => {
         saving.current = null;
-        setBusy(false);
+        if (alive.current) setBusy(false);
       });
     saving.current = operation;
     return operation;
@@ -154,9 +216,23 @@ export const QuickAdd = forwardRef<
     save,
     isComposing: () => composing.current,
     isSaving: () => saving.current !== null,
+    focusLost,
   }));
   return (
-    <div ref={root} className="quick-add-area">
+    <div
+      ref={root}
+      className="quick-add-area"
+      onBlur={(e) => {
+        if (saving.current || pointerGesture.current) return;
+        if (
+          !e.currentTarget.contains(e.relatedTarget as Node | null) &&
+          !(e.relatedTarget as Element | null)?.closest?.(
+            "[data-quick-add-trigger]",
+          )
+        )
+          scheduleBlur();
+      }}
+    >
       <form
         className="quick-add"
         onSubmit={(e) => {
@@ -170,12 +246,18 @@ export const QuickAdd = forwardRef<
           autoFocus={autoFocus}
           value={title}
           maxLength={500}
-          onChange={(e) => onTitleChange(e.target.value)}
+          onChange={(e) => {
+            committed.current = false;
+            cancelled.current = false;
+            setFailed(false);
+            onTitleChange(e.target.value);
+          }}
           onCompositionStart={() => {
             composing.current = true;
           }}
           onCompositionEnd={() => {
             composing.current = false;
+            if (deferred.current) scheduleBlur();
           }}
           onKeyDown={(e) => {
             if (
@@ -189,6 +271,8 @@ export const QuickAdd = forwardRef<
             if (e.key === "Escape") {
               e.preventDefault();
               e.stopPropagation();
+              cancelled.current = true;
+              deferred.current = false;
               onCancel?.();
             }
           }}
@@ -202,7 +286,7 @@ export const QuickAdd = forwardRef<
             disabled={busy || !title.trim()}
             aria-label={`添加到 ${date}`}
           >
-            {busy ? "保存中" : "添加"}
+            {busy ? "保存中" : failed ? "重试添加" : "添加"}
           </button>
         )}
         <button
@@ -210,7 +294,14 @@ export const QuickAdd = forwardRef<
           className="quick-cancel"
           aria-label="取消快速新增"
           disabled={busy}
-          onClick={onCancel}
+          onPointerDown={() => {
+            cancelled.current = true;
+            deferred.current = false;
+          }}
+          onClick={() => {
+            cancelled.current = true;
+            onCancel?.();
+          }}
         >
           <X size={14} />
         </button>
@@ -223,7 +314,14 @@ export const QuickAdd = forwardRef<
         >
           <span>要放弃这条尚未添加的任务吗？</span>
           <div>
-            <button type="button" onClick={onContinue} disabled={busy}>
+            <button
+              type="button"
+              onClick={() => {
+                cancelled.current = false;
+                onContinue?.();
+              }}
+              disabled={busy}
+            >
               继续填写
             </button>
             <button
@@ -249,6 +347,8 @@ export function TaskRow({
   onEdit,
   onDelete,
   actionMode = "menu",
+  onQuickEdit,
+  inlineEditor,
 }: {
   task: Task;
   categories: Category[];
@@ -258,6 +358,8 @@ export function TaskRow({
   onEdit: () => void;
   onDelete: () => void;
   actionMode?: "menu" | "delete";
+  onQuickEdit?: () => void;
+  inlineEditor?: ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
   const category = categories.find((c) => c.id === task.category_id);
@@ -285,17 +387,33 @@ export function TaskRow({
       >
         {task.completed ? <Check size={13} /> : <Circle size={17} />}
       </button>
-      <button className="task-open" onClick={onOpen} title={task.title}>
-        <span className="task-title">{task.title}</span>
-        <span className="task-meta">
-          <Priority value={task.priority} />
-          {category && (
-            <span className="category-label" style={{ color: category.color }}>
-              {category.name}
-            </span>
-          )}
-        </span>
-      </button>
+      {inlineEditor ?? (
+        <button className="task-open" onClick={onOpen} title={task.title}>
+          <span className="task-title">{task.title}</span>
+          <span className="task-meta">
+            <Priority value={task.priority} />
+            {category && (
+              <span
+                className="category-label"
+                style={{ color: category.color }}
+              >
+                {category.name}
+              </span>
+            )}
+          </span>
+        </button>
+      )}
+      {onQuickEdit && !inlineEditor && (
+        <button
+          className="task-actions-trigger"
+          data-inline-title-trigger
+          aria-label={`快速修改 ${task.title}`}
+          title="快速修改标题"
+          onClick={onQuickEdit}
+        >
+          <PencilLine size={14} />
+        </button>
+      )}
       {order && (
         <div className="order-buttons">
           <button

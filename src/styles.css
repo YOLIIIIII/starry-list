@@ -1559,7 +1559,7 @@ legend {
   color: #78628c;
 }
 .toast > span {
-  white-space: nowrap;
+  min-width: 0;
 }
 .toast button {
   font-size: 11px;
@@ -1975,4 +1975,74 @@ legend {
 .task-actions-menu button.danger:hover,
 .task-actions-menu button.danger:focus-visible {
   background: #f8e9ed;
+}
+/* UX2.2: independent undo windows and compact agenda title editing. */
+.toast-stack {
+  position: fixed;
+  z-index: 30;
+  bottom: 35px;
+  right: 20px;
+  width: min(345px, calc(100% - 40px));
+  max-height: min(260px, 40vh);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  pointer-events: none;
+}
+.toast-stack .toast {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  max-width: 100%;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+.undo-toast > span {
+  flex: 1;
+}
+.undo-toast small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 190px;
+  color: #887294;
+  font-size: 10px;
+}
+.toast > svg,
+.toast > button {
+  flex-shrink: 0;
+}
+.inline-title-editor {
+  min-width: 0;
+  flex: 1;
+}
+.inline-title-editor > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 3px;
+}
+.inline-title-editor input {
+  width: 0;
+  min-width: 0;
+  flex: 1;
+  font-size: var(--task-text-size);
+  padding: 5px;
+  border: 1px solid #bca5d6;
+  border-radius: 6px;
+  background: #fffdf8;
+}
+.inline-title-editor button {
+  padding: 4px;
+  flex-shrink: 0;
+  color: var(--purple);
+}
+.inline-title-editor [role="alert"] {
+  display: block;
+  font-size: 11px;
+  color: #a34e61;
+  padding: 3px;
 }

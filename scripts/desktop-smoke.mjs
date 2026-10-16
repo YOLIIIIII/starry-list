@@ -1,6 +1,8 @@
 // Real Windows WebView2 -> Tauri IPC -> Rust SQLite smoke test.
 // Requires Node.js 24 and a debug native build (embedded assets or Vite).
 // Debug-only STARRY_LIST_TEST_DATA_DIR isolates database and window state.
+// Use the isolated identifier + test-only focus permission config in docs/VALIDATION.md.
+// The foreground-transfer test launches its own temporary Edge profile.
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -132,13 +134,6 @@ try {
   await page
     .getByRole("textbox", { name: nextDate, exact: true })
     .fill("整理下周计划");
-  await page.getByRole("heading", { name: /接下来七天/ }).click();
-  assert.equal(
-    await page
-      .getByRole("textbox", { name: nextDate, exact: true })
-      .inputValue(),
-    "整理下周计划",
-  );
   await page.getByRole("textbox", { name: nextDate, exact: true }).focus();
   await page.keyboard.press("Escape");
   await page.getByRole("group", { name: "处理未添加的任务" }).waitFor();
@@ -179,6 +174,200 @@ try {
   results.push(
     "Native nonempty draft protection across range changes, real SQLite INSERT failure retains draft, retry persists original date then continues",
   );
+  // The isolated debug config grants set-focus solely for this test.
+  await invoke("plugin:window|set_focus", { label: "main" });
+  await page.waitForFunction(
+    async () =>
+      await window.__TAURI_INTERNALS__.invoke("plugin:window|is_focused", {
+        label: "main",
+      }),
+  );
+  // A separate real desktop browser is used, never the user's browser or app.
+  await click(`为 ${nextDay} 添加任务`);
+  await page
+    .getByRole("textbox", { name: nextDate, exact: true })
+    .fill("UX22 窗口失焦验证");
+  assert.equal(
+    await invoke("plugin:window|is_focused", { label: "main" }),
+    true,
+    "Test app must start in the OS foreground before the focus transfer",
+  );
+  const otherBrowser = await chromium.launch({
+    channel: "msedge",
+    headless: false,
+    args: ["--no-first-run"],
+  });
+  try {
+    const other = await otherBrowser.newPage();
+    await other.setContent(
+      "<title>Starry List isolated focus test</title><button>独立测试浏览器</button>",
+    );
+    await other.bringToFront();
+    await other.getByRole("button").click();
+    await page.waitForFunction(
+      async () =>
+        !(await window.__TAURI_INTERNALS__.invoke("plugin:window|is_focused", {
+          label: "main",
+        })),
+    );
+    await page
+      .getByRole("textbox", { name: nextDate, exact: true })
+      .waitFor({ state: "detached" });
+    const added = (await invoke("load_snapshot")).tasks.filter(
+      (t) => t.title === "UX22 窗口失焦验证",
+    );
+    assert.equal(added.length, 1);
+    assert.equal(added[0].date, nextDay);
+  } finally {
+    await otherBrowser.close();
+  }
+  await page.bringToFront();
+  await invoke("plugin:window|set_focus", { label: "main" });
+  await page
+    .getByRole("status", { name: "已添加 UX22 窗口失焦验证", exact: true })
+    .getByRole("button", { name: "撤销", exact: true })
+    .click();
+  assert.equal((await invoke("load_snapshot")).tasks.length, 2);
+  results.push(
+    "UX2.2 real Windows foreground switch to isolated Edge saves original-date title exactly once; addition undo persists",
+  );
+
+  await click(`快速修改 ${title}`);
+  await page
+    .getByRole("textbox", { name: "快速修改任务标题", exact: true })
+    .fill("UX22 行内修改验证");
+  await page
+    .getByRole("textbox", { name: "快速修改任务标题", exact: true })
+    .press("Enter");
+  await page
+    .getByRole("button", { name: "快速修改 UX22 行内修改验证", exact: true })
+    .waitFor();
+  assert.equal(
+    (await invoke("load_snapshot")).tasks.find(
+      (t) => t.title === "UX22 行内修改验证",
+    ).description,
+    null,
+  );
+  await click("快速修改 UX22 行内修改验证");
+  await page
+    .getByRole("textbox", { name: "快速修改任务标题", exact: true })
+    .fill(title);
+  await page.getByRole("heading", { name: /接下来七天/ }).click();
+  await page
+    .getByRole("button", { name: `快速修改 ${title}`, exact: true })
+    .waitFor();
+  results.push(
+    "UX2.2 native inline title save by Enter/outside click synchronizes actual SQLite without navigation",
+  );
+  await click(`快速修改 ${title}`);
+  const inlineDb = new DatabaseSync(resolve(testDir, "starry-list.db"));
+  try {
+    inlineDb.exec(
+      "CREATE TRIGGER ux22_title_failure BEFORE UPDATE ON tasks BEGIN SELECT RAISE(ABORT,'UX22 title failure'); END;",
+    );
+    await page
+      .getByRole("textbox", { name: "快速修改任务标题", exact: true })
+      .fill("失败后保留的标题");
+    await click("专注编辑");
+    await page
+      .getByText("保存失败，修改仍在这里。请重试。", { exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("textbox", { name: "快速修改任务标题", exact: true })
+        .inputValue(),
+      "失败后保留的标题",
+    );
+    assert.equal(
+      (await invoke("load_snapshot")).settings.active_view,
+      "overview",
+    );
+    await click("关闭应用");
+    await page.waitForTimeout(100);
+    assert.equal(
+      await invoke("plugin:window|is_visible", { label: "main" }),
+      true,
+    );
+    assert.equal(
+      await page
+        .getByRole("textbox", { name: "快速修改任务标题", exact: true })
+        .inputValue(),
+      "失败后保留的标题",
+    );
+  } finally {
+    inlineDb.exec("DROP TRIGGER IF EXISTS ux22_title_failure");
+    inlineDb.close();
+  }
+  await page
+    .getByRole("textbox", { name: "快速修改任务标题", exact: true })
+    .press("Escape");
+  results.push(
+    "UX2.2 real inline SQLite UPDATE failure retains title and blocks view change/normal native close; Escape restores original",
+  );
+
+  const toastBase = (await invoke("load_snapshot")).tasks[0];
+  const toastProbeA = {
+    ...toastBase,
+    id: crypto.randomUUID(),
+    title: "UX22 独立撤销甲",
+  };
+  const toastProbeB = {
+    ...toastBase,
+    id: crypto.randomUUID(),
+    title: "UX22 独立撤销乙",
+  };
+  for (const task of [toastProbeA, toastProbeB])
+    await invoke("save_task", { task });
+  await page.reload();
+  await page.getByRole("region", { name: "七天日程" }).waitFor();
+  for (const task of [toastProbeA, toastProbeB]) {
+    await click(`任务操作 ${task.title}`);
+    await page.getByRole("menuitem", { name: "删除任务", exact: true }).click();
+    await page
+      .getByRole("dialog", { name: "删除这件任务？" })
+      .getByRole("button", { name: "删除任务", exact: true })
+      .click();
+    await page
+      .getByRole("status", { name: `已删除 ${task.title}`, exact: true })
+      .waitFor();
+  }
+  const toastA = page.getByRole("status", {
+    name: "已删除 UX22 独立撤销甲",
+    exact: true,
+  });
+  const toastB = page.getByRole("status", {
+    name: "已删除 UX22 独立撤销乙",
+    exact: true,
+  });
+  await toastA.hover();
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[aria-label="已删除 UX22 独立撤销甲"]')?.dataset
+        .paused === "true",
+  );
+  await toastA.getByRole("button", { name: "撤销", exact: true }).focus();
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(8300);
+  assert.equal(await toastA.count(), 1);
+  assert.equal(await toastB.count(), 0);
+  assert.equal((await invoke("load_snapshot")).tasks.length, 2);
+  await toastA.getByRole("button", { name: "撤销", exact: true }).focus();
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(250);
+  await toastA
+    .getByRole("button", { name: "撤销", exact: true })
+    .press("Enter");
+  await page.getByText("任务已恢复", { exact: true }).waitFor();
+  assert.deepEqual(
+    (await invoke("load_snapshot")).tasks.find((t) => t.id === toastProbeA.id),
+    toastProbeA,
+  );
+  await invoke("delete_task", { id: toastProbeA.id });
+  await page.reload();
+  await page.getByRole("region", { name: "七天日程" }).waitFor();
+  results.push(
+    "UX2.2 native independent deletion toasts: 8-second expiry, hover/focus pause and real complete task restore",
+  );
   const beforeDelete = (await invoke("load_snapshot")).tasks.find(
     (t) => t.title === title,
   );
@@ -215,9 +404,15 @@ try {
     .getByRole("dialog", { name: "删除这件任务？" })
     .getByRole("button", { name: "删除任务", exact: true })
     .click();
-  await page.getByRole("button", { name: "撤销", exact: true }).waitFor();
+  await page
+    .getByRole("status", { name: `已删除 ${title}`, exact: true })
+    .getByRole("button", { name: "撤销", exact: true })
+    .waitFor();
   assert.equal((await invoke("load_snapshot")).tasks.length, 1);
-  await click("撤销");
+  await page
+    .getByRole("status", { name: `已删除 ${title}`, exact: true })
+    .getByRole("button", { name: "撤销", exact: true })
+    .click();
   await page.getByText("任务已恢复", { exact: true }).waitFor();
   assert.deepEqual(
     (await invoke("load_snapshot")).tasks.find((t) => t.id === beforeDelete.id),
@@ -608,6 +803,26 @@ try {
       placeholder: "14px",
       task: "14px",
     });
+    await page.keyboard.press("Escape");
+    await click(`快速修改 ${title}`);
+    await page
+      .getByRole("textbox", { name: "快速修改任务标题", exact: true })
+      .fill("长中文标题".repeat(35));
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      true,
+    );
+    const inlineMetrics = await page
+      .locator(".inline-title-editor")
+      .evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, width: innerWidth };
+      });
+    assert.ok(
+      inlineMetrics.left >= 0 && inlineMetrics.right <= inlineMetrics.width,
+    );
     await page.keyboard.press("Escape");
     if (width === 380)
       await page.screenshot({ path: resolve(screenshots, "compact.png") });

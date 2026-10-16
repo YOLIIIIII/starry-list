@@ -1,3 +1,9 @@
+import {
+  InlineTitleEditor,
+  UndoToast,
+  type InlineTitleHandle,
+  type UndoEntry,
+} from "./quick-actions";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CalendarDays,
@@ -69,7 +75,18 @@ export default function App() {
   const [editing, setEditing] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
-  const [undo, setUndo] = useState<Task | null>(null);
+  const [undos, setUndos] = useState<UndoEntry[]>([]);
+  const [inlineId, setInlineId] = useState<string | null>(null);
+  const inline = useRef<InlineTitleHandle>(null);
+  function addUndo(task: Task, kind: UndoEntry["kind"]) {
+    setUndos((items) => [
+      ...items.filter((item) => item.task.id !== task.id),
+      { id: crypto.randomUUID(), task, kind },
+    ]);
+  }
+  function closeUndo(id: string) {
+    setUndos((items) => items.filter((item) => item.id !== id));
+  }
   const [notice, setNotice] = useState("");
   const [backup, setBackup] = useState<Backup | null>(null);
   const [replace, setReplace] = useState(false);
@@ -97,10 +114,16 @@ export default function App() {
     }
   };
   async function guard(action: () => void | Promise<void>) {
-    if (transition.current || quick.current?.isComposing()) return;
+    if (
+      transition.current ||
+      quick.current?.isComposing() ||
+      inline.current?.isComposing()
+    )
+      return;
     transition.current = true;
     try {
       if (quick.current && !(await quick.current.save())) return;
+      if (inline.current && !(await inline.current.save())) return;
       if (editor.current) {
         const hadChanges = editor.current.isDirty();
         if (!(await editor.current.save())) return;
@@ -164,6 +187,24 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWindow()
+      .onFocusChanged(({ payload }) => {
+        if (!payload) quick.current?.focusLost();
+      })
+      .then((fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      })
+      .catch(store.reportError);
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+  useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(""), 4000);
     return () => clearTimeout(timer);
@@ -198,6 +239,14 @@ export default function App() {
       setEditing(task.id);
     });
   }
+  function requestDelete(id: string) {
+    void guard(() => {
+      const current = store
+        .getSnapshot()
+        .data.tasks.find((task) => task.id === id);
+      if (current) setDeleteTarget(current);
+    });
+  }
   function changeView(view: Settings["active_view"]) {
     void guard(async () => {
       await store.saveSettings({ active_view: view });
@@ -226,10 +275,11 @@ export default function App() {
     }
     void guard(() => setQuickDraft({ date, title: "" }));
   }
-  function finishQuick(date: string, added: boolean) {
+  function finishQuick(date: string, added: boolean, task?: Task) {
     setQuickDraft(null);
     setQuickConfirm(false);
-    if (added) setNotice("任务已添加");
+    if (added && task) addUndo(task, "added");
+    if (added) return;
     {
       const target =
         document.querySelector<HTMLElement>(
@@ -256,18 +306,12 @@ export default function App() {
         autoFocus={autoFocus}
         title={quickDraft?.date === date ? quickDraft.title : ""}
         onTitleChange={(title) => setQuickDraft({ date, title })}
-        onAdded={() => finishQuick(date, true)}
+        onAdded={(task) => finishQuick(date, true, task)}
         onCancel={() => cancelQuick(date)}
-        onOutside={
-          autoFocus
-            ? () => {
-                if (!quickDraft?.title.trim()) {
-                  setQuickDraft(null);
-                  setQuickConfirm(false);
-                }
-              }
-            : undefined
-        }
+        onOutside={() => {
+          setQuickDraft(null);
+          setQuickConfirm(false);
+        }}
         confirmCancel={quickConfirm}
         onContinue={() => {
           setQuickConfirm(false);
@@ -726,9 +770,21 @@ export default function App() {
                         key={task.id}
                         task={task}
                         categories={categories}
+                        onQuickEdit={() =>
+                          void guard(() => setInlineId(task.id))
+                        }
+                        inlineEditor={
+                          inlineId === task.id ? (
+                            <InlineTitleEditor
+                              ref={inline}
+                              task={task}
+                              onClose={() => setInlineId(null)}
+                            />
+                          ) : undefined
+                        }
                         onOpen={() => openTask(task)}
                         onEdit={() => editTask(task)}
-                        onDelete={() => void guard(() => setDeleteTarget(task))}
+                        onDelete={() => requestDelete(task.id)}
                       />
                     ))}
                     {quickDraft?.date === date && (
@@ -833,7 +889,7 @@ export default function App() {
                   onMove={(delta) => void safe(() => moveTask(task, delta))}
                   actionMode="delete"
                   onEdit={() => editTask(task)}
-                  onDelete={() => void guard(() => setDeleteTarget(task))}
+                  onDelete={() => requestDelete(task.id)}
                 />
                 {expanded === task.id && (
                   <TaskReader
@@ -912,35 +968,33 @@ export default function App() {
           />
         ))}
       </div>
-      {(undo || notice) && !editing && (
-        <div className="toast" role="status">
-          <Check size={15} />
-          <span>{undo ? "任务已删除" : notice}</span>
-          {undo && (
-            <button
-              disabled={pending > 0}
-              onClick={() =>
-                void safe(async () => {
-                  await store.restore(undo);
-                  setUndo(null);
-                  setNotice("任务已恢复");
-                })
+      <div className="toast-stack" aria-label="操作通知">
+        {undos.map((entry) => (
+          <UndoToast
+            key={entry.id}
+            entry={entry}
+            onClose={() => closeUndo(entry.id)}
+            onUndo={async () => {
+              if (entry.kind === "deleted") {
+                await store.restore(entry.task);
+                setNotice("任务已恢复");
+              } else {
+                await store.remove(entry.task.id);
+                setNotice("已撤销新增");
               }
-            >
-              撤销
-            </button>
-          )}
-          <button
-            aria-label="关闭通知"
-            onClick={() => {
-              setUndo(null);
-              setNotice("");
             }}
-          >
-            <X size={13} />
-          </button>
-        </div>
-      )}
+          />
+        ))}
+        {notice && (
+          <div className="toast" role="status">
+            <Check size={15} />
+            <span>{notice}</span>
+            <button aria-label="关闭通知" onClick={() => setNotice("")}>
+              <X size={13} />
+            </button>
+          </div>
+        )}
+      </div>
       {deleteTarget && (
         <Dialog
           title="删除这件任务？"
@@ -958,8 +1012,15 @@ export default function App() {
               disabled={pending > 0}
               onClick={() =>
                 void safe(async () => {
+                  const removed = store
+                    .getSnapshot()
+                    .data.tasks.find((task) => task.id === deleteTarget.id);
+                  if (!removed) {
+                    setDeleteTarget(null);
+                    return;
+                  }
                   await store.remove(deleteTarget.id);
-                  setUndo(deleteTarget);
+                  addUndo(removed, "deleted");
                   setDeleteTarget(null);
                   setExpanded(null);
                   setEditing(null);
@@ -1168,7 +1229,7 @@ export default function App() {
                   setImporting(true);
                   setEditing(null);
                   setExpanded(null);
-                  setUndo(null);
+                  setUndos([]);
                   try {
                     await store.importBackup(backup, replace);
                     await setTop(

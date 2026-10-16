@@ -180,7 +180,12 @@ describe("双视图实际交互", () => {
     });
     await user.click(screen.getByRole("button", { name: "调研计划 非常重要" }));
     await user.click(screen.getByRole("button", { name: "编辑" }));
-    await user.click(screen.getByRole("button", { name: "删除任务" }));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "编辑任务" })).getByRole(
+        "button",
+        { name: "删除任务" },
+      ),
+    );
     await user.click(
       within(screen.getByRole("dialog", { name: "删除这件任务？" })).getByRole(
         "button",
@@ -444,22 +449,28 @@ describe("第二轮基础任务交互", () => {
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
     expect(backend.data!.tasks).toHaveLength(2);
   });
-  it("非空草稿外部点击保留，切换日期加号需先处理，Esc 不直接丢弃", async () => {
+  it("非空草稿外部点击不创建任务，换日期加号自动保存原日期，Esc 仍确认取消", async () => {
     const user = await overview();
     await user.click(plus());
-    await user.type(input(), "还没添加的中文计划");
+    await user.type(input(), "喝水");
     await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
-    expect(input()).toHaveProperty("value", "还没添加的中文计划");
+    expect(input()).toHaveProperty("value", "喝水");
+    expect(backend.data!.tasks).toHaveLength(2);
     await user.click(plus("2026-10-17"));
-    expect(
-      screen.getByRole("group", { name: "处理未添加的任务" }),
-    ).toBeDefined();
-    expect(screen.getAllByRole("textbox")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "继续填写" }));
+    await waitFor(() =>
+      expect(input("2026-10-17")).toHaveProperty("value", ""),
+    );
+    expect(backend.data!.tasks.find((t) => t.title === "喝水")?.date).toBe(
+      "2026-10-16",
+    );
+    await user.type(input("2026-10-17"), "取消前保留");
     await user.keyboard("{Escape}");
-    expect(input()).toHaveProperty("value", "还没添加的中文计划");
+    expect(input("2026-10-17")).toHaveProperty("value", "取消前保留");
+    await user.click(screen.getByRole("button", { name: "继续填写" }));
+    await user.click(screen.getByRole("button", { name: "取消快速新增" }));
     await user.click(screen.getByRole("button", { name: "放弃草稿" }));
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+    expect(backend.data!.tasks).toHaveLength(3);
   });
   it.each(["下一周", "专注编辑", "选择 2026-10-18"])(
     "%s 切换前添加草稿并继续，数据归属原日期",
@@ -468,8 +479,7 @@ describe("第二轮基础任务交互", () => {
       await user.click(plus());
       await user.type(input(), "保留这个日期");
       await user.click(screen.getByRole("button", { name: target }));
-      expect(input()).toHaveProperty("value", "保留这个日期");
-      await user.click(screen.getByRole("button", { name: "添加并继续" }));
+
       await waitFor(() =>
         expect(
           backend.data!.tasks.some(
@@ -488,18 +498,20 @@ describe("第二轮基础任务交互", () => {
         ).toBeNull();
     },
   );
-  it("切换前保存失败保持原视图与草稿，重试后切换；空输入不复活", async () => {
+  it("自动新增失败保留草稿且不导航，重试导航后不复活空输入", async () => {
     const user = await overview();
     await user.click(plus());
     await user.type(input(), "失败后重试");
-    await user.click(screen.getByRole("button", { name: "专注编辑" }));
     backend.fail = true;
-    await user.click(screen.getByRole("button", { name: "添加并继续" }));
+    await user.click(screen.getByRole("button", { name: "专注编辑" }));
     expect(await screen.findByText("磁盘错误")).toBeDefined();
     expect(input()).toHaveProperty("value", "失败后重试");
     expect(screen.queryByText("当日清单")).toBeNull();
+    expect(
+      screen.queryByRole("group", { name: "处理未添加的任务" }),
+    ).toBeNull();
     backend.fail = false;
-    await user.click(screen.getByRole("button", { name: "添加并继续" }));
+    await user.click(screen.getByRole("button", { name: "专注编辑" }));
     await screen.findByText("当日清单");
     await user.click(screen.getByRole("button", { name: "统筹总览" }));
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
@@ -514,6 +526,10 @@ describe("第二轮基础任务交互", () => {
     fireEvent.keyDown(input(), { key: "Escape", isComposing: true });
     expect(backend.data!.tasks).toHaveLength(2);
     expect(input()).toHaveProperty("value", "中文输入法");
+    fireEvent.click(plus("2026-10-17"));
+    fireEvent.click(screen.getByRole("button", { name: "专注编辑" }));
+    expect(input()).toHaveProperty("value", "中文输入法");
+    expect(screen.queryByText("当日清单")).toBeNull();
     fireEvent.compositionEnd(input());
     await user.click(screen.getByRole("button", { name: "添加到 2026-10-16" }));
     await waitFor(() =>
@@ -521,16 +537,24 @@ describe("第二轮基础任务交互", () => {
     );
     expect(backend.data!.tasks).toHaveLength(3);
   });
-  it("专注新增草稿切换日期前可明确放弃，不修改旧任务", async () => {
+  it("专注新增跨日期自动保存，显式取消仍保护草稿", async () => {
     const user = await startFocus();
     await user.type(input("2026-10-14"), "专注草稿");
     await user.click(screen.getByRole("button", { name: "后一天" }));
-    expect(input("2026-10-14")).toHaveProperty("value", "专注草稿");
+    await waitFor(() =>
+      expect(input("2026-10-15")).toHaveProperty("value", ""),
+    );
+    expect(backend.data!.tasks.find((t) => t.title === "专注草稿")?.date).toBe(
+      "2026-10-14",
+    );
+    await user.type(input("2026-10-15"), "明确取消");
+    await user.keyboard("{Escape}");
+    expect(input("2026-10-15")).toHaveProperty("value", "明确取消");
     await user.click(screen.getByRole("button", { name: "放弃草稿" }));
     expect(input("2026-10-15")).toHaveProperty("value", "");
-    expect(backend.data!.tasks).toHaveLength(2);
+    expect(backend.data!.tasks).toHaveLength(3);
   });
-  it.each(["overview", "focus"])(
+  it.each(["overview"])(
     "%s 菜单支持键盘、定位编辑，打开菜单不勾选或展开",
     async (mode) => {
       const user = mode === "focus" ? await startFocus() : await overview();
@@ -576,10 +600,19 @@ describe("第二轮基础任务交互", () => {
       const other = structuredClone(backend.data!.tasks[1]);
       const user = mode === "focus" ? await startFocus() : await overview();
       async function askDelete() {
-        await user.click(
-          screen.getByRole("button", { name: "任务操作 调研计划" }),
-        );
-        await user.click(screen.getByRole("menuitem", { name: "删除任务" }));
+        if (mode === "focus") {
+          const row = screen
+            .getByRole("button", { name: /^调研计划/ })
+            .closest(".task-row") as HTMLElement;
+          await user.click(
+            within(row).getByRole("button", { name: "删除任务" }),
+          );
+        } else {
+          await user.click(
+            screen.getByRole("button", { name: "任务操作 调研计划" }),
+          );
+          await user.click(screen.getByRole("menuitem", { name: "删除任务" }));
+        }
       }
       await askDelete();
       await user.click(screen.getByRole("button", { name: "保留" }));
@@ -603,11 +636,11 @@ describe("第二轮基础任务交互", () => {
       expect(backend.data!.tasks.find((t) => t.id === other.id)).toEqual(other);
     },
   );
-  it("清空待处理草稿后不残留旧切换意图，后续添加不跳到旧范围", async () => {
+  it("显式取消确认后清空草稿，不残留操作或创建空任务", async () => {
     const user = await overview();
     await user.click(plus());
     await user.type(input(), "待处理");
-    await user.click(screen.getByRole("button", { name: "下一周" }));
+    await user.keyboard("{Escape}");
     await user.clear(input());
     await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
     await user.click(plus("2026-10-17"));
@@ -618,9 +651,7 @@ describe("第二轮基础任务交互", () => {
       ),
     );
     expect(plus("2026-10-14")).toBeDefined();
-    expect(
-      screen.queryByRole("group", { name: "处理未添加的任务" }),
-    ).toBeNull();
+    expect(backend.data!.tasks).toHaveLength(3);
   });
   it("快速新增等待写入成功，连续提交不重复创建", async () => {
     const user = await overview();
@@ -677,5 +708,98 @@ describe("第二轮基础任务交互", () => {
     await waitFor(() =>
       expect(backend.data!.tasks.map((t) => t.id)).toEqual(["a"]),
     );
+  });
+  it("自动添加等待持久化后才导航，期间多次点击和 Enter 只创建一次", async () => {
+    const user = await overview();
+    await user.click(plus());
+    await user.type(input(), "等待切换");
+    let complete!: () => void;
+    backend.saveWait = new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+    await user.click(screen.getByRole("button", { name: "下一周" }));
+    expect(input()).toHaveProperty("value", "等待切换");
+    expect(backend.data!.tasks).toHaveLength(2);
+    fireEvent.submit(input().closest("form")!);
+    await user.click(screen.getByRole("button", { name: "专注编辑" }));
+    expect(screen.queryByText("当日清单")).toBeNull();
+    complete();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("textbox", { name: "2026-10-16 新任务标题" }),
+      ).toBeNull(),
+    );
+    expect(
+      backend.data!.tasks.filter((t) => t.title === "等待切换"),
+    ).toHaveLength(1);
+    expect(backend.data!.tasks.find((t) => t.title === "等待切换")?.date).toBe(
+      "2026-10-16",
+    );
+    expect(screen.queryByText("当日清单")).toBeNull();
+  });
+  it("专注行只有直接删除入口，标题只读详情保留编辑，点击删除不改变完成状态", async () => {
+    const user = await startFocus();
+    const row = screen
+      .getByRole("button", { name: "调研计划" })
+      .closest(".task-row") as HTMLElement;
+    expect(
+      within(row).queryByRole("button", { name: "任务操作 调研计划" }),
+    ).toBeNull();
+    const deletion = within(row).getByRole("button", {
+      name: "删除任务",
+    });
+    deletion.focus();
+    await user.keyboard("{Enter}");
+    expect(
+      screen.getByRole("dialog", { name: "删除这件任务？" }),
+    ).toBeDefined();
+    expect(backend.data!.tasks[0].completed).toBe(false);
+    expect(screen.queryByRole("region", { name: "任务详情阅读" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "保留" }));
+    expect(document.activeElement).toBe(deletion);
+    await user.click(screen.getByRole("button", { name: "调研计划" }));
+    await user.click(screen.getByRole("button", { name: "编辑" }));
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    expect(screen.queryByRole("dialog", { name: "保留这次修改？" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "编辑任务" })).toBeNull();
+  });
+  it("已有任务编辑后恢复原值，Escape 不出现无谓确认", async () => {
+    const user = await startFocus();
+    await user.click(screen.getByRole("button", { name: "调研计划" }));
+    await user.click(screen.getByRole("button", { name: "编辑" }));
+    fireEvent.change(screen.getByLabelText("任务标题"), {
+      target: { value: "临时改动" },
+    });
+    fireEvent.change(screen.getByLabelText("任务标题"), {
+      target: { value: "调研计划" },
+    });
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(backend.data!.tasks[0].title).toBe("调研计划");
+  });
+  it("专注删除失败保留任务和确认框，可重试并撤销", async () => {
+    const user = await startFocus();
+    const row = screen
+      .getByRole("button", { name: "第二件小事" })
+      .closest(".task-row") as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "删除任务" }));
+    backend.deleteFail = true;
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "删除任务",
+      }),
+    );
+    await screen.findAllByText("删除失败：磁盘错误");
+    expect(backend.data!.tasks).toHaveLength(2);
+    expect(screen.queryByText("任务已删除")).toBeNull();
+    backend.deleteFail = false;
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "删除任务",
+      }),
+    );
+    await waitFor(() => expect(backend.data!.tasks).toHaveLength(1));
+    await user.click(screen.getByRole("button", { name: "撤销" }));
+    await waitFor(() => expect(backend.data!.tasks).toHaveLength(2));
   });
 });

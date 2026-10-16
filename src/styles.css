@@ -19,7 +19,7 @@
   --muted: #74627f;
   --line: #8565b823;
   --danger: #a34e61;
-  --task-text-size: 15px;
+  --task-text-size: 14px;
 }
 * {
   box-sizing: border-box;
@@ -1922,6 +1922,19 @@ legend {
   padding: 3px;
   color: #8e779f;
   border-radius: 7px;
+}
+.task-delete-trigger {
+  flex-shrink: 0;
+  width: 25px;
+  min-height: 25px;
+  padding: 3px;
+  color: #8e779f;
+  border-radius: 7px;
+}
+.task-delete-trigger:hover,
+.task-delete-trigger:focus-visible {
+  background: #f3e5ed;
+  color: var(--danger);
 }
 .task-actions-trigger:hover,
 .task-actions-trigger:focus-visible,

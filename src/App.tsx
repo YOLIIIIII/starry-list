@@ -55,6 +55,7 @@ import {
   TaskReader,
   TaskRow,
   type EditorHandle,
+  type QuickAddHandle,
 } from "./components";
 const pretty = (date: string, pattern: string) =>
   format(localDay(date), pattern, { locale: zhCN });
@@ -87,7 +88,7 @@ export default function App() {
     title: string;
   } | null>(null);
   const [quickConfirm, setQuickConfirm] = useState(false);
-  const quickIntent = useRef<(() => void | Promise<void>) | null>(null);
+  const quick = useRef<QuickAddHandle>(null);
   const safe = async (action: () => Promise<unknown>) => {
     try {
       await action();
@@ -95,23 +96,11 @@ export default function App() {
       store.reportError(e);
     }
   };
-  async function guard(action: () => void | Promise<void>, skipQuick = false) {
-    if (transition.current) return;
-    if (!skipQuick && quickDraft?.title.trim()) {
-      quickIntent.current = action;
-      setQuickConfirm(true);
-      requestAnimationFrame(() => {
-        document
-          .querySelector(".quick-add-area")
-          ?.scrollIntoView?.({ block: "nearest" });
-        document
-          .querySelector<HTMLInputElement>(".quick-add input")
-          ?.focus({ preventScroll: true });
-      });
-      return;
-    }
+  async function guard(action: () => void | Promise<void>) {
+    if (transition.current || quick.current?.isComposing()) return;
     transition.current = true;
     try {
+      if (quick.current && !(await quick.current.save())) return;
       if (editor.current) {
         const hadChanges = editor.current.isDirty();
         if (!(await editor.current.save())) return;
@@ -120,7 +109,6 @@ export default function App() {
       }
       setQuickDraft(null);
       setQuickConfirm(false);
-      quickIntent.current = null;
       await action();
     } catch (e) {
       store.reportError(e);
@@ -233,19 +221,16 @@ export default function App() {
   }
   function startAdding(date: string) {
     if (quickDraft?.date === date) {
-      void guard(() => {});
+      cancelQuick(date);
       return;
     }
     void guard(() => setQuickDraft({ date, title: "" }));
   }
   function finishQuick(date: string, added: boolean) {
-    const intent = quickIntent.current;
-    quickIntent.current = null;
     setQuickDraft(null);
     setQuickConfirm(false);
     if (added) setNotice("任务已添加");
-    if (intent) void guard(intent, true);
-    else {
+    {
       const target =
         document.querySelector<HTMLElement>(
           `[aria-label="为 ${date} 添加任务"]`,
@@ -253,29 +238,38 @@ export default function App() {
       target?.focus();
     }
   }
+  function cancelQuick(date: string) {
+    if (
+      transition.current ||
+      quick.current?.isSaving() ||
+      quick.current?.isComposing()
+    )
+      return;
+    if (quickDraft?.title.trim()) setQuickConfirm(true);
+    else finishQuick(date, false);
+  }
   function quickInput(date: string, autoFocus = false) {
     return (
       <QuickAdd
+        ref={quick}
         date={date}
         autoFocus={autoFocus}
         title={quickDraft?.date === date ? quickDraft.title : ""}
         onTitleChange={(title) => setQuickDraft({ date, title })}
         onAdded={() => finishQuick(date, true)}
-        onCancel={() => void guard(() => {})}
+        onCancel={() => cancelQuick(date)}
         onOutside={
           autoFocus
             ? () => {
                 if (!quickDraft?.title.trim()) {
                   setQuickDraft(null);
                   setQuickConfirm(false);
-                  quickIntent.current = null;
                 }
               }
             : undefined
         }
         confirmCancel={quickConfirm}
         onContinue={() => {
-          quickIntent.current = null;
           setQuickConfirm(false);
           document
             .querySelector<HTMLInputElement>(
@@ -837,6 +831,7 @@ export default function App() {
                       focusTasks[index + 1].completed !== task.completed,
                   }}
                   onMove={(delta) => void safe(() => moveTask(task, delta))}
+                  actionMode="delete"
                   onEdit={() => editTask(task)}
                   onDelete={() => void guard(() => setDeleteTarget(task))}
                 />

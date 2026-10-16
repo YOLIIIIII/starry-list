@@ -1,5 +1,5 @@
 // Real Windows WebView2 -> Tauri IPC -> Rust SQLite smoke test.
-// Requires a debug native build and a Vite server on :1420.
+// Requires Node.js 24 and a debug native build (embedded assets or Vite).
 // Debug-only STARRY_LIST_TEST_DATA_DIR isolates database and window state.
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
+import { shiftDay, backupSchema } from "../src/domain.ts";
 const testDir = resolve(".cache/desktop-smoke-" + Date.now());
 const screenshots = resolve("docs/screenshots");
 await mkdir(testDir, { recursive: true });
@@ -19,6 +20,7 @@ async function launch() {
     env: {
       ...process.env,
       STARRY_LIST_TEST_DATA_DIR: testDir,
+      WEBVIEW2_USER_DATA_FOLDER: resolve(testDir, "webview-profile"),
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=9222",
     },
   });
@@ -99,10 +101,7 @@ try {
       .count(),
     0,
   );
-  const nextDay = await page.evaluate(
-    async (date) => (await import("/src/domain.ts")).shiftDay(date, 1),
-    today,
-  );
+  const nextDay = shiftDay(today, 1);
   const nextDate = `${nextDay} 新任务标题`;
   await click(`为 ${nextDay} 添加任务`);
   await page
@@ -140,15 +139,17 @@ try {
       .inputValue(),
     "整理下周计划",
   );
-  await click("下一周");
+  await page.getByRole("textbox", { name: nextDate, exact: true }).focus();
+  await page.keyboard.press("Escape");
   await page.getByRole("group", { name: "处理未添加的任务" }).waitFor();
   await page.screenshot({ path: resolve(screenshots, "quick-add.png") });
+  await click("继续填写");
   const roundTwoDb = new DatabaseSync(resolve(testDir, "starry-list.db"));
   try {
     roundTwoDb.exec(
       "CREATE TRIGGER ux2_insert_failure BEFORE INSERT ON tasks BEGIN SELECT RAISE(ABORT,'UX2 INSERT failure'); END;",
     );
-    await click("添加并继续");
+    await click("下一周");
     await page
       .getByText(/UX2 INSERT failure/)
       .first()
@@ -164,7 +165,7 @@ try {
     roundTwoDb.exec("DROP TRIGGER IF EXISTS ux2_insert_failure");
     roundTwoDb.close();
   }
-  await click("添加并继续");
+  await click("下一周");
   await page
     .getByRole("textbox", { name: nextDate, exact: true })
     .waitFor({ state: "detached" });
@@ -229,18 +230,25 @@ try {
     today,
   );
   await click("取消");
-  await click(`任务操作 ${title}`);
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Escape");
   assert.equal(
-    await page.evaluate(() =>
-      document.activeElement.getAttribute("aria-label"),
-    ),
-    `任务操作 ${title}`,
+    await page.locator(".focus-scroll .task-actions-trigger").count(),
+    0,
+  );
+  const directDelete = page
+    .locator(".focus-scroll .task-row")
+    .filter({ has: page.getByRole("button", { name: title, exact: true }) })
+    .getByRole("button", { name: "删除任务", exact: true });
+  await directDelete.focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("dialog", { name: "删除这件任务？" }).waitFor();
+  await click("保留");
+  assert.equal(
+    await directDelete.evaluate((el) => document.activeElement === el),
+    true,
   );
   await click("统筹总览");
   results.push(
-    "Native task menu: overview edit targets correct date, focus keyboard/Escape restores focus, cancellation, real SQLite DELETE failure, retry and complete undo",
+    "Native task menu: overview edit targets correct date, focus direct-delete keyboard/cancel restores focus, cancellation, real SQLite DELETE failure, retry and complete undo",
   );
   assert.notEqual(snap.tasks[0].date, snap.tasks[1].date);
   results.push(
@@ -596,9 +604,9 @@ try {
       };
     });
     assert.deepEqual(fontMetrics, {
-      input: "15px",
-      placeholder: "15px",
-      task: "15px",
+      input: "14px",
+      placeholder: "14px",
+      task: "14px",
     });
     await page.keyboard.press("Escape");
     if (width === 380)
@@ -611,16 +619,81 @@ try {
     label: "main",
     value: { Logical: { width: 980, height: 680 } },
   });
+  await click("专注编辑");
+  for (const width of [980, 380]) {
+    await invoke("plugin:window|set_size", {
+      label: "main",
+      value: { Logical: { width, height: 680 } },
+    });
+    await page.waitForTimeout(120);
+    const row = page.locator(".focus-scroll .task-row").first();
+    const deleteButton = row.getByRole("button", {
+      name: "删除任务",
+      exact: true,
+    });
+    await deleteButton.scrollIntoViewIfNeeded();
+    const metrics = await row.evaluate((el) => {
+      const del = el
+        .querySelector(".task-delete-trigger")
+        .getBoundingClientRect();
+      const order = el.querySelector(".order-buttons").getBoundingClientRect();
+      return {
+        taskFont: getComputedStyle(el.querySelector(".task-open")).fontSize,
+        deleteRight: del.right,
+        deleteLeft: del.left,
+        orderRight: order.right,
+        width: innerWidth,
+        doc: document.documentElement.scrollWidth,
+      };
+    });
+    assert.equal(metrics.taskFont, "14px");
+    assert.ok(
+      metrics.deleteRight <= metrics.width &&
+        metrics.deleteLeft >= metrics.orderRight - 1 &&
+        metrics.doc <= metrics.width,
+    );
+  }
+  const emulation = await browser.contexts()[0].newCDPSession(page);
+  try {
+    for (const scale of [1, 1.5, 2]) {
+      await emulation.send("Emulation.setDeviceMetricsOverride", {
+        width: 380,
+        height: 680,
+        deviceScaleFactor: scale,
+        mobile: false,
+      });
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        true,
+      );
+      assert.equal(
+        await page
+          .locator(".focus-scroll .quick-add input")
+          .evaluate((el) => getComputedStyle(el).fontSize),
+        "14px",
+      );
+    }
+  } finally {
+    await emulation.send("Emulation.clearDeviceMetricsOverride");
+    await emulation.detach();
+  }
+  await invoke("plugin:window|set_size", {
+    label: "main",
+    value: { Logical: { width: 980, height: 680 } },
+  });
+  await click("统筹总览");
+  results.push(
+    "UX2.1 focus direct-delete and 14px text fit 980/380px; WebView device-scale emulation 1/1.5/2 passes (not physical mixed-DPI certification)",
+  );
   const backupPath = resolve(testDir, "backup.json");
   await invoke("export_backup", { path: backupPath });
   const exported = JSON.parse(await readFile(backupPath, "utf8"));
   assert.equal(exported.format, "starry-list");
-  const validated = await page.evaluate(async (path) => {
-    const domain = await import("/src/domain.ts");
-    return domain.backupSchema.parse(
-      await window.__TAURI_INTERNALS__.invoke("read_backup", { path }),
-    );
-  }, backupPath);
+  const validated = backupSchema.parse(
+    await invoke("read_backup", { path: backupPath }),
+  );
   assert.deepEqual(validated, exported);
   await invoke("import_backup", { backup: exported, replace: false });
   let merged = await invoke("load_snapshot");

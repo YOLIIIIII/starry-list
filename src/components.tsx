@@ -62,34 +62,45 @@ export function Empty({ small = false }: { small?: boolean }) {
     </div>
   );
 }
-export function QuickAdd({
-  date,
-  autoFocus = false,
-  onAdded,
-  onCancel,
-  title,
-  onTitleChange,
-  confirmCancel = false,
-  onContinue,
-  onDiscard,
-  onOutside,
-}: {
-  date: string;
-  autoFocus?: boolean;
-  onAdded?: () => void;
-  onCancel?: () => void;
-  title: string;
-  onTitleChange: (value: string) => void;
-  confirmCancel?: boolean;
-  onContinue?: () => void;
-  onDiscard?: () => void;
-  onOutside?: () => void;
-}) {
+export interface QuickAddHandle {
+  save(): Promise<boolean>;
+  isComposing(): boolean;
+  isSaving(): boolean;
+}
+export const QuickAdd = forwardRef<
+  QuickAddHandle,
+  {
+    date: string;
+    autoFocus?: boolean;
+    onAdded?: () => void;
+    onCancel?: () => void;
+    title: string;
+    onTitleChange: (value: string) => void;
+    confirmCancel?: boolean;
+    onContinue?: () => void;
+    onDiscard?: () => void;
+    onOutside?: () => void;
+  }
+>(function QuickAdd(
+  {
+    date,
+    autoFocus = false,
+    onAdded,
+    onCancel,
+    title,
+    onTitleChange,
+    confirmCancel = false,
+    onContinue,
+    onDiscard,
+    onOutside,
+  },
+  handle,
+) {
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const composing = useRef(false);
-  const saving = useRef(false);
+  const saving = useRef<Promise<boolean> | null>(null);
   useEffect(() => {
     function outside(e: PointerEvent) {
       const target = e.target as Element;
@@ -104,15 +115,15 @@ export function QuickAdd({
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, [onOutside]);
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim() || saving.current || composing.current) return;
-    saving.current = true;
+  async function save() {
+    if (composing.current) return false;
+    if (saving.current) return saving.current;
+    if (!title.trim()) return true;
     setBusy(true);
     const now = new Date().toISOString();
     const tasks = store.getSnapshot().data.tasks.filter((t) => t.date === date);
-    try {
-      await store.add({
+    const operation = store
+      .add({
         id: crypto.randomUUID(),
         date,
         title: title.trim(),
@@ -124,20 +135,35 @@ export function QuickAdd({
         sort_order: Math.max(-1, ...tasks.map((t) => t.sort_order)) + 1,
         created_at: now,
         updated_at: now,
+      })
+      .then(() => {
+        onTitleChange("");
+        if (onAdded) onAdded();
+        else ref.current?.focus();
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => {
+        saving.current = null;
+        setBusy(false);
       });
-      onTitleChange("");
-      if (onAdded) onAdded();
-      else ref.current?.focus();
-    } catch {
-      /* Keep the user's title on disk failure. */
-    } finally {
-      saving.current = false;
-      setBusy(false);
-    }
+    saving.current = operation;
+    return operation;
   }
+  useImperativeHandle(handle, () => ({
+    save,
+    isComposing: () => composing.current,
+    isSaving: () => saving.current !== null,
+  }));
   return (
     <div ref={root} className="quick-add-area">
-      <form className="quick-add" onSubmit={submit}>
+      <form
+        className="quick-add"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
         <Plus size={15} />
         <input
           ref={ref}
@@ -195,7 +221,7 @@ export function QuickAdd({
           role="group"
           aria-label="处理未添加的任务"
         >
-          <span>还有未添加的内容，请先添加或明确放弃，再继续。</span>
+          <span>要放弃这条尚未添加的任务吗？</span>
           <div>
             <button type="button" onClick={onContinue} disabled={busy}>
               继续填写
@@ -208,21 +234,12 @@ export function QuickAdd({
             >
               放弃草稿
             </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                root.current?.querySelector("form")?.requestSubmit()
-              }
-            >
-              添加并继续
-            </button>
           </div>
         </div>
       )}
     </div>
   );
-}
+});
 export function TaskRow({
   task,
   categories,
@@ -231,6 +248,7 @@ export function TaskRow({
   onMove,
   onEdit,
   onDelete,
+  actionMode = "menu",
 }: {
   task: Task;
   categories: Category[];
@@ -239,6 +257,7 @@ export function TaskRow({
   onMove?: (delta: number) => void;
   onEdit: () => void;
   onDelete: () => void;
+  actionMode?: "menu" | "delete";
 }) {
   const [busy, setBusy] = useState(false);
   const category = categories.find((c) => c.id === task.category_id);
@@ -295,7 +314,19 @@ export function TaskRow({
           </button>
         </div>
       )}
-      <TaskActions task={task} onEdit={onEdit} onDelete={onDelete} />
+      {actionMode === "delete" ? (
+        <button
+          className="task-delete-trigger"
+          aria-label="删除任务"
+          aria-description={task.title}
+          title={`删除 ${task.title}`}
+          onClick={onDelete}
+        >
+          <Trash2 size={15} />
+        </button>
+      ) : (
+        <TaskActions task={task} onEdit={onEdit} onDelete={onDelete} />
+      )}
     </div>
   );
 }

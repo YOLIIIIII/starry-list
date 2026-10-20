@@ -72,9 +72,9 @@ No accounts, cloud services, telemetry, remote fonts or network icons. Data is u
 
 See the [roadmap](docs/ROADMAP.md), [product backlog](docs/PRODUCT_BACKLOG.md) and [decision log](docs/DECISIONS.md) (Chinese). The Markdown backlog is the authoritative source for detailed requirements, priorities, states and acceptance criteria. Recording a request does not authorize implementation; no unassessed version scope or release date is promised.
 
-UX2.3 restores keyboard focus to the original date's add button after a successful Enter submission and moves independent undo notifications to a compact top-center area with a five-second lifetime. SL-002 / SL-019 remain In Review. Inline agenda title editing (SL-021) is Done following user confirmation, but has not been formally released. The existing 14px text and SL-004-A review status remain unchanged. Daily stars (SL-022) and the galaxy/orbit space (SL-023) are planning only. See the backlog and validation record for current evidence.
+UX3.0 implements only SL-003: a continuous rounded header and stable reading surfaces while preserving shell opacity (40–100%), 14px task text and all UX2.3 interactions. Visual acceptance remains In Review; see the [before/after comparison](docs/UX3_VISUAL_REVIEW.md). SL-002 / SL-019 are Done following user confirmation and evidence review; SL-021 stays Done. These changes are not formally released. SL-001 / SL-004-A remain In Review. Global font settings and top-area layout are deferred to a separately authorized UX3.1 iteration; stars, galaxy, dragging and desktop residency remain planning only.
 
-The initial V1.0 source is pushed. First-round UX changes are recorded separately in implementation commit [`23a7cd3`](https://github.com/YOLIIIIII/starry-list/commit/23a7cd3941a28d0724e254ca7b9bb71c9b8fd5c8); SL-001 / SL-002 remain In Review pending final user acceptance. There is no published GitHub Release. Planned capabilities are not implemented features.
+The initial V1.0 source is pushed. First-round UX changes are recorded separately in implementation commit [`23a7cd3`](https://github.com/YOLIIIIII/starry-list/commit/23a7cd3941a28d0724e254ca7b9bb71c9b8fd5c8); the backlog tracks subsequent acceptance decisions. There is no published GitHub Release. Planned capabilities are not implemented features.
 
 ## License
 

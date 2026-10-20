@@ -140,9 +140,9 @@ docs/VALIDATION.md     验证范围与限制
 
 详细计划见 [开发路线图](docs/ROADMAP.md)，需求、优先级、状态与验收标准见 [产品需求池](docs/PRODUCT_BACKLOG.md)，重要取舍见 [产品决策记录](docs/DECISIONS.md)。登记需求不会自动启动开发，不承诺未经评估的版本范围或发布日期。
 
-UX2.3 修复总览 Enter 保存后返回原日期加号的连续新增体验，新增/删除撤销通知移至顶部居中、约 5 秒；SL-002 / SL-019 仍 In Review，待用户体验验收。SL-021 行内标题编辑已记录用户确认并标记 Done，尚未正式发布；SL-004-A 的 14px 与 In Review 状态不变。SL-022 每日星星与 SL-023 星河仅登记。之后再评审透明视觉、全局字号和顶部空间。桌面驻留先研究可行性；自然周与切换流畅度可独立评估。主题、分类管理、重复任务、搜索、位置锁定、macOS 和可选云端能力均保留在需求池中。
+UX3.0 仅升级 SL-003 透明视觉：连续圆角顶栏与稳定阅读衬底，保留 40%–100% 外壳透明度、14px 和 UX2.3 交互；当前 In Review，等待视觉体验确认。新旧界面见 [视觉对比](docs/UX3_VISUAL_REVIEW.md)。用户确认并核查证据后 SL-002 / SL-019 已为 Done，SL-021 保持 Done，尚未正式发布；SL-001 / SL-004-A 仍 In Review。SL-004 全局字号和 SL-005 顶部空间安排 UX3.1 单独评审。星星/星河、拖动及桌面驻留规划不变，登记不代表开工。
 
-当前初始 V1.0 源码已同步，第一轮 UX 改进已作为独立实现提交 [`23a7cd3`](https://github.com/YOLIIIIII/starry-list/commit/23a7cd3941a28d0724e254ca7b9bb71c9b8fd5c8) 纳入历史；SL-001 / SL-002 仍为 In Review，等待最终用户验收。本项目尚无正式 GitHub Release。原 V1.1 / V2.0 列表作为候选想法整合到需求池，不代表已实现功能或发布日期。
+初始 V1.0 源码已同步，第一轮 UX 改进已作为独立实现提交 [`23a7cd3`](https://github.com/YOLIIIIII/starry-list/commit/23a7cd3941a28d0724e254ca7b9bb71c9b8fd5c8) 纳入历史；后续验收状态以需求池为准。本项目尚无正式 GitHub Release。原 V1.1 / V2.0 列表作为候选想法整合到需求池，不代表已实现功能或发布日期。
 
 ## 许可证
 

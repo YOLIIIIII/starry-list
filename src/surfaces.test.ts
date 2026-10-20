@@ -24,7 +24,45 @@ describe("透明外壳与阅读衬底", () => {
     expect(over(a["--header-alpha"], shell)).toBeGreaterThanOrEqual(0.97);
   });
   it("实色/原生不透明回退所有背景完全不透明，100% 无残余透视", () => {
-    expect(Object.values(surfaceAlphas(0.4, true))).toEqual([1, 1, 1, 1, 1]);
-    expect(Object.values(surfaceAlphas(1, false))).toEqual([1, 1, 1, 1, 1]);
+    expect(Object.values(surfaceAlphas(0.4, true))).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(Object.values(surfaceAlphas(1, false))).toEqual([1, 1, 1, 1, 1, 1]);
+  });
+  it.each(["reading", "glass", "frosted"] as const)(
+    "%s 仍随滑块增强，实色完全不透视",
+    (mode) => {
+      for (const frost of [false, true]) {
+        let previous = surfaceAlphas(0.4, false, mode, frost);
+        for (let i = 40; i <= 100; i++) {
+          const current = surfaceAlphas(i / 100, false, mode, frost);
+          expect(current["--background-alpha"]).toBe(i / 100);
+          for (const key of Object.keys(current) as (keyof typeof current)[]) {
+            expect(current[key]).toBeGreaterThanOrEqual(previous[key]);
+            expect(current[key]).toBeLessThanOrEqual(1);
+          }
+          previous = current;
+        }
+        expect(
+          Object.values(surfaceAlphas(0.4, true, mode, frost)).every(
+            (x) => x === 1,
+          ),
+        ).toBe(true);
+      }
+    },
+  );
+  it("材质差异真实，失去原生模糊时提高保护，任务行保留局部衬底", () => {
+    const reading = surfaceAlphas(0.4, false),
+      light = surfaceAlphas(0.4, false, "glass"),
+      dream = surfaceAlphas(0.4, false, "frosted", true),
+      fallback = surfaceAlphas(0.4, false, "frosted", false);
+    expect(reading["--panel-alpha"]).toBeGreaterThan(light["--panel-alpha"]);
+    expect(light["--panel-alpha"]).toBeGreaterThan(dream["--panel-alpha"]);
+    expect(fallback["--panel-alpha"]).toBeGreaterThan(dream["--panel-alpha"]);
+    for (const a of [light, dream, fallback])
+      expect(
+        over(
+          a["--task-alpha"],
+          over(a["--panel-alpha"], a["--background-alpha"]),
+        ),
+      ).toBeGreaterThanOrEqual(0.93);
   });
 });

@@ -141,6 +141,19 @@ describe("备份校验", () => {
     day_marks: [],
     settings: defaults,
   };
+  it("旧备份缺少外观字段时采用阅读优先，无需改变版本或任务", () => {
+    const legacy = { ...defaults } as Partial<typeof defaults>;
+    delete legacy.appearance_mode;
+    const restored = backupSchema.parse({ ...base, settings: legacy });
+    expect(restored.settings.appearance_mode).toBe("reading");
+    expect(restored.tasks).toEqual(base.tasks);
+    expect(
+      backupSchema.safeParse({
+        ...base,
+        settings: { ...defaults, appearance_mode: "unknown" },
+      }).success,
+    ).toBe(false);
+  });
   it("接受长中文多行详情", () => {
     const description =
       "调研范围：\n1. 产品 A\n2. 用户反馈\n\n下一步：形成初稿。".repeat(500);

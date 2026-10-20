@@ -22,6 +22,7 @@ vi.mock("./platform", () => ({
   prepareWindow: vi.fn(async () => {}),
   setTop: vi.fn(async () => {}),
   windowAction: vi.fn(async () => {}),
+  applyFrost: vi.fn(async () => false),
   repository: {
     load: vi.fn(async () => structuredClone(backend.data)),
     saveTask: vi.fn(async (task: Task) => {
@@ -49,6 +50,48 @@ vi.mock("./platform", () => ({
 }));
 import App from "./App";
 describe("SL-003 背景设置", () => {
+  it("外观模式保存并重新加载，失败保留原模式和错误反馈", async () => {
+    const user = userEvent.setup();
+    const ui = render(<App />);
+    await user.click(await screen.findByRole("button", { name: "设置" }));
+    for (const [name, mode] of [
+      ["轻玻璃", "glass"],
+      ["梦幻毛玻璃", "frosted"],
+      ["阅读优先", "reading"],
+    ]) {
+      await user.click(
+        screen.getByRole("radio", { name: new RegExp("^" + name) }),
+      );
+      await waitFor(() =>
+        expect(backend.data!.settings.appearance_mode).toBe(mode),
+      );
+      expect(
+        document.querySelector(".app-shell")?.getAttribute("data-appearance"),
+      ).toBe(mode);
+    }
+    await user.click(screen.getByRole("radio", { name: /^轻玻璃/ }));
+    await waitFor(() =>
+      expect(backend.data!.settings.appearance_mode).toBe("glass"),
+    );
+    ui.unmount();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "设置" }));
+    expect(screen.getByRole("radio", { name: /^轻玻璃/ })).toHaveProperty(
+      "checked",
+      true,
+    );
+    const { repository } = await import("./platform");
+    vi.mocked(repository.saveSettings).mockRejectedValueOnce(
+      new Error("设置保存失败"),
+    );
+    await user.click(screen.getByRole("radio", { name: /^阅读优先/ }));
+    await screen.findByText("设置保存失败");
+    expect(backend.data!.settings.appearance_mode).toBe("glass");
+    expect(screen.getByRole("radio", { name: /^轻玻璃/ })).toHaveProperty(
+      "checked",
+      true,
+    );
+  });
   it.each([40, 70, 100])(
     "%s%% 实时改变外壳并可靠保存原滑块数值",
     async (value) => {

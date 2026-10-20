@@ -18,6 +18,7 @@
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "test:desktop": "node scripts/desktop-smoke.mjs",
     "test:visual": "node scripts/visual-smoke.mjs",
+    "test:appearance": "node scripts/visual-smoke.mjs --materials",
     "test:release": "node scripts/release-smoke.mjs",
     "format": "prettier --write src scripts *.json *.ts *.js *.md .github/workflows"
   },

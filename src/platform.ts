@@ -4,6 +4,7 @@ import {
   getCurrentWindow,
   PhysicalPosition,
   PhysicalSize,
+  Effect,
 } from "@tauri-apps/api/window";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import {
@@ -106,6 +107,24 @@ export async function prepareWindow(alwaysOnTop: boolean) {
 }
 export const nativeTransparency = () =>
   isTauri() ? invoke<boolean>("native_transparency") : Promise.resolve(false);
+// Serialize effect changes so a slow earlier request cannot restore old material.
+let effectQueue: Promise<unknown> = Promise.resolve();
+export function applyFrost(enabled: boolean): Promise<boolean> {
+  const result = effectQueue
+    .catch(() => {})
+    .then(async () => {
+      if (!isTauri()) return false;
+      const win = getCurrentWindow();
+      if (enabled && (await invoke<boolean>("native_frost_supported"))) {
+        await win.setEffects({ effects: [Effect.Acrylic] });
+        return true;
+      }
+      await win.clearEffects();
+      return false;
+    });
+  effectQueue = result;
+  return result;
+}
 export async function windowAction(action: "minimize" | "close" | "resize") {
   if (!isTauri()) return;
   const win = getCurrentWindow();

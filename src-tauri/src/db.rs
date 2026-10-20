@@ -44,6 +44,11 @@ pub struct Settings {
     pub show_holidays: bool,
     pub show_weekends: bool,
     pub opaque_fallback: bool,
+    #[serde(default = "default_appearance")]
+    pub appearance_mode: String,
+}
+fn default_appearance() -> String {
+    "reading".into()
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -55,6 +60,7 @@ impl Default for Settings {
             show_holidays: true,
             show_weekends: true,
             opaque_fallback: false,
+            appearance_mode: default_appearance(),
         }
     }
 }
@@ -105,6 +111,7 @@ pub fn validate_task(t: &Task) -> Result<()> {
 }
 pub fn validate_settings(s: &Settings) -> Result<()> {
     if !["overview", "focus"].contains(&s.active_view.as_str())
+        || !["reading", "glass", "frosted"].contains(&s.appearance_mode.as_str())
         || !s.background_opacity.is_finite()
         || !(0.4..=1.).contains(&s.background_opacity)
     {
@@ -405,6 +412,54 @@ mod tests {
         let mut c = connection();
         migrate(&mut c).unwrap();
         assert_eq!(snapshot(&c).unwrap().categories.len(), 6);
+    }
+    #[test]
+    fn legacy_settings_and_backup_default_to_reading_without_schema_change() {
+        let c = connection();
+        save_task(&c, &task()).unwrap();
+        let mut legacy = serde_json::to_value(Settings::default()).unwrap();
+        legacy.as_object_mut().unwrap().remove("appearance_mode");
+        c.execute(
+            "UPDATE app_settings SET value=?1 WHERE id=1",
+            [legacy.to_string()],
+        )
+        .unwrap();
+        assert_eq!(snapshot(&c).unwrap().settings.appearance_mode, "reading");
+        let raw: String = c
+            .query_row("SELECT value FROM app_settings", [], |r| r.get(0))
+            .unwrap();
+        assert!(
+            !raw.contains("appearance_mode"),
+            "Loading must not rewrite legacy settings"
+        );
+        assert_eq!(
+            c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        let mut b = serde_json::to_value(export(&c).unwrap()).unwrap();
+        b["settings"]
+            .as_object_mut()
+            .unwrap()
+            .remove("appearance_mode");
+        let backup: Backup = serde_json::from_value(b).unwrap();
+        assert_eq!(backup.settings.appearance_mode, "reading");
+        assert_eq!(snapshot(&c).unwrap().tasks.len(), 1);
+    }
+    #[test]
+    fn appearance_roundtrips_and_invalid_values_preserve_settings() {
+        let c = connection();
+        let mut s = Settings::default();
+        for mode in ["reading", "glass", "frosted"] {
+            s.appearance_mode = mode.into();
+            save_settings(&c, &s).unwrap();
+            assert_eq!(snapshot(&c).unwrap().settings.appearance_mode, mode);
+            let exported = export(&c).unwrap();
+            assert_eq!(exported.settings.appearance_mode, mode);
+        }
+        s.appearance_mode = "unknown".into();
+        assert!(save_settings(&c, &s).is_err());
+        assert_eq!(snapshot(&c).unwrap().settings.appearance_mode, "frosted");
     }
     #[test]
     fn long_text_and_priority_roundtrip() {

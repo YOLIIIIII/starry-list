@@ -22,6 +22,8 @@ public sealed class StarryVisualBackdrop : Form {
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(Point point);
     [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr window, System.Text.StringBuilder name, int count);
+    [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr window, uint attribute, out int value, uint size);
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
     [DllImport("user32.dll")] static extern void mouse_event(uint flags, uint x, uint y, uint data, UIntPtr extra);
     delegate bool WindowVisitor(IntPtr window, IntPtr data);
@@ -37,27 +39,42 @@ public sealed class StarryVisualBackdrop : Form {
         uint foreground; GetWindowThreadProcessId(GetForegroundWindow(), out foreground);
         if (foreground != appProcess || !BoundsOf(Handle).Contains(area))
             throw new Exception("Capture refused: test foreground or synthetic coverage changed");
-        bool found = false, unsafeWindow = false;
+        bool found = false, appSeen = false, unsafeWindow = false;
+        string unsafeClass = "none";
         EnumWindows(delegate(IntPtr window, IntPtr data) {
             if (window == Handle) { found = true; return false; }
             if (!IsWindowVisible(window)) return true;
+            int cloaked;
+            // Cloaked shell windows retain WS_VISIBLE but are not composed.
+            // On query failure keep the conservative capture refusal behavior.
+            if (DwmGetWindowAttribute(window, 14, out cloaked, 4) == 0 && cloaked != 0) return true;
             uint process; GetWindowThreadProcessId(window, out process);
+            if (process == appProcess) appSeen = true;
             if (process != appProcess && process != (uint)System.Diagnostics.Process.GetCurrentProcess().Id && BoundsOf(window).IntersectsWith(area)) {
+                var name = new System.Text.StringBuilder(128);
+                GetClassName(window, name, 128);
+                unsafeClass = name.ToString(); // Class only; never read private window titles.
                 unsafeWindow = true; return false;
             }
             return true;
         }, IntPtr.Zero);
-        if (!found || unsafeWindow) throw new Exception("Capture refused: unrelated window may appear in the region");
+        if (!found || !appSeen || unsafeWindow) throw new Exception("Capture refused: unrelated window may appear in the region (backdrop=" + found + ", app=" + appSeen + ", class=" + unsafeClass + ")");
     }
-    public void CaptureRegion(string path, uint appProcess, IntPtr appWindow) {
+    public void CaptureRegion(string path, uint appProcess, IntPtr appWindow, int blurMargin) {
         Rectangle area = BoundsOf(appWindow);
-        Guard(area, appProcess);
+        // Acrylic may sample beyond the window. Keep that region synthetic too.
+        Rectangle guarded = Rectangle.Inflate(area, blurMargin, blurMargin);
+        Guard(guarded, appProcess);
         using (Bitmap pixels = new Bitmap(area.Width, area.Height)) {
             using (Graphics g = Graphics.FromImage(pixels))
                 g.CopyFromScreen(area.Location, Point.Empty, area.Size);
-            Guard(area, appProcess);
+            Guard(guarded, appProcess);
             pixels.Save(path, ImageFormat.Png);
         }
+    }
+    public int BackdropType(IntPtr appWindow) {
+        int value;
+        return DwmGetWindowAttribute(appWindow, 38, out value, 4) == 0 ? value : -1;
     }
     public void DragRegion(uint appProcess, IntPtr appWindow, int fromX, int fromY, int toX, int toY) {
         uint foreground;

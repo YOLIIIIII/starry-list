@@ -6,7 +6,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { NotificationRail, UndoToast } from "./quick-actions";
+import { NotificationRail, UndoToast, StatusToast } from "./quick-actions";
 import { makeTask } from "./test-fixtures";
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -14,6 +14,36 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("独立撤销提示计时", () => {
+  it("普通恢复通知五秒、悬停/焦点/弹窗暂停，关闭位于 DOM 最末", () => {
+    const close = vi.fn();
+    const { rerender } = render(
+      <StatusToast text="任务已恢复" onClose={close} suspended={false} />,
+    );
+    const toast = screen.getByRole("status"),
+      button = screen.getByRole("button", { name: "关闭通知" });
+    expect(toast.lastElementChild).toBe(button);
+    act(() => vi.advanceTimersByTime(2000));
+    fireEvent.pointerEnter(toast);
+    act(() => vi.advanceTimersByTime(6000));
+    expect(close).not.toHaveBeenCalled();
+    fireEvent.focus(button);
+    fireEvent.pointerLeave(toast);
+    act(() => vi.advanceTimersByTime(6000));
+    expect(close).not.toHaveBeenCalled();
+    fireEvent.blur(toast, { relatedTarget: document.body });
+    rerender(
+      <StatusToast text="任务已恢复" onClose={close} suspended={true} />,
+    );
+    act(() => vi.advanceTimersByTime(6000));
+    expect(close).not.toHaveBeenCalled();
+    rerender(
+      <StatusToast text="任务已恢复" onClose={close} suspended={false} />,
+    );
+    act(() => vi.advanceTimersByTime(2999));
+    expect(close).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(close).toHaveBeenCalledOnce();
+  });
   function setup(undo = vi.fn(async () => {})) {
     const close = vi.fn();
     render(

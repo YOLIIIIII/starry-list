@@ -11,7 +11,29 @@ import { makeTask } from "../src/test-fixtures.ts";
 import "./prepare-visual-baseline.mjs";
 
 const opaque = process.argv.includes("--opaque");
-const root = resolve(`.cache/visual-${opaque ? "opaque-" : ""}${Date.now()}`);
+const materials = process.argv.includes("--materials");
+const foregroundOnly = process.argv.includes("--foreground-only");
+const viewportOnly = process.argv.includes("--viewport-only");
+const matrixOnly = process.argv.includes("--matrix-only");
+assert.ok(
+  !(matrixOnly && foregroundOnly),
+  "Choose matrix or foreground checks, not both flags",
+);
+assert.ok(
+  !viewportOnly || foregroundOnly,
+  "Viewport capture is only for foreground checks, never compositor matrices",
+);
+const variants = materials
+  ? ["reading", "glass", "frosted"]
+  : opaque
+    ? ["ux30"]
+    : ["ux23", "ux30"];
+const publicImages = materials
+  ? "docs/screenshots/ux301"
+  : "docs/screenshots/ux30";
+const root = resolve(
+  `.cache/visual-${materials ? "materials-" : ""}${opaque ? "opaque-" : ""}${Date.now()}`,
+);
 await mkdir(root, { recursive: true });
 const control = resolve(root, "control.json");
 const baseline = await readFile(
@@ -57,13 +79,14 @@ async function invoke(command, args = {}) {
 async function click(name) {
   await page.getByRole("button", { name, exact: true }).click();
 }
-async function config(view, alpha) {
+async function config(view, alpha, appearance = "reading") {
   await invoke("save_settings", {
     settings: {
       ...defaults,
       active_view: view,
       background_opacity: alpha,
       animations_enabled: false,
+      appearance_mode: appearance,
     },
   });
   await page.reload();
@@ -73,9 +96,26 @@ async function config(view, alpha) {
       .getByRole("button", { name: "选择 2026-10-19", exact: true })
       .click();
   else await click("专注 2026-10-19");
+  await page.waitForFunction(
+    ({ appearance, alpha, opaque }) => {
+      const el = document.querySelector(".app-shell");
+      return (
+        el?.getAttribute("data-appearance") === appearance &&
+        (appearance !== "frosted" ||
+          alpha === 1 ||
+          opaque ||
+          ["applied", "fallback"].includes(el.getAttribute("data-frost")))
+      );
+    },
+    { appearance, alpha, opaque },
+  );
 }
 async function capture(name) {
   const path = resolve(root, name + ".png");
+  if (viewportOnly) {
+    await page.screenshot({ path });
+    return path;
+  }
   for (let attempt = 0; attempt < 3; attempt++) {
     await command({ action: "front" });
     await invoke("plugin:window|set_focus", { label: "main" });
@@ -86,6 +126,7 @@ async function capture(name) {
         path,
         appProcess: app.pid,
         appWindow: windowHandle,
+        blurMargin: materials ? 64 : 0,
       });
       break;
     } catch (error) {
@@ -231,7 +272,7 @@ try {
   for (const task of tasks) await invoke("save_task", { task });
   await invoke("plugin:window|set_size", {
     label: "main",
-    value: { Logical: { width: 980, height: 680 } },
+    value: { Logical: { width: 980, height: materials ? 620 : 680 } },
   });
   const size = await invoke("plugin:window|outer_size", { label: "main" });
   await invoke("plugin:window|set_position", {
@@ -244,13 +285,16 @@ try {
     },
   });
   await config("overview", 0.7);
-  for (const scene of ["light", "dark", "colorful", "text"]) {
+  for (const scene of foregroundOnly
+    ? []
+    : ["light", "dark", "colorful", "text"]) {
     console.log("Synthetic background:", scene);
     await command({ action: "scene", scene });
     for (const alpha of [0.4, 0.7, 1])
       for (const view of ["overview", "focus"]) {
         await config(view, alpha);
-        for (const variant of opaque ? ["ux30"] : ["ux23", "ux30"]) {
+        for (const variant of variants) {
+          if (materials) await config(view, alpha, variant);
           if (variant === "ux23")
             await page.evaluate(
               ({ css, alpha }) => {
@@ -274,7 +318,7 @@ try {
               },
               { css: baseline, alpha },
             );
-          else if (!opaque) {
+          else if (!opaque && !materials) {
             // Reload restores the actual shipped stylesheet and computed variables.
             await config(view, alpha);
           }
@@ -293,13 +337,41 @@ try {
                   ".app-shell,.app-header,.agenda-panel,.focus,.modal-backdrop",
                 ),
               ].map((el) => getComputedStyle(el).backdropFilter),
+              material: shell.getAttribute("data-appearance"),
+              frost: shell.getAttribute("data-frost"),
             };
           });
+          if (materials) {
+            const native = await until(async () => {
+              const result = await command({
+                action: "backdrop-type",
+                appWindow: windowHandle,
+              });
+              if (
+                computed.frost === "applied" &&
+                variant === "frosted" &&
+                alpha < 1
+              )
+                assert.equal(
+                  result.backdropType,
+                  3,
+                  "Modern Windows Acrylic must be active at DWM level",
+                );
+              else
+                assert.notEqual(
+                  result.backdropType,
+                  3,
+                  "Other materials/100% must clear Acrylic",
+                );
+              return result;
+            });
+            computed.systemBackdrop = native.backdropType;
+          }
           assert.equal(computed.shell, opaque ? 1 : alpha);
           assert.equal(computed.header, "1");
           assert.equal(computed.overflow, false);
           assert.equal(computed.font, "14px");
-          if (variant === "ux30")
+          if (variant !== "ux23")
             assert.ok(computed.filters.every((value) => value === "none"));
           const path = await capture(
             `${variant}-${scene}-${Math.round(alpha * 100)}-${view}`,
@@ -315,13 +387,17 @@ try {
           });
           const selected =
             (scene === "colorful" && alpha === 0.7 && view === "overview") ||
-            (scene === "text" && alpha === 0.4 && view === "focus");
+            (scene === "text" && alpha === 0.4 && view === "focus") ||
+            (materials &&
+              scene === "dark" &&
+              alpha === 0.4 &&
+              view === "overview");
           if (selected && !opaque) {
-            await mkdir("docs/screenshots/ux30", { recursive: true });
+            await mkdir(publicImages, { recursive: true });
             await copyFile(
               path,
               resolve(
-                "docs/screenshots/ux30",
+                publicImages,
                 `${variant}-${scene}-${Math.round(alpha * 100)}-${view}.png`,
               ),
             );
@@ -330,7 +406,19 @@ try {
       }
   }
   const metrics = [];
-  for (const variant of opaque ? ["ux30"] : ["ux23", "ux30"])
+  if (materials && !foregroundOnly) {
+    for (const view of ["overview", "focus"]) {
+      const solid = records.filter(
+        (r) => r.scene === "light" && r.alpha === 1 && r.view === view,
+      );
+      assert.equal(
+        new Set(solid.map((r) => JSON.stringify(r.pixels.shell))).size,
+        3,
+        "100% materials must retain distinct palette pixels",
+      );
+    }
+  }
+  for (const variant of foregroundOnly ? [] : variants)
     for (const alpha of [0.4, 0.7, 1])
       for (const view of ["overview", "focus"]) {
         const group = records.filter(
@@ -358,10 +446,15 @@ try {
           assert.ok(metric.readingSpread <= 4, JSON.stringify(metric));
           assert.ok(metric.minimumPrimaryContrast >= 7, JSON.stringify(metric));
         }
+        if (materials) {
+          assert.ok(metric.minimumPrimaryContrast >= 7, JSON.stringify(metric));
+          if (variant === "reading")
+            assert.ok(metric.readingSpread <= 4, JSON.stringify(metric));
+        }
         if (opaque || alpha === 1) {
           assert.equal(metric.shellSpread, 0);
           assert.equal(metric.readingSpread, 0);
-        } else
+        } else if (variant !== "frosted")
           assert.ok(
             metric.shellSpread >= 20,
             "Transparent shell must visibly react to different backgrounds",
@@ -374,97 +467,131 @@ try {
     resolve(root, "matrix-results.json"),
     JSON.stringify({ records, metrics }, null, 2),
   );
-  for (const width of [980, 760, 500, 380]) {
-    await invoke("plugin:window|set_size", {
-      label: "main",
-      value: { Logical: { width, height: 680 } },
-    });
-    await config("overview", 0.4);
-    await click("任务操作 认真安排今天，也为明天留一点余地");
-    const menu = page.getByRole("menu");
-    await menu.waitFor();
-    assert.equal(
-      await menu.getByRole("menuitem", { name: "编辑任务" }).evaluate((el) => {
-        const b = el.getBoundingClientRect();
-        return el.contains(
-          document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2),
+  let foregroundCaptures = 0;
+  for (const mode of matrixOnly ? [] : materials ? variants : ["reading"]) {
+    for (const width of [980, 760, 500, 380]) {
+      await invoke("plugin:window|set_size", {
+        label: "main",
+        value: { Logical: { width, height: materials ? 620 : 680 } },
+      });
+      await config("overview", 0.4, mode);
+      await click("任务操作 认真安排今天，也为明天留一点余地");
+      const menu = page.getByRole("menu");
+      await menu.waitFor();
+      assert.equal(
+        await menu
+          .getByRole("menuitem", { name: "编辑任务" })
+          .evaluate((el) => {
+            const b = el.getBoundingClientRect();
+            return el.contains(
+              document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2),
+            );
+          }),
+        true,
+      );
+      await page.keyboard.press("Escape");
+      await page
+        .getByRole("region", { name: "七天日程" })
+        .getByRole("button", { name: new RegExp("^" + tasks[0].title) })
+        .click();
+      await page.getByRole("region", { name: "详细计划（只读）" }).waitFor();
+      await capture(`${mode}-reader-${width}`);
+      await click("编辑");
+      const footer = await page
+        .getByRole("button", { name: "保存并收起", exact: true })
+        .boundingBox();
+      assert.ok(footer.y + footer.height <= 680);
+      assert.equal(
+        await page
+          .getByRole("textbox", { name: "详细计划", exact: true })
+          .evaluate((el) => getComputedStyle(el).opacity),
+        "1",
+      );
+      const drawerImage = await capture(`${mode}-drawer-${width}`);
+      if (width === 380 && !opaque)
+        await copyFile(
+          drawerImage,
+          resolve(publicImages, `${materials ? mode + "-" : ""}drawer-380.png`),
         );
-      }),
-      true,
-    );
-    await page.keyboard.press("Escape");
-    await page
-      .getByRole("region", { name: "七天日程" })
-      .getByRole("button", { name: new RegExp("^" + tasks[0].title) })
-      .click();
-    await page.getByRole("region", { name: "详细计划（只读）" }).waitFor();
-    await capture(`reader-${width}`);
-    await click("编辑");
-    const footer = await page
-      .getByRole("button", { name: "保存并收起", exact: true })
-      .boundingBox();
-    assert.ok(footer.y + footer.height <= 680);
-    assert.equal(
-      await page
-        .getByRole("textbox", { name: "详细计划", exact: true })
-        .evaluate((el) => getComputedStyle(el).opacity),
-      "1",
-    );
-    const drawerImage = await capture(`drawer-${width}`);
-    if (width === 380 && !opaque)
-      await copyFile(
-        drawerImage,
-        resolve("docs/screenshots/ux30/drawer-380.png"),
+      await click("取消");
+      await click("设置");
+      await page.getByRole("dialog").waitFor();
+      assert.equal(
+        await page.getByRole("slider", { name: /背景不透明度/ }).isDisabled(),
+        opaque,
       );
-    await click("取消");
-    await click("设置");
-    await page.getByRole("dialog").waitFor();
-    assert.equal(
-      await page.getByRole("slider", { name: /背景不透明度/ }).isDisabled(),
-      opaque,
-    );
-    if (opaque)
+      if (opaque)
+        await page
+          .getByText("此版本使用原生不透明窗口，背景不会透视桌面。", {
+            exact: true,
+          })
+          .waitFor();
+      await capture(`${mode}-dialog-${width}`);
+      await click("关闭对话框");
+      await click("统筹总览");
+      await click("为 2026-10-19 添加任务");
       await page
-        .getByText("此版本使用原生不透明窗口，背景不会透视桌面。", {
-          exact: true,
-        })
-        .waitFor();
-    await capture(`dialog-${width}`);
-    await click("关闭对话框");
-    await click("统筹总览");
-    await click("为 2026-10-19 添加任务");
-    await page
-      .getByRole("textbox", { name: "2026-10-19 新任务标题", exact: true })
-      .fill("视觉验收临时任务");
-    await page.keyboard.press("Enter");
-    const notification = page.getByRole("status", {
-      name: "已添加 视觉验收临时任务",
-      exact: true,
-    });
-    await notification.waitFor();
-    const noticeImage = await capture(`notification-${width}`);
-    if (width === 380 && !opaque)
-      await copyFile(
-        noticeImage,
-        resolve("docs/screenshots/ux30/notification-380.png"),
+        .getByRole("textbox", { name: "2026-10-19 新任务标题", exact: true })
+        .fill("视觉验收临时任务");
+      await page.keyboard.press("Enter");
+      const notification = page.getByRole("status", {
+        name: "已添加 视觉验收临时任务",
+        exact: true,
+      });
+      await notification.waitFor();
+      const close = notification.getByRole("button", {
+        name: "关闭通知",
+        exact: true,
+      });
+      const noticeBox = await notification.boundingBox(),
+        closeBox = await close.boundingBox();
+      assert.ok(
+        noticeBox.x + noticeBox.width - closeBox.x - closeBox.width <= 12,
+        "Notification close must align to the right edge",
       );
-    await notification
-      .getByRole("button", { name: "撤销", exact: true })
-      .click();
-    assert.equal((await invoke("load_snapshot")).tasks.length, 3);
-    assert.equal(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth > innerWidth,
-      ),
-      false,
-    );
+      const noticeImage = await capture(`${mode}-notification-${width}`);
+      if (width === 380 && !opaque)
+        await copyFile(
+          noticeImage,
+          resolve(
+            publicImages,
+            `${materials ? mode + "-" : ""}notification-380.png`,
+          ),
+        );
+      await notification
+        .getByRole("button", { name: "撤销", exact: true })
+        .click();
+      assert.equal((await invoke("load_snapshot")).tasks.length, 3);
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth > innerWidth,
+        ),
+        false,
+      );
+      // Undo success uses the ordinary status toast, which previously put X left.
+      const restored = page
+        .getByRole("status")
+        .filter({ hasText: "已撤销新增" });
+      const restoredBox = await restored.boundingBox();
+      const restoredClose = await restored
+        .getByRole("button", { name: "关闭通知" })
+        .boundingBox();
+      assert.ok(
+        restoredBox.x +
+          restoredBox.width -
+          restoredClose.x -
+          restoredClose.width <=
+          12,
+      );
+      foregroundCaptures += 4;
+    }
   }
   assert.deepEqual(errors, []);
   await invoke("plugin:window|set_size", {
     label: "main",
     value: { Logical: { width: 980, height: 680 } },
   });
-  await config("overview", 0.7);
+  await config("overview", 0.7, materials ? "frosted" : "reading");
   await invoke("plugin:window|set_focus", { label: "main" });
   const positionBefore = await invoke("plugin:window|outer_position", {
     label: "main",
@@ -490,34 +617,41 @@ try {
       toY: fromY + dy,
     });
   }
-  await drag(".drag-space", 40, 30);
-  const positionAfter = await invoke("plugin:window|outer_position", {
-    label: "main",
-  });
-  assert.ok(
-    positionAfter.x - positionBefore.x >= 30 &&
-      positionAfter.y - positionBefore.y >= 20,
-    "Real titlebar mouse drag must move the window",
-  );
-  await drag(".resize-East", 64, 0);
-  const resized = await invoke("plugin:window|outer_size", { label: "main" });
-  assert.ok(
-    resized.width - nativeSize.width >= 50,
-    "Real edge mouse drag must resize the window",
-  );
+  if (!viewportOnly && !matrixOnly) {
+    await drag(".drag-space", 40, 30);
+    const positionAfter = await invoke("plugin:window|outer_position", {
+      label: "main",
+    });
+    assert.ok(
+      positionAfter.x - positionBefore.x >= 30 &&
+        positionAfter.y - positionBefore.y >= 20,
+      "Real titlebar mouse drag must move the window",
+    );
+    await drag(".resize-East", 64, 0);
+    const resized = await invoke("plugin:window|outer_size", { label: "main" });
+    assert.ok(
+      resized.width - nativeSize.width >= 50,
+      "Real edge mouse drag must resize the window",
+    );
+  }
   await writeFile(
     resolve(root, "results.json"),
     JSON.stringify(
       {
         opaque,
+        materials,
+        foregroundOnly,
+        viewportOnly,
+        matrixOnly,
         captures: records.length,
-        source:
-          "Own programmatically painted WinForms backdrop; guarded native screen capture",
+        source: viewportOnly
+          ? "WebView2 viewport only; excludes native compositor"
+          : "Own programmatically painted WinForms backdrop; guarded native screen capture",
         baselineCommit: "d50af114c655a91d2bc52481008c5ec201d84197",
         baselineCssSha256: createHash("sha256").update(baseline).digest("hex"),
         records,
         metrics,
-        nativePointerDragAndResize: true,
+        nativePointerDragAndResize: !viewportOnly && !matrixOnly,
         errors,
       },
       null,
@@ -529,7 +663,7 @@ try {
       passed: true,
       opaque,
       matrixCaptures: records.length,
-      foregroundCaptures: 16,
+      foregroundCaptures,
       root,
     }),
   );

@@ -1084,6 +1084,11 @@ try {
     await invoke("plugin:window|inner_size", { label: "main" }),
     await invoke("plugin:window|is_decorated", { label: "main" }),
   );
+  // Only this isolated test database is changed; settings retain the same table.
+  const appearanceSettings = (await invoke("load_snapshot")).settings;
+  await invoke("save_settings", {
+    settings: { ...appearanceSettings, appearance_mode: "frosted" },
+  });
   const exitPromise = new Promise((r) => child.once("exit", r));
   await invoke("plugin:window|close", { label: "main" });
   await Promise.race([
@@ -1116,6 +1121,15 @@ try {
     longText + "关闭前保存",
   );
   assert.equal(restarted.settings.active_view, "focus");
+  assert.equal(restarted.settings.appearance_mode, "frosted");
+  await page.waitForFunction(
+    () =>
+      document.querySelector(".app-shell")?.getAttribute("data-appearance") ===
+      "frosted",
+  );
+  results.push(
+    "UX3.0.1 appearance preference survives a real native process restart in SQLite",
+  );
   assert.equal(
     restarted.tasks.find((t) => t.title === title).category_id,
     "work",

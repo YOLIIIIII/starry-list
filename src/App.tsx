@@ -1,6 +1,7 @@
 import {
   InlineTitleEditor,
   NotificationRail,
+  StatusToast,
   UndoToast,
   type InlineTitleHandle,
   type UndoEntry,
@@ -23,7 +24,6 @@ import {
   Download,
   Upload,
   ShieldCheck,
-  Check,
   AlertCircle,
 } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
@@ -43,6 +43,7 @@ import {
   type Task,
   type Backup,
   type Settings,
+  type Appearance,
 } from "./domain";
 import { dayInfo } from "./holidays";
 import { store, useStore } from "./store";
@@ -53,6 +54,7 @@ import {
   windowAction,
   nativeTransparency,
   resizeWindow,
+  applyFrost,
 } from "./platform";
 import {
   Dialog,
@@ -106,6 +108,9 @@ export default function App() {
   const closeAllowed = useRef(false);
   const [opacity, setOpacity] = useState<number | null>(null);
   const [nativeTransparent, setNativeTransparent] = useState(true);
+  const [frostState, setFrostState] = useState<
+    "off" | "pending" | "applied" | "fallback"
+  >("off");
   const calendarGrid = useRef<HTMLDivElement>(null);
   const [previewLimit, setPreviewLimit] = useState(1);
   const [quickDraft, setQuickDraft] = useState<{
@@ -216,11 +221,30 @@ export default function App() {
       unlisten?.();
     };
   }, [cancelEnterReturn]);
+  const wantsFrost =
+    settings.appearance_mode === "frosted" &&
+    nativeTransparent &&
+    !settings.opaque_fallback &&
+    (opacity ?? settings.background_opacity) < 1;
   useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(""), 4000);
-    return () => clearTimeout(timer);
-  }, [notice]);
+    if (!initialized) return;
+    let alive = true;
+    if (wantsFrost) setFrostState("pending");
+    // Reading/light modes actively clear Acrylic left by a previous selection.
+    void applyFrost(wantsFrost)
+      .then((applied) => {
+        if (alive)
+          setFrostState(
+            wantsFrost ? (applied ? "applied" : "fallback") : "off",
+          );
+      })
+      .catch(() => {
+        if (alive) setFrostState(wantsFrost ? "fallback" : "off");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [initialized, wantsFrost]);
   const byDate = new Map<string, Task[]>();
   for (const t of tasks) {
     const day = byDate.get(t.date) ?? [];
@@ -378,6 +402,8 @@ export default function App() {
   const style = surfaceAlphas(
     opacity ?? settings.background_opacity,
     settings.opaque_fallback || !nativeTransparent,
+    settings.appearance_mode,
+    frostState === "applied",
   ) as CSSProperties;
   const focusTasks = displayTasks(byDate.get(selected) ?? []);
   const seven = weekDays(selected);
@@ -428,6 +454,8 @@ export default function App() {
   return (
     <div
       className={`app-shell ${settings.animations_enabled ? "" : "no-motion"}`}
+      data-appearance={settings.appearance_mode}
+      data-frost={frostState}
       style={style}
     >
       <div className="app-header">
@@ -1006,13 +1034,14 @@ export default function App() {
           />
         ))}
         {notice && (
-          <div className="toast" role="status">
-            <Check size={15} />
-            <span>{notice}</span>
-            <button aria-label="关闭通知" onClick={() => setNotice("")}>
-              <X size={13} />
-            </button>
-          </div>
+          <StatusToast
+            key={notice}
+            text={notice}
+            onClose={() => setNotice("")}
+            suspended={Boolean(
+              editing || deleteTarget || settingsOpen || backup,
+            )}
+          />
         )}
       </NotificationRail>
       {deleteTarget && (
@@ -1068,6 +1097,54 @@ export default function App() {
         >
           <div className="settings-content">
             <div className="setting-opacity">
+              <fieldset className="appearance-setting" disabled={pending > 0}>
+                <legend>外观模式</legend>
+                <div className="appearance-options">
+                  {(
+                    [
+                      ["reading", "阅读优先", "稳定奶油衬底，适合长时间阅读"],
+                      ["glass", "轻玻璃", "通透清亮，任务保留局部衬底"],
+                      ["frosted", "梦幻毛玻璃", "柔紫星光，系统支持时模糊桌面"],
+                    ] as const
+                  ).map(([value, label, hint]) => (
+                    <label key={value}>
+                      <input
+                        type="radio"
+                        name="appearance"
+                        value={value}
+                        checked={settings.appearance_mode === value}
+                        onChange={() => {
+                          void safe(() =>
+                            saveSetting({
+                              appearance_mode: value as Appearance,
+                            }),
+                          );
+                        }}
+                      />
+                      <span>
+                        {label}
+                        <small>{hint}</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p>
+                  外观决定材质，下面的滑块调整通透程度。文字和输入保持清晰。
+                </p>
+                {settings.appearance_mode === "frosted" && (
+                  <p className="material-hint">
+                    {!nativeTransparent || settings.opaque_fallback
+                      ? "实色回退保留柔紫配色，关闭桌面模糊与透视。"
+                      : (opacity ?? settings.background_opacity) === 1
+                        ? "100% 使用实色材质，关闭桌面模糊。"
+                        : frostState === "applied"
+                          ? "已请求系统 Acrylic；实际效果受 Windows 透明效果与硬件设置影响。"
+                          : frostState === "pending"
+                            ? "正在应用材质，阅读衬底保持保护。"
+                            : "本机未启用原生毛玻璃，已使用更清晰的柔紫玻璃衬底。"}
+                  </p>
+                )}
+              </fieldset>
               <label htmlFor="opacity">
                 背景不透明度{" "}
                 <strong>

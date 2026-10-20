@@ -15,6 +15,21 @@ fn native_transparency(app: tauri::AppHandle) -> bool {
         .find(|w| w.label == "main")
         .is_some_and(|w| w.transparent)
 }
+#[tauri::command]
+fn native_frost_supported(app: tauri::AppHandle) -> bool {
+    if !native_transparency(app) {
+        return false;
+    }
+    // Use modern documented DWM Acrylic, avoiding the older slow accent path.
+    #[cfg(target_os = "windows")]
+    {
+        windows_version::OsVersion::current().build >= 22621
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
 fn lock(state: &Database) -> Result<std::sync::MutexGuard<'_, Connection>, String> {
     state
         .0
@@ -131,7 +146,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            native_transparency, load_snapshot, save_task, delete_task, save_settings,
+            native_transparency, native_frost_supported, load_snapshot, save_task, delete_task, save_settings,
             save_mark, reorder_tasks, export_backup, read_backup, import_backup
         ])
         .run(tauri::generate_context!())

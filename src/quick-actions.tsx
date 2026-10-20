@@ -163,6 +163,55 @@ export interface UndoEntry {
   kind: "added" | "deleted";
   task: Task;
 }
+function useToastLifetime(paused: boolean, onClose: () => void) {
+  const remaining = useRef(5000);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    if (paused) return;
+    const start = performance.now();
+    const timer = setTimeout(() => close.current(), remaining.current);
+    return () => {
+      clearTimeout(timer);
+      remaining.current = Math.max(
+        0,
+        remaining.current - (performance.now() - start),
+      );
+    };
+  }, [paused]);
+}
+export function StatusToast({
+  text,
+  onClose,
+  suspended,
+}: {
+  text: string;
+  onClose(): void;
+  suspended: boolean;
+}) {
+  const [hover, setHover] = useState(false);
+  const [focus, setFocus] = useState(false);
+  useToastLifetime(hover || focus || suspended, onClose);
+  return (
+    <div
+      className="toast"
+      role="status"
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+      onFocus={() => setFocus(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+          setFocus(false);
+      }}
+    >
+      <Check size={15} />
+      <span title={text}>{text}</span>
+      <button className="toast-close" aria-label="关闭通知" onClick={onClose}>
+        <X size={13} />
+      </button>
+    </div>
+  );
+}
 // A single-row rail keeps independent undo opportunities without covering the list.
 export function NotificationRail({
   children,
@@ -241,9 +290,6 @@ export function UndoToast({
   const [focus, setFocus] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const remaining = useRef(5000);
-  const close = useRef(onClose);
-  close.current = onClose;
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -251,18 +297,7 @@ export function UndoToast({
       alive.current = false;
     };
   }, []);
-  useEffect(() => {
-    if (hover || focus || busy || failed || suspended) return;
-    const start = performance.now();
-    const timer = setTimeout(() => close.current(), remaining.current);
-    return () => {
-      clearTimeout(timer);
-      remaining.current = Math.max(
-        0,
-        remaining.current - (performance.now() - start),
-      );
-    };
-  }, [hover, focus, busy, failed, suspended]);
+  useToastLifetime(hover || focus || busy || failed || suspended, onClose);
   return (
     <div
       className="toast undo-toast"
@@ -300,7 +335,12 @@ export function UndoToast({
       >
         {busy ? "处理中" : "撤销"}
       </button>
-      <button disabled={busy} aria-label="关闭通知" onClick={onClose}>
+      <button
+        className="toast-close"
+        disabled={busy}
+        aria-label="关闭通知"
+        onClick={onClose}
+      >
         <X size={13} />
       </button>
     </div>

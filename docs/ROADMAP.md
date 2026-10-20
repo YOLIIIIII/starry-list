@@ -15,7 +15,7 @@ Windows 是当前主要平台，未来考虑 macOS。桌面驻留是待验证的
 | 初始 V1.0 源码基线              | 已提交并 Push：[`830b88f`](https://github.com/YOLIIIIII/starry-list/commit/830b88f3ddc7fbf23084cab7a722db8dcbe45f2d)    | 首次 [GitHub CI](https://github.com/YOLIIIIII/starry-list/actions/runs/38733069296) 成功 | 原始记录为 Windows 11 验证；不等于所有 Windows 设备已认证    | 未记录完整 V1.0 最终验收                        | 没有 GitHub Release    |
 | SL-001 阅读 / 编辑分离          | 已实现并独立提交：[`23a7cd3`](https://github.com/YOLIIIIII/starry-list/commit/23a7cd3941a28d0724e254ca7b9bb71c9b8fd5c8) | UX2.3 TypeScript、Lint、100 项前端和 11 项 Rust 测试通过                                 | UX2.3 22 组原生回归通过，含宽窄抽屉、长文本、菜单及保存失败  | 用户认可大部分首轮改进；In Review，仍待最终验收 | 未发布，仅本地体验构建 |
 | SL-002 七天日程空状态           | UX2.3：保留可靠失焦新增，Enter 成功后返回原日期加号                                                                     | 100 项前端、11 项 Rust 通过                                                              | 22 组 Windows 11 测试通过，含真实 Edge 失焦、INSERT 失败重试 | Done，2026-10-19 用户确认                       | 未发布                 |
-| SL-003 透明视觉层级             | UX3.0 已实现：连续顶栏、稳定阅读衬底与透明外壳                                                                          | 109 项前端、11 项 Rust 回归通过                                                          | 自制背景矩阵、宽窄窗口及原生拖动/缩放验证，详见验证记录      | In Review，待体验安装包确认                     | 未发布                 |
+| SL-003 透明视觉层级             | UX3.0.1：三种外观与通知右侧关闭                                                                                         | 119 项前端、13 项 Rust 通过                                                              | 23 组桌面、72 张合成矩阵及透明/不透明视口检查，详见验证记录  | In Review，待安装体验确认                       | 未发布                 |
 | SL-004 至 SL-018（除 SL-004-A） | 待安排或想法，不因登记而实现                                                                                            | 未验证                                                                                   | 未验证                                                       | 未验收                                          | 未发布                 |
 | SL-019 快捷删除入口             | UX2.3：顶部居中单行撤销通知，约 5 秒、独立计时及暂停                                                                    | 100 项前端回归通过                                                                       | 真实 DELETE 失败、重试、撤销与菜单定位通过                   | Done，2026-10-19 用户确认                       | 未发布                 |
 | SL-004-A 局部字号               | UX2.1：新增文字、占位符和任务标题统一为 14px                                                                            | 前端检查通过                                                                             | 980 / 760 / 500 / 380px 无水平溢出，菜单命中及字号检查通过   | In Review，父需求 SL-004 保持未完成             | 未发布                 |
@@ -64,7 +64,13 @@ UX2.1 实现提交：[`6d7c64e`](https://github.com/YOLIIIIII/starry-list/commit
 - 14px 与 SL-004-A / In Review 不变，SL-001 不关闭；SL-018 / SL-020、SL-022 / SL-023 不变，无新增编号和拖动/星河实现。实际测试与体验构建见 [验证记录](VALIDATION.md)。
 - 下一轮先验收 UX2.3，再按原顺序评审 SL-003 透明视觉；全局字号、顶部优化与驻留研究仍需独立授权。
 
-## UX3.0 当前增量
+## UX3.0.1 当前续修
+
+实现提交：[`faa14e8`](https://github.com/YOLIIIIII/starry-list/commit/faa14e8e06f328001af6d82dec898ae0969d8b6c)；独立体验包与测试限制见验证记录，尚未正式发布。
+
+用户安装 UX3.0 后认可整体方向，反馈白色衬底偏实、普通恢复通知的关闭按钮偏左。本轮完成 SL-003-A 三种外观与 SL-003-B 通知修正：阅读优先默认，轻玻璃与梦幻毛玻璃可选，沿用原滑块和设置 JSON；当前 In Review，等待安装体验确认。原生 Acrylic 限定现代 Windows，其他环境清楚降级。119 项前端、13 项 Rust、23 组桌面回归与 72 张合成矩阵通过；前景 48 项为视口检查，原生材质拖动性能未完成验收。保持 14px、顶部结构、双视图及任务数据，SL-004 / SL-005 留后续独立授权。具体标准见需求池；[外观对比](UX3_0_1_VISUAL_REVIEW.md) 只用合成背景，未收到的用户参考图不声称逐像素复现。
+
+## UX3.0 历史增量
 
 实现提交：[`4e640e0`](https://github.com/YOLIIIIII/starry-list/commit/4e640e0b87e39fe0308e9ab00549971bd235605f)；109 项前端、11 项 Rust 和 22 组桌面回归通过；透明/不透明 Windows x64 NSIS 构建均成功，视觉仍待用户确认，不透明完整合成截图矩阵尚有缺口。
 

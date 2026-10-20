@@ -48,6 +48,54 @@ vi.mock("./platform", () => ({
   },
 }));
 import App from "./App";
+describe("SL-003 背景设置", () => {
+  it.each([40, 70, 100])(
+    "%s%% 实时改变外壳并可靠保存原滑块数值",
+    async (value) => {
+      const user = userEvent.setup();
+      render(<App />);
+      await user.click(await screen.findByRole("button", { name: "设置" }));
+      const slider = screen.getByRole("slider", { name: /背景不透明度/ });
+      fireEvent.change(slider, { target: { value: String(value) } });
+      const shell = document.querySelector<HTMLElement>(".app-shell")!;
+      expect(Number(shell.style.getPropertyValue("--background-alpha"))).toBe(
+        value / 100,
+      );
+      expect(
+        Number(shell.style.getPropertyValue("--panel-alpha")),
+      ).toBeGreaterThanOrEqual(0.964);
+      fireEvent.pointerUp(slider);
+      await waitFor(() =>
+        expect(backend.data!.settings.background_opacity).toBe(value / 100),
+      );
+    },
+  );
+  it("实色回退不覆盖原透明度，关闭回退恢复已保存偏好", async () => {
+    backend.data!.settings.background_opacity = 0.4;
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "设置" }));
+    const toggle = screen.getByRole("checkbox", { name: /实色背景回退/ });
+    await user.click(toggle);
+    await waitFor(() =>
+      expect(backend.data!.settings.opaque_fallback).toBe(true),
+    );
+    expect(screen.getByRole("slider", { name: /背景不透明度/ })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    const shell = document.querySelector<HTMLElement>(".app-shell")!;
+    expect(Number(shell.style.getPropertyValue("--background-alpha"))).toBe(1);
+    expect(Number(shell.style.getPropertyValue("--panel-alpha"))).toBe(1);
+    await user.click(toggle);
+    await waitFor(() =>
+      expect(Number(shell.style.getPropertyValue("--background-alpha"))).toBe(
+        0.4,
+      ),
+    );
+    expect(backend.data!.settings.background_opacity).toBe(0.4);
+  });
+});
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 9, 14, 12));

@@ -6,6 +6,7 @@ import {
   type UndoEntry,
 } from "./quick-actions";
 import { useEnterReturn } from "./use-enter-return";
+import { surfaceAlphas } from "./surfaces";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CalendarDays,
@@ -374,15 +375,10 @@ export default function App() {
       list.map((t) => t.id),
     );
   }
-  const opacityValue =
-    settings.opaque_fallback || !nativeTransparent
-      ? 1
-      : (opacity ?? settings.background_opacity);
-  const style = {
-    "--background-alpha": opacityValue,
-    "--panel-alpha": Math.min(1, 0.78 + opacityValue * 0.2),
-    "--readability-alpha": Math.max(0, (0.85 - opacityValue) * 1.6),
-  } as CSSProperties;
+  const style = surfaceAlphas(
+    opacity ?? settings.background_opacity,
+    settings.opaque_fallback || !nativeTransparent,
+  ) as CSSProperties;
   const focusTasks = displayTasks(byDate.get(selected) ?? []);
   const seven = weekDays(selected);
   const monthGrid = monthDays(month);
@@ -434,73 +430,75 @@ export default function App() {
       className={`app-shell ${settings.animations_enabled ? "" : "no-motion"}`}
       style={style}
     >
-      <header className="titlebar">
-        <div className="brand" data-tauri-drag-region>
-          <span className="brand-icon" data-tauri-drag-region>
-            <Orbit size={26} data-tauri-drag-region />
-          </span>
-          <span data-tauri-drag-region>
-            星轨日历<small data-tauri-drag-region>STARRY LIST</small>
-          </span>
+      <div className="app-header">
+        <header className="titlebar">
+          <div className="brand" data-tauri-drag-region>
+            <span className="brand-icon" data-tauri-drag-region>
+              <Orbit size={26} data-tauri-drag-region />
+            </span>
+            <span data-tauri-drag-region>
+              星轨日历<small data-tauri-drag-region>STARRY LIST</small>
+            </span>
+          </div>
+          <div className="drag-space" data-tauri-drag-region />
+          <div className="window-buttons">
+            <button
+              aria-label={settings.always_on_top ? "取消置顶" : "始终置顶"}
+              title="始终置顶"
+              aria-pressed={settings.always_on_top}
+              className={settings.always_on_top ? "is-pinned" : ""}
+              onClick={() =>
+                void safe(() =>
+                  saveSetting({ always_on_top: !settings.always_on_top }),
+                )
+              }
+              disabled={loading || pending > 0}
+            >
+              <Pin size={15} />
+            </button>
+            <button
+              aria-label="设置"
+              onClick={() => void guard(() => setSettingsOpen(true))}
+            >
+              <SettingsIcon size={16} />
+            </button>
+            <span className="window-divider" />
+            <button
+              aria-label="最小化"
+              onClick={() => void safe(() => windowAction("minimize"))}
+            >
+              <Minus size={17} />
+            </button>
+            <button
+              className="window-close"
+              aria-label="关闭应用"
+              onClick={() => void safe(() => windowAction("close"))}
+            >
+              <X size={17} />
+            </button>
+          </div>
+        </header>
+        <div className="topbar">
+          <div className="view-switch" role="group" aria-label="工作模式">
+            <button
+              className={settings.active_view === "overview" ? "active" : ""}
+              aria-pressed={settings.active_view === "overview"}
+              onClick={() => changeView("overview")}
+            >
+              <CalendarDays size={16} />
+              统筹总览
+            </button>
+            <button
+              className={settings.active_view === "focus" ? "active" : ""}
+              aria-pressed={settings.active_view === "focus"}
+              onClick={() => changeView("focus")}
+            >
+              <ListTodo size={16} />
+              专注编辑
+            </button>
+          </div>
+          <span className="topbar-caption">把日子，过成喜欢的样子。</span>
         </div>
-        <div className="drag-space" data-tauri-drag-region />
-        <div className="window-buttons">
-          <button
-            aria-label={settings.always_on_top ? "取消置顶" : "始终置顶"}
-            title="始终置顶"
-            aria-pressed={settings.always_on_top}
-            className={settings.always_on_top ? "is-pinned" : ""}
-            onClick={() =>
-              void safe(() =>
-                saveSetting({ always_on_top: !settings.always_on_top }),
-              )
-            }
-            disabled={loading || pending > 0}
-          >
-            <Pin size={15} />
-          </button>
-          <button
-            aria-label="设置"
-            onClick={() => void guard(() => setSettingsOpen(true))}
-          >
-            <SettingsIcon size={16} />
-          </button>
-          <span className="window-divider" />
-          <button
-            aria-label="最小化"
-            onClick={() => void safe(() => windowAction("minimize"))}
-          >
-            <Minus size={17} />
-          </button>
-          <button
-            className="window-close"
-            aria-label="关闭应用"
-            onClick={() => void safe(() => windowAction("close"))}
-          >
-            <X size={17} />
-          </button>
-        </div>
-      </header>
-      <div className="topbar">
-        <div className="view-switch" role="group" aria-label="工作模式">
-          <button
-            className={settings.active_view === "overview" ? "active" : ""}
-            aria-pressed={settings.active_view === "overview"}
-            onClick={() => changeView("overview")}
-          >
-            <CalendarDays size={16} />
-            统筹总览
-          </button>
-          <button
-            className={settings.active_view === "focus" ? "active" : ""}
-            aria-pressed={settings.active_view === "focus"}
-            onClick={() => changeView("focus")}
-          >
-            <ListTodo size={16} />
-            专注编辑
-          </button>
-        </div>
-        <span className="topbar-caption">把日子，过成喜欢的样子。</span>
       </div>
       {error && !settingsOpen && !backup && !deleteTarget && (
         <div className="error-banner" role="alert">
@@ -1106,7 +1104,7 @@ export default function App() {
               />
               <p>
                 {nativeTransparent
-                  ? "文字与输入区域保持清晰，只有背景融入桌面。"
+                  ? "外壳随透明度融入桌面，阅读区保留稳定衬底。"
                   : "此版本使用原生不透明窗口，背景不会透视桌面。"}
               </p>
             </div>

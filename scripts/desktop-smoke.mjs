@@ -262,16 +262,18 @@ try {
       false,
       "Autosave must not reactivate Starry List",
     );
+    // Restore and undo before shutting down Edge: process shutdown can exceed
+    // the real five-second undo window on a busy Windows machine.
+    await page.bringToFront();
+    await invoke("plugin:window|set_focus", { label: "main" });
+    await page
+      .getByRole("status", { name: "已添加 UX22 窗口失焦验证", exact: true })
+      .getByRole("button", { name: "撤销", exact: true })
+      .click();
+    assert.equal((await invoke("load_snapshot")).tasks.length, 2);
   } finally {
     await otherBrowser.close();
   }
-  await page.bringToFront();
-  await invoke("plugin:window|set_focus", { label: "main" });
-  await page
-    .getByRole("status", { name: "已添加 UX22 窗口失焦验证", exact: true })
-    .getByRole("button", { name: "撤销", exact: true })
-    .click();
-  assert.equal((await invoke("load_snapshot")).tasks.length, 2);
   results.push(
     "UX2.2 real Windows foreground switch to isolated Edge saves original-date title exactly once; addition undo persists",
   );

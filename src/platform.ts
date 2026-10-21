@@ -107,20 +107,40 @@ export async function prepareWindow(alwaysOnTop: boolean) {
 }
 export const nativeTransparency = () =>
   isTauri() ? invoke<boolean>("native_transparency") : Promise.resolve(false);
-// Serialize effect changes so a slow earlier request cannot restore old material.
+// One material per native window. Views never own or reapply Acrylic.
 let effectQueue: Promise<unknown> = Promise.resolve();
+let effectRevision = 0;
+let appliedFrost: boolean | undefined;
 export function applyFrost(enabled: boolean): Promise<boolean> {
+  const revision = ++effectRevision;
   const result = effectQueue
     .catch(() => {})
     .then(async () => {
-      if (!isTauri()) return false;
+      if (!isTauri() || revision !== effectRevision) return false;
+      if (appliedFrost === enabled) return enabled;
       const win = getCurrentWindow();
-      if (enabled && (await invoke<boolean>("native_frost_supported"))) {
-        await win.setEffects({ effects: [Effect.Acrylic] });
-        return true;
+      try {
+        const supported =
+          enabled && (await invoke<boolean>("native_frost_supported"));
+        if (revision !== effectRevision) return false;
+        // Replace, never stack. Reset an unknown/previous native effect before
+        // applying a new one; keep the stronger CSS fallback until completion.
+        appliedFrost = undefined;
+        await win.clearEffects();
+        if (supported && revision === effectRevision) {
+          await win.setEffects({ effects: [Effect.Acrylic] });
+          appliedFrost = true;
+          return true;
+        }
+        appliedFrost = false;
+        return false;
+      } catch (error) {
+        appliedFrost = undefined;
+        // A failed application may already have changed the native window.
+        // Clear it before the UI enables its stronger fallback surface.
+        await win.clearEffects();
+        throw error;
       }
-      await win.clearEffects();
-      return false;
     });
   effectQueue = result;
   return result;

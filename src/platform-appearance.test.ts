@@ -3,10 +3,11 @@ const native = vi.hoisted(() => ({
   supported: true,
   set: vi.fn(),
   clear: vi.fn(),
+  capability: vi.fn(),
 }));
 vi.mock("@tauri-apps/api/core", () => ({
   isTauri: () => true,
-  invoke: vi.fn(async () => native.supported),
+  invoke: native.capability,
 }));
 vi.mock("@tauri-apps/api/window", () => ({
   Effect: { Acrylic: "acrylic" },
@@ -15,18 +16,26 @@ vi.mock("@tauri-apps/api/window", () => ({
     clearEffects: native.clear,
   }),
 }));
-import { applyFrost } from "./platform";
-beforeEach(() => {
+let applyFrost: typeof import("./platform").applyFrost;
+beforeEach(async () => {
+  vi.resetModules();
+  ({ applyFrost } = await import("./platform"));
   native.supported = true;
   native.set.mockReset().mockResolvedValue(undefined);
   native.clear.mockReset().mockResolvedValue(undefined);
+  native.capability
+    .mockReset()
+    .mockImplementation(async () => native.supported);
 });
 describe("原生毛玻璃边界", () => {
   it("支持时请求 Acrylic，关闭后清除", async () => {
     expect(await applyFrost(true)).toBe(true);
     expect(native.set).toHaveBeenCalledWith({ effects: ["acrylic"] });
+    expect(native.clear.mock.invocationCallOrder[0]).toBeLessThan(
+      native.set.mock.invocationCallOrder[0],
+    );
     expect(await applyFrost(false)).toBe(false);
-    expect(native.clear).toHaveBeenCalledOnce();
+    expect(native.clear).toHaveBeenCalledTimes(2);
   });
   it("不支持时只清除，不走旧系统的低性能效果", async () => {
     native.supported = false;
@@ -42,16 +51,67 @@ describe("原生毛玻璃边界", () => {
           release = r;
         }),
     );
-    const first = applyFrost(true),
-      last = applyFrost(false);
+    const first = applyFrost(true);
     await vi.waitFor(() => expect(native.set).toHaveBeenCalledOnce());
-    expect(native.clear).not.toHaveBeenCalled();
+    const last = applyFrost(false);
+    expect(native.clear).toHaveBeenCalledOnce();
     release();
     await first;
     await last;
-    expect(native.clear).toHaveBeenCalledOnce();
+    expect(native.clear).toHaveBeenCalledTimes(2);
     native.set.mockRejectedValueOnce(new Error("GPU"));
     await expect(applyFrost(true)).rejects.toThrow("GPU");
     await expect(applyFrost(false)).resolves.toBe(false);
+  });
+  it("相同已完成请求不重复叠加原生效果", async () => {
+    await applyFrost(true);
+    for (let i = 0; i < 30; i++) expect(await applyFrost(true)).toBe(true);
+    expect(native.set).toHaveBeenCalledOnce();
+    expect(native.clear).toHaveBeenCalledOnce();
+    await applyFrost(false);
+    await applyFrost(false);
+    expect(native.clear).toHaveBeenCalledTimes(2);
+  });
+  it("尚未执行的旧请求跳过，只执行最新材质", async () => {
+    await Promise.all([applyFrost(true), applyFrost(false), applyFrost(true)]);
+    expect(native.set).toHaveBeenCalledOnce();
+    expect(native.clear).toHaveBeenCalledOnce();
+  });
+  it("能力查询迟到时不覆盖已改为关闭的选择", async () => {
+    let release!: (value: boolean) => void;
+    native.capability.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((r) => {
+          release = r;
+        }),
+    );
+    const old = applyFrost(true);
+    await vi.waitFor(() => expect(native.capability).toHaveBeenCalledOnce());
+    const latest = applyFrost(false);
+    release(true);
+    await Promise.all([old, latest]);
+    expect(native.set).not.toHaveBeenCalled();
+    expect(native.clear).toHaveBeenCalledOnce();
+  });
+  it("原生应用部分失败也清除，再允许重试", async () => {
+    let material = false;
+    native.clear.mockImplementation(async () => {
+      material = false;
+    });
+    native.set.mockImplementationOnce(async () => {
+      material = true;
+      throw Error("partial apply");
+    });
+    await expect(applyFrost(true)).rejects.toThrow("partial apply");
+    expect(material).toBe(false);
+    expect(native.clear).toHaveBeenCalledTimes(2);
+    await expect(applyFrost(true)).resolves.toBe(true);
+    expect(native.set).toHaveBeenCalledTimes(2);
+  });
+  it("清理失败不记录成功缓存，下一次请求可恢复", async () => {
+    native.clear.mockRejectedValueOnce(Error("clear failed"));
+    await expect(applyFrost(true)).rejects.toThrow("clear failed");
+    expect(native.set).not.toHaveBeenCalled();
+    await expect(applyFrost(true)).resolves.toBe(true);
   });
 });

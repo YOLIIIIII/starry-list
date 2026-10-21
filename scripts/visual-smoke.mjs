@@ -15,6 +15,9 @@ const materials = process.argv.includes("--materials");
 const foregroundOnly = process.argv.includes("--foreground-only");
 const viewportOnly = process.argv.includes("--viewport-only");
 const matrixOnly = process.argv.includes("--matrix-only");
+const calendarDetailOnly = process.argv.includes("--calendar-detail-only");
+const faultOnly = process.argv.includes("--fault-only");
+const stabilityOnly = process.argv.includes("--stability-only") || faultOnly;
 assert.ok(
   !(matrixOnly && foregroundOnly),
   "Choose matrix or foreground checks, not both flags",
@@ -23,13 +26,17 @@ assert.ok(
   !viewportOnly || foregroundOnly,
   "Viewport capture is only for foreground checks, never compositor matrices",
 );
+assert.ok(
+  !calendarDetailOnly || viewportOnly,
+  "Calendar detail uses a WebView viewport, not native capture",
+);
 const variants = materials
   ? ["reading", "glass", "frosted"]
   : opaque
     ? ["ux30"]
     : ["ux23", "ux30"];
 const publicImages = materials
-  ? "docs/screenshots/ux301"
+  ? "docs/screenshots/ux302"
   : "docs/screenshots/ux30";
 const root = resolve(
   `.cache/visual-${materials ? "materials-" : ""}${opaque ? "opaque-" : ""}${Date.now()}`,
@@ -79,6 +86,11 @@ async function invoke(command, args = {}) {
 async function click(name) {
   await page.getByRole("button", { name, exact: true }).click();
 }
+async function chooseMaterial(name) {
+  const radio = page.getByRole("radio", { name: new RegExp("^" + name) });
+  await radio.click();
+  await until(async () => assert.equal(await radio.isChecked(), true));
+}
 async function config(view, alpha, appearance = "reading") {
   await invoke("save_settings", {
     settings: {
@@ -119,6 +131,11 @@ async function capture(name) {
   for (let attempt = 0; attempt < 3; attempt++) {
     await command({ action: "front" });
     await invoke("plugin:window|set_focus", { label: "main" });
+    await command({
+      action: "behind",
+      appProcess: app.pid,
+      appWindow: windowHandle,
+    });
     await delay(200);
     try {
       await command({
@@ -285,7 +302,182 @@ try {
     },
   });
   await config("overview", 0.7);
-  for (const scene of foregroundOnly
+  if (stabilityOnly) {
+    assert.ok(
+      materials && !viewportOnly,
+      "Stability requires native materials",
+    );
+    const stability = [];
+    await command({ action: "scene", scene: "dark" });
+    for (const alpha of faultOnly ? [] : [0.4, 0.7, 1]) {
+      await config("overview", alpha, "frosted");
+      for (let cycle = 0; cycle <= 30; cycle++) {
+        for (const view of ["overview", "focus"]) {
+          await click(view === "overview" ? "统筹总览" : "专注编辑");
+          await page.locator(`main.${view}`).waitFor();
+          if (cycle % 5 !== 0) continue;
+          const path = await capture(`stability-${alpha}-${cycle}-${view}`);
+          const dom = await page.evaluate(() => ({
+            shells: document.querySelectorAll(".app-shell").length,
+            mains: document.querySelectorAll("main").length,
+            overlays: document.querySelectorAll(".modal-backdrop").length,
+            frost: document.querySelector(".app-shell").dataset.frost,
+            style: document.querySelector(".app-shell").getAttribute("style"),
+            background: getComputedStyle(document.querySelector("main"))
+              .background,
+          }));
+          const native = await command({
+            action: "backdrop-type",
+            appWindow: windowHandle,
+          });
+          const pixels = await samplePixels(path, view);
+          stability.push({
+            alpha,
+            cycle,
+            view,
+            dom,
+            backdrop: native.backdropType,
+            pixels,
+          });
+          assert.equal(dom.shells, 1);
+          assert.equal(dom.mains, 1);
+          assert.equal(dom.overlays, 0);
+          await writeFile(
+            resolve(root, "stability.json"),
+            JSON.stringify(stability, null, 2),
+          );
+          const first = stability.find(
+            (r) => r.alpha === alpha && r.view === view,
+          );
+          assert.deepEqual(
+            dom,
+            first.dom,
+            "View switches must not accumulate DOM surfaces",
+          );
+          assert.equal(native.backdropType, first.backdrop);
+          for (const key of ["shell", "reading"])
+            assert.ok(
+              pixels[key].every(
+                (c, i) => Math.abs(c - first.pixels[key][i]) <= 3,
+              ),
+              `Native background drift: ${alpha}/${cycle}/${view}/${key}`,
+            );
+        }
+      }
+      console.log(`PASS native view stability: ${alpha}, 30 cycles`);
+    }
+    // Exercise actual settings without page reload, including a native failure
+    // after application. UI fallback must not coexist with leftover Acrylic.
+    await config("overview", 0.4, "reading");
+    await click("设置");
+    for (const mode of ["轻玻璃", "梦幻毛玻璃", "阅读优先", "梦幻毛玻璃"]) {
+      await chooseMaterial(mode);
+      for (const alpha of opaque ? [0.4] : [1, 0.7, 0.4]) {
+        if (!opaque)
+          await page.locator("#opacity").evaluate((el, value) => {
+            const setter = Object.getOwnPropertyDescriptor(
+              HTMLInputElement.prototype,
+              "value",
+            ).set;
+            setter.call(el, String(value * 100));
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+            el.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+          }, alpha);
+        await until(async () =>
+          assert.equal(
+            (await invoke("load_snapshot")).settings.background_opacity,
+            alpha,
+          ),
+        );
+        await page.waitForFunction(
+          () =>
+            !["pending"].includes(
+              document.querySelector(".app-shell").dataset.frost,
+            ),
+        );
+        const native = await until(async () => {
+          const result = await command({
+            action: "backdrop-type",
+            appWindow: windowHandle,
+          });
+          const applied = await page
+            .locator(".app-shell")
+            .getAttribute("data-frost");
+          assert.equal(
+            result.backdropType === 3,
+            applied === "applied" && !opaque && alpha < 1,
+          );
+          return result;
+        });
+        stability.push({ mode, alpha, settingsBackdrop: native.backdropType });
+      }
+    }
+    await click("关闭对话框");
+    await click("设置");
+    await chooseMaterial("阅读优先");
+    await page.waitForFunction(
+      () => document.querySelector(".app-shell").dataset.frost === "off",
+    );
+    await page.evaluate(() => {
+      const original = window.fetch;
+      let fail = true;
+      window.fetch = async (input, init) => {
+        const result = await original(input, init);
+        if (
+          fail &&
+          String(input).includes(
+            encodeURIComponent("plugin:window|set_effects"),
+          ) &&
+          JSON.parse(
+            typeof init.body === "string"
+              ? init.body
+              : new TextDecoder().decode(init.body),
+          )?.value?.effects?.includes("acrylic")
+        ) {
+          fail = false;
+          const headers = new Headers(result.headers);
+          headers.set("Tauri-Response", "error");
+          headers.set("Content-Type", "text/plain");
+          return new Response("Synthetic post-apply failure", { headers });
+        }
+        return result;
+      };
+    });
+    await chooseMaterial("梦幻毛玻璃");
+    if (!opaque && (await invoke("native_frost_supported"))) {
+      await page.waitForFunction(
+        () => document.querySelector(".app-shell").dataset.frost === "fallback",
+      );
+      const state = await command({
+        action: "backdrop-type",
+        appWindow: windowHandle,
+      });
+      await writeFile(
+        resolve(root, "fault.json"),
+        JSON.stringify({ afterPartialFailure: state.backdropType }),
+      );
+      assert.notEqual(
+        state.backdropType,
+        3,
+        "Fallback must clear partially applied Acrylic",
+      );
+    }
+    await click("关闭对话框");
+    await capture("stability-after-settings");
+    await writeFile(
+      resolve(root, "stability.json"),
+      JSON.stringify(stability, null, 2),
+    );
+    console.log(
+      JSON.stringify({
+        passed: true,
+        stabilitySamples: stability.length,
+        root,
+      }),
+    );
+  }
+  for (const scene of foregroundOnly || stabilityOnly
     ? []
     : ["light", "dark", "colorful", "text"]) {
     console.log("Synthetic background:", scene);
@@ -406,7 +598,7 @@ try {
       }
   }
   const metrics = [];
-  if (materials && !foregroundOnly) {
+  if (materials && !foregroundOnly && !stabilityOnly) {
     for (const view of ["overview", "focus"]) {
       const solid = records.filter(
         (r) => r.scene === "light" && r.alpha === 1 && r.view === view,
@@ -418,7 +610,7 @@ try {
       );
     }
   }
-  for (const variant of foregroundOnly ? [] : variants)
+  for (const variant of foregroundOnly || stabilityOnly ? [] : variants)
     for (const alpha of [0.4, 0.7, 1])
       for (const view of ["overview", "focus"]) {
         const group = records.filter(
@@ -468,13 +660,47 @@ try {
     JSON.stringify({ records, metrics }, null, 2),
   );
   let foregroundCaptures = 0;
-  for (const mode of matrixOnly ? [] : materials ? variants : ["reading"]) {
+  for (const mode of matrixOnly || stabilityOnly || calendarDetailOnly
+    ? []
+    : materials
+      ? variants
+      : ["reading"]) {
     for (const width of [980, 760, 500, 380]) {
       await invoke("plugin:window|set_size", {
         label: "main",
         value: { Logical: { width, height: materials ? 620 : 680 } },
       });
       await config("overview", 0.4, mode);
+      const alignment = await page.evaluate(() => {
+        const labels = [...document.querySelectorAll(".week-labels > span")];
+        const cells = [...document.querySelectorAll(".day-cell")].slice(0, 7);
+        return {
+          backdrop: getComputedStyle(document.querySelector(".week-labels"))
+            .backgroundColor,
+          offsets: labels.map((el, i) => {
+            const a = el.getBoundingClientRect(),
+              b = cells[i].getBoundingClientRect();
+            return Math.abs(a.x + a.width / 2 - b.x - b.width / 2);
+          }),
+          previewGap: getComputedStyle(
+            document.querySelector(".calendar-previews"),
+          ).gap,
+          previewBackground: document.querySelector(".calendar-task")
+            ? getComputedStyle(document.querySelector(".calendar-task"))
+                .backgroundColor
+            : null,
+        };
+      });
+      assert.equal(alignment.backdrop, "rgba(0, 0, 0, 0)");
+      assert.ok(
+        alignment.offsets.every((x) => x <= 0.51),
+        "Weekdays align with the date columns",
+      );
+      if (mode !== "reading") {
+        assert.equal(alignment.previewGap, "5px");
+        if (alignment.previewBackground !== null)
+          assert.equal(alignment.previewBackground, "rgba(0, 0, 0, 0)");
+      }
       await click("任务操作 认真安排今天，也为明天留一点余地");
       const menu = page.getByRole("menu");
       await menu.waitFor();
@@ -495,6 +721,30 @@ try {
         .getByRole("button", { name: new RegExp("^" + tasks[0].title) })
         .click();
       await page.getByRole("region", { name: "详细计划（只读）" }).waitFor();
+      if (mode !== "reading") {
+        const spacing = await page.evaluate(() => {
+          const items = [
+            ...document.querySelectorAll('.focus-scroll > [id^="task-"]'),
+          ];
+          const first = items[0].getBoundingClientRect(),
+            second = items[1].getBoundingClientRect();
+          const quick = document
+            .querySelector(".focus-scroll .quick-add")
+            .getBoundingClientRect();
+          return {
+            gap: second.top - first.bottom,
+            addGap: quick.top - second.bottom,
+          };
+        });
+        assert.ok(
+          spacing.gap >= 7,
+          "Glass task groups need real space between them",
+        );
+        assert.ok(
+          spacing.addGap >= 9,
+          "Quick add stays separate from the last task",
+        );
+      }
       await capture(`${mode}-reader-${width}`);
       await click("编辑");
       const footer = await page
@@ -587,6 +837,36 @@ try {
     }
   }
   assert.deepEqual(errors, []);
+  if (materials && !matrixOnly && !stabilityOnly) {
+    // A taller viewport exercises the existing two-preview density threshold.
+    // These are WebView-only images, not evidence of native desktop Acrylic.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 980,
+      height: 860,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    try {
+      for (const mode of variants) {
+        await config("overview", 0.4, mode);
+        const previews = page.locator(".day-cell.selected .calendar-task");
+        await until(async () => assert.equal(await previews.count(), 2));
+        const first = await previews.nth(0).boundingBox(),
+          second = await previews.nth(1).boundingBox();
+        assert.ok(
+          second.y - first.y - first.height >= (mode === "reading" ? 3 : 5),
+        );
+        if (!opaque)
+          await page.screenshot({
+            path: resolve(publicImages, `${mode}-calendar-detail-viewport.png`),
+          });
+      }
+    } finally {
+      await cdp.send("Emulation.clearDeviceMetricsOverride");
+      await cdp.detach();
+    }
+  }
   await invoke("plugin:window|set_size", {
     label: "main",
     value: { Logical: { width: 980, height: 680 } },
@@ -617,7 +897,7 @@ try {
       toY: fromY + dy,
     });
   }
-  if (!viewportOnly && !matrixOnly) {
+  if (!viewportOnly && !matrixOnly && !stabilityOnly) {
     await drag(".drag-space", 40, 30);
     const positionAfter = await invoke("plugin:window|outer_position", {
       label: "main",
@@ -628,7 +908,9 @@ try {
       "Real titlebar mouse drag must move the window",
     );
     await drag(".resize-East", 64, 0);
-    const resized = await invoke("plugin:window|outer_size", { label: "main" });
+    const resized = await invoke("plugin:window|outer_size", {
+      label: "main",
+    });
     assert.ok(
       resized.width - nativeSize.width >= 50,
       "Real edge mouse drag must resize the window",
@@ -651,7 +933,8 @@ try {
         baselineCssSha256: createHash("sha256").update(baseline).digest("hex"),
         records,
         metrics,
-        nativePointerDragAndResize: !viewportOnly && !matrixOnly,
+        nativePointerDragAndResize:
+          !viewportOnly && !matrixOnly && !stabilityOnly,
         errors,
       },
       null,

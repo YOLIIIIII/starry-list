@@ -50,6 +50,33 @@ vi.mock("./platform", () => ({
 }));
 import App from "./App";
 describe("SL-003 背景设置", () => {
+  it("反复切换视图不重新请求原生材质、不累积主区或改变 surface", async () => {
+    backend.data!.settings.appearance_mode = "frosted";
+    backend.data!.settings.background_opacity = 0.4;
+    const { applyFrost } = await import("./platform");
+    vi.mocked(applyFrost).mockClear().mockResolvedValueOnce(true);
+    const user = userEvent.setup();
+    render(<App />);
+    const shell = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>(".app-shell")!;
+      expect(el?.dataset.frost).toBe("applied");
+      return el;
+    });
+    const surfaces = shell.getAttribute("style");
+    for (let i = 0; i < 5; i++) {
+      await user.click(
+        screen.getByRole("button", { name: "专注编辑" }),
+      );
+      await user.click(
+        screen.getByRole("button", { name: "统筹总览" }),
+      );
+      expect(document.querySelectorAll("main")).toHaveLength(1);
+      expect(document.querySelectorAll(".app-shell")).toHaveLength(1);
+      expect(document.querySelectorAll(".modal-backdrop")).toHaveLength(0);
+      expect(shell.getAttribute("style")).toBe(surfaces);
+    }
+    expect(applyFrost).toHaveBeenCalledTimes(1);
+  });
   it("外观模式保存并重新加载，失败保留原模式和错误反馈", async () => {
     const user = userEvent.setup();
     const ui = render(<App />);

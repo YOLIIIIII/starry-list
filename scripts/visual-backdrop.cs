@@ -19,6 +19,7 @@ public sealed class StarryVisualBackdrop : Form {
     [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window, out Rect rect);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(Point point);
     [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window, uint flags);
@@ -75,6 +76,14 @@ public sealed class StarryVisualBackdrop : Form {
     public int BackdropType(IntPtr appWindow) {
         int value;
         return DwmGetWindowAttribute(appWindow, 38, out value, 4) == 0 ? value : -1;
+    }
+    public void PlaceBehind(uint appProcess, IntPtr appWindow) {
+        uint process; GetWindowThreadProcessId(appWindow, out process);
+        if (process != appProcess || !IsWindowVisible(appWindow))
+            throw new Exception("Staging refused: not the isolated test window");
+        // Move only this synthetic background, directly below its test app.
+        if (!SetWindowPos(Handle, appWindow, 0, 0, 0, 0, 0x13))
+            throw new Exception("Cannot position synthetic backdrop");
     }
     public void DragRegion(uint appProcess, IntPtr appWindow, int fromX, int fromY, int toX, int toY) {
         uint foreground;

@@ -68,6 +68,17 @@ async function invoke(command, args = {}) {
 async function click(button) {
   await page.getByRole("button", { name: button, exact: true }).click();
 }
+async function focusNative() {
+  await invoke("plugin:window|set_focus", { label: "main" });
+  await page.waitForFunction(
+    async () =>
+      await window.__TAURI_INTERNALS__.invoke("plugin:window|is_focused", {
+        label: "main",
+      }),
+    undefined,
+    { polling: 100 },
+  );
+}
 const today = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Asia/Shanghai",
 }).format(new Date());
@@ -104,9 +115,9 @@ try {
     0,
   );
   const nextDay = shiftDay(today, 1);
-  await invoke("plugin:window|set_focus", { label: "main" });
   // Enter returns to its own date only after the actual SQLite INSERT succeeds.
   for (const date of [today, nextDay, shiftDay(today, 3)]) {
+    await focusNative();
     await click(`为 ${date} 添加任务`);
     const ids = [];
     for (let index = 0; index < 3; index++) {
@@ -116,6 +127,9 @@ try {
       });
       const text = `UX23 连续新增 ${date} ${index}`;
       await input.fill(text);
+      await page
+        .getByRole("button", { name: `添加到 ${date}`, exact: true })
+        .waitFor();
       await input.press("Enter");
       await page.waitForFunction(
         (date) =>
@@ -226,6 +240,9 @@ try {
   await page
     .getByRole("textbox", { name: nextDate, exact: true })
     .fill("UX22 窗口失焦验证");
+  await page
+    .getByRole("button", { name: `添加到 ${nextDay}`, exact: true })
+    .waitFor();
   assert.equal(
     await invoke("plugin:window|is_focused", { label: "main" }),
     true,
@@ -475,6 +492,7 @@ try {
   }
   await page.getByRole("button", { name: title, exact: true }).click();
   await click("编辑");
+  await layoutToast.waitFor({ state: "hidden" });
   assert.equal(
     await layoutToast.count(),
     0,

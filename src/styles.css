@@ -140,6 +140,11 @@ svg {
   --surface-rgb: 246, 249, 255;
   border-color: #f9f5ffcc;
 }
+.app-shell:not([data-appearance="reading"]) {
+  --preview-gap: 5px;
+  --task-row-gap: 7px;
+  --task-row-radius: 10px;
+}
 .app-shell[data-appearance="frosted"] {
   --shell-start: 231, 220, 248;
   --shell-middle: 245, 235, 250;
@@ -159,7 +164,7 @@ svg {
 .app-shell[data-appearance="glass"] .task-row,
 .app-shell[data-appearance="frosted"] .task-row {
   background: rgba(255, 253, 250, var(--task-alpha));
-  border-radius: 9px;
+  border-radius: var(--task-row-radius);
   padding-left: 5px;
   padding-right: 5px;
 }
@@ -197,9 +202,31 @@ svg {
   ) {
   color: #5e496e;
 }
-.app-shell:not([data-appearance="reading"]) .week-labels {
-  background: #fffaf58c;
-  border-radius: 7px;
+/* Glass belongs to the date/panel surface, not to each line of text. */
+.app-shell:not([data-appearance="reading"]) .calendar-previews {
+  gap: var(--preview-gap);
+}
+.app-shell:not([data-appearance="reading"]) .calendar-task {
+  background: transparent;
+  color: #4d3a62;
+}
+.app-shell:not([data-appearance="reading"]) .calendar-task.done {
+  color: #776481;
+}
+.app-shell:not([data-appearance="reading"]) .calendar-task:hover {
+  background: #8565b818;
+}
+.app-shell:not([data-appearance="reading"]) .agenda-day .task-row {
+  margin-top: var(--task-row-gap);
+}
+.app-shell:not([data-appearance="reading"]) .focus-scroll > [id^="task-"] {
+  margin: 0 0 var(--task-row-gap);
+}
+.app-shell:not([data-appearance="reading"]) .focus-scroll .task-row {
+  border-bottom: 0;
+}
+.app-shell:not([data-appearance="reading"]) .focus-scroll > .quick-add-area {
+  padding-top: 3px;
 }
 .app-shell:not([data-appearance="reading"]) .app-footer > span {
   background: #fffdf9b8;
@@ -493,10 +520,16 @@ h1 {
 .week-labels {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
   padding: 0 0 10px;
   font-size: 11px;
   color: #8b7b96;
   text-align: center;
+}
+.week-labels > span {
+  display: grid;
+  place-items: center;
+  min-height: 22px;
 }
 .weekend-label {
   color: #a489b7;

@@ -17,6 +17,7 @@ $timer.Add_Tick({
         if ($request.action -eq 'scene') { $form.Scene = $request.scene; $form.Invalidate(); $form.Update() }
         if ($request.action -eq 'front') { $form.BringToFront(); $form.Activate() }
         if ($request.action -eq 'capture') { $form.CaptureRegion([string]$request.path, [uint32]$request.appProcess, [IntPtr]([long]$request.appWindow), [int]$request.blurMargin) }
+        if ($request.action -eq 'behind') { $form.PlaceBehind([uint32]$request.appProcess, [IntPtr]([long]$request.appWindow)) }
         if ($request.action -eq 'drag') { $form.DragRegion([uint32]$request.appProcess, [IntPtr]([long]$request.appWindow), [int]$request.fromX, [int]$request.fromY, [int]$request.toX, [int]$request.toY) }
         $extra = if ($request.action -eq 'backdrop-type') { $form.BackdropType([IntPtr]([long]$request.appWindow)) } else { $null }
         @{ id=$request.id; ok=$true; backdropType=$extra } | ConvertTo-Json -Compress | Set-Content -LiteralPath "$Control.$($request.id).reply" -Encoding utf8

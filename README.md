@@ -1,5 +1,7 @@
 # 星轨日历 · Starry List
 
+UX3.0.3 体验迭代：玻璃去小底贴、稳定失焦毛玻璃、编辑抽屉局部字号；仍待最终用户验收。[视觉对比与限制](docs/UX3_0_3_VISUAL_REVIEW.md) · [验证记录](docs/VALIDATION.md)。
+
 Lavender × Pastel Yellow × Cream。一个无需登录、可以留在桌面角落的离线日历清单。
 
 **V1.0 · Windows 10/11 x64**。React 界面运行在 Tauri 2 原生窗口中；SQLite 是正式数据源，不使用浏览器 localStorage 冒充桌面持久化。实际构建与测试记录见 [验证记录](docs/VALIDATION.md)。

@@ -1,5 +1,55 @@
 # V1.0 验证记录
 
+## 2026-10-22：UX3.0.3 玻璃减法与失焦材质
+
+范围 SL-003-C / E 和 SL-004-B，均 In Review；父字号 SL-004 仍 Backlog，SL-001 / SL-004-A 原状态不变，已验收 SL-002 / SL-019 / SL-021 保持 Done。无任务字段、数据库迁移、应用 ID / 数据目录或任务业务改动。未正式发布。
+
+### 复现与修复证据
+
+- **旧版真实复现**：UX3.0.2 原生 Acrylic 在外部测试 WinForms 窗口激活后明显变实；40% / 70%、总览/专注各三轮，共 12 组，外壳/阅读采样最大 RGB 通道差分别 58 / 29。官方明确背景 Acrylic 失焦转实色；不是用户误操作，也不同于先前部分失败残留。
+- **新版真实失焦**：单窗口 HostBackdropBrush / DesktopWindowTarget + 固定柔色，UI 线程持有和清理，不重新激活应用、不每次失焦重加效果。最终源码两档/两视图三轮共 12 组，真实外部窗口点击、原生 is_focused=false 后截图，指定采样点最大通道差均 0。仅测试自制背景区域，不证明所有设备都完全无变化。
+- **真正模糊对照**：同 CSS、同密集文字背景、相同采样区，只开关原生材质，相邻像素纹理变化均值开约 .327、关约 9.969；实际背景细节被模糊，并非普通浅色层冒充毛玻璃。对照后恢复材质，未改设置或任务。
+- **稳定与故障**：40/70/100% 各 30 轮总览/专注（90 轮），42 组 DOM/材质所有权/DWM/像素记录，无新增背景层或累积漂移。12 组实际设置与透明度切换通过；原生应用已经完成后注入一次 IPC 失败，前端 fallback、原生材质所有权 false、旧 DWM Acrylic 非 3，确认清除而非叠加。另有清理失败重试、旧请求和系统拒绝的单元测试。DWMWA_USE_HOSTBACKDROPBRUSH 不能可靠用 DwmGetWindowAttribute 读回，本轮初次断言因此失败；已改用只读窗口材质状态、实际像素/模糊对照和 DWM 旧效果检查，不把 owner=true 单独视为渲染证明。
+- **策略与限制**：Windows 11 22H2+ 且透明/非高对比环境请求；系统高级效果关闭、旧系统、原生不透明、100% 或原生失败明确降级。使用系统 Windows.UI.Composition 与已锁定 Rust Windows 绑定，不新增 Windows App SDK 运行时。节能/电池、远程桌面、其他 GPU/驱动、Windows 10 与系统更新后的真实效果未认证，不能绕过策略强制维持激活态。最佳已测表现是正常策略下焦点变化不切底色；系统限制出现时保留阅读优先/实色回退。详见 [对比与官方来源](UX3_0_3_VISUAL_REVIEW.md)。
+
+### 视觉与回归
+
+- **126 项前端测试**、TypeScript、Lint、生产前端构建通过；59 App / 6 通知 / 32 域 / 9 surface / 9 原生调用 / 5 store / 6 窗口边界。Rust fmt、**13 项 Rust/SQLite 测试**及 Clippy `-D warnings` 通过。
+- **23 组真实 Windows 11 / WebView2 回归最终通过**：三日期各三次 Enter、原日期焦点返回、真实 Edge 失焦保存且不抢焦点、新增撤销、行内编辑、完成、删除与撤销、五秒独立通知及暂停/隐藏、长详情、固定保存栏、草稿保护、SQLite INSERT/UPDATE/DELETE 实际拒绝与重试、备份、进程重启、外观偏好和窗口几何恢复。正式用户数据库哈希与开始时相同；无安装、卸载或关闭用户运行的实例。
+- 跨 Edge 初始测试超时，不能计为通过。改用独立持久测试 profile，验证 HWND 对应唯一测试进程、原生点击前检查目标归属、确认 Windows 实际前台；失焦时先直接读取隔离 SQLite 确认已写入且不激活星轨，返回后再断言 UI 收起并撤销。没有模拟 blur 或修改 QuickAdd 业务来迁就测试。
+- **72 组透明窗口真实合成矩阵通过**：三模式 × 40/70/100% × 两视图 × 四自制背景；14px、无水平溢出、外壳真实变化，其他材质/100% 清除原生模糊。指定主文字采样最低对比：阅读约 12.63:1、轻玻璃 8.63:1、梦幻 7.93:1，不是全界面/所有壁纸的无障碍认证。
+- **48 项 WebView 前景/几何检查**：三模式 × 980/760/500/380px × 只读详情/抽屉/设置/通知。玻璃日期数字、日期行和任务常驻背景透明；星期居中误差不超过 .51px；任务组至少 3px、新增至少 9px 分离；专注输入容器左侧 12px、文字另 6px，抽屉计划 14px、保存栏可见、菜单可命中。另三模式高视口双预览至少 4px 间距（阅读原 3px）。这些截图不含原生桌面模糊。
+- 原生前景截图被额外 Chrome_WidgetWin_1 小窗口阻挡，多次隐私检查拒绝，未保存含无关窗口的画面，也未关闭用户窗口或放宽检查。48 项改用明确标注的 WebView 视口；原生材质由独立矩阵/失焦对照提供证据。本轮未重新认证物理多显示器混合 DPI、真实 IME 候选窗及所有壁纸。
+- **原生不透明回退**：Windows x64 NSIS 构建成功；独立不透明调试窗口 72 组合成检查无透视/模糊、背景采样差 0，四次外观设置切换正确保存、不申请原生材质。最终输入 6px 留白由透明窗口宽窄前景和最终两套构建补查。未安装两套包，不把构建成功称为安装认证。
+
+### 复现与交付
+
+沿用本文件下方的独立调试标识/目录，禁止使用正式数据库。前景脚本需要合成背景完全覆盖，遇到无关窗口会拒绝；不能删掉隐私检查以通过测试。
+
+```powershell
+npm run check
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
+npm run test:appearance -- --focus-only
+npm run test:appearance -- --stability-only
+npm run test:appearance -- --matrix-only
+npm run test:appearance -- --foreground-only --viewport-only
+npm run test:appearance -- --foreground-only --viewport-only --calendar-detail-only
+npm run test:desktop
+```
+
+透明版与不透明版用各自独立配置构建测试，不可混用；不透明窗口另执行 `--materials --opaque --matrix-only` 和 `--materials --opaque --fault-only`。`--baseline-focus` 仅记录旧版复现，不将明显变化记作通过。
+
+本地 `artifacts/`（不纳入 Git）：
+
+| 文件                                                              | SHA256                                                             |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `Starry-List_1.0.0_x64-ux3.0.3-preview-20261022-setup.exe`        | `9971c13768f0b20c51139bbe2be7a5b2b66a9cbac9554fed2ed3bde6ac5bb2b6` |
+| `Starry-List_1.0.0_x64-ux3.0.3-opaque-preview-20261022-setup.exe` | `d7b9d51e12cffae2a4fa2c9f9f707867ea6f2f28813985b423b0608ff39dcb57` |
+
+校验文件 `UX3.0.3-PREVIEW-20261022-SHA256SUMS.txt`；旧 UX3.0.1 / UX3.0.2 归档未覆盖。任务结构与迁移未变，安装包未签名，Windows 可能提示发布者警告。本轮实现提交 [`d5ba29a`](https://github.com/YOLIIIIII/starry-list/commit/d5ba29a1cdd790fdc3a930e293af661b4fcf942a)；远程结果见 [main CI](https://github.com/YOLIIIIII/starry-list/actions/workflows/ci.yml)，本地通过不等于远程 CI 成功。体验构建不等于 Tag / GitHub Release。
+
 ## 2026-10-21：UX3.0.2 玻璃细节与材质稳定性
 
 范围为 SL-003-C / D；三种模式、14px、40%–100% 滑块、顶部结构、任务模型、数据库表与迁移、应用 ID / 数据目录均保持不变。用户确认 UX3.0.1 通知位置与设置持久化良好，SL-003-B 记录 Done；父需求及 C / D 继续 In Review，等待本轮视觉和原使用环境确认。
@@ -44,9 +94,9 @@ npm run test:appearance -- --foreground-only --viewport-only --calendar-detail-o
 
 默认透明与原生不透明生产配置 **Windows x64 NSIS 构建成功**，版本仍 1.0.0、BUNDLEID 仍 `app.starrylist.desktop`、Publisher / Copyright 为 yoli，未添加测试权限。两个包独立归档，不执行安装器或自动关闭旧版。
 
-| 安装包（本地 artifacts/，不提交 Git） | 字节数 | SHA256 |
-| --- | --- | --- |
-| `Starry-List_1.0.0_x64-ux3.0.2-preview-20261021-setup.exe` | 5,226,055 | `531befcc5a1ae952fa4568deabe6211166e64f41246bc3917fafec93b72ffdaf` |
+| 安装包（本地 artifacts/，不提交 Git）                             | 字节数    | SHA256                                                             |
+| ----------------------------------------------------------------- | --------- | ------------------------------------------------------------------ |
+| `Starry-List_1.0.0_x64-ux3.0.2-preview-20261021-setup.exe`        | 5,226,055 | `531befcc5a1ae952fa4568deabe6211166e64f41246bc3917fafec93b72ffdaf` |
 | `Starry-List_1.0.0_x64-ux3.0.2-opaque-preview-20261021-setup.exe` | 5,222,539 | `9b7767a837fb1b50ad770ea53b579247121ec7c94a270123ff67ee2e3bf2d6df` |
 
 校验文件 `artifacts/UX3.0.2-PREVIEW-20261021-SHA256SUMS.txt`；两个旧 UX3.0.1 归档 SHA256 与上次记录一致。未测试本次安装/覆盖/卸载；升级由用户先备份、正常退出后自行进行。正式 SQLite 主文件测试前后校验值一致，未删除、重置或迁移用户数据；未创建 Tag 或 GitHub Release。

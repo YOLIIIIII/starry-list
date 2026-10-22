@@ -1,5 +1,7 @@
 # Starry List · 星轨日历
 
+UX3.0.3 preview: lighter glass surfaces, focus-stable native frost, and scoped editor typography. User acceptance is pending. [Visual comparison and limitations (Chinese)](docs/UX3_0_3_VISUAL_REVIEW.md) · [Validation](docs/VALIDATION.md).
+
 A cozy offline desktop calendar and task list in lavender, pastel yellow and cream. V1.0 targets **Windows 10/11 x64**; Simplified Chinese is the default UI language.
 
 New to the app? Read the [Chinese user guide](docs/USER_GUIDE.md), including a five-minute quick start.

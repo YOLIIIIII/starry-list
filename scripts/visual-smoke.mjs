@@ -17,7 +17,10 @@ const viewportOnly = process.argv.includes("--viewport-only");
 const matrixOnly = process.argv.includes("--matrix-only");
 const calendarDetailOnly = process.argv.includes("--calendar-detail-only");
 const faultOnly = process.argv.includes("--fault-only");
-const stabilityOnly = process.argv.includes("--stability-only") || faultOnly;
+const focusOnly = process.argv.includes("--focus-only");
+const baselineFocus = process.argv.includes("--baseline-focus");
+const stabilityOnly =
+  process.argv.includes("--stability-only") || faultOnly || focusOnly;
 assert.ok(
   !(matrixOnly && foregroundOnly),
   "Choose matrix or foreground checks, not both flags",
@@ -36,7 +39,7 @@ const variants = materials
     ? ["ux30"]
     : ["ux23", "ux30"];
 const publicImages = materials
-  ? "docs/screenshots/ux302"
+  ? "docs/screenshots/ux303"
   : "docs/screenshots/ux30";
 const root = resolve(
   `.cache/visual-${materials ? "materials-" : ""}${opaque ? "opaque-" : ""}${Date.now()}`,
@@ -122,15 +125,25 @@ async function config(view, alpha, appearance = "reading") {
     { appearance, alpha, opaque },
   );
 }
-async function capture(name) {
+async function capture(name, inactive = false) {
   const path = resolve(root, name + ".png");
   if (viewportOnly) {
     await page.screenshot({ path });
     return path;
   }
   for (let attempt = 0; attempt < 3; attempt++) {
-    await command({ action: "front" });
-    await invoke("plugin:window|set_focus", { label: "main" });
+    if (!inactive) {
+      await command({ action: "front" });
+      await invoke("plugin:window|set_focus", { label: "main" });
+      await command({
+        action: "park-pointer",
+        appProcess: app.pid,
+        appWindow: windowHandle,
+      });
+      // Keep browser-native title tooltips outside captures of the resting UI.
+      // The privacy guard still rejects every unrelated top-level window.
+      await page.mouse.move(2, 2);
+    }
     await command({
       action: "behind",
       appProcess: app.pid,
@@ -144,6 +157,7 @@ async function capture(name) {
         appProcess: app.pid,
         appWindow: windowHandle,
         blurMargin: materials ? 64 : 0,
+        inactive,
       });
       break;
     } catch (error) {
@@ -302,7 +316,131 @@ try {
     },
   });
   await config("overview", 0.7);
-  if (stabilityOnly) {
+  if (focusOnly) {
+    assert.ok(
+      materials && !viewportOnly && !opaque,
+      "Focus checks require a transparent native window",
+    );
+    const focusRecords = [];
+    await command({ action: "scene", scene: "colorful" });
+    for (const alpha of [0.4, 0.7])
+      for (const view of ["overview", "focus"]) {
+        await config(view, alpha, "frosted");
+        for (let cycle = 0; cycle < 3; cycle++) {
+          const active = await capture(
+            `focus-${alpha}-${view}-${cycle}-active`,
+          );
+          await command({ action: "focus-away" });
+          await page.waitForFunction(
+            async () =>
+              !(await window.__TAURI_INTERNALS__.invoke(
+                "plugin:window|is_focused",
+                { label: "main" },
+              )),
+            undefined,
+            { polling: 100 },
+          );
+          await delay(650);
+          const inactive = await capture(
+            `focus-${alpha}-${view}-${cycle}-inactive`,
+            true,
+          );
+          const a = await samplePixels(active, view),
+            b = await samplePixels(inactive, view);
+          const delta = Math.max(
+            ...["shell", "reading"].flatMap((key) =>
+              a[key].map((v, i) => Math.abs(v - b[key][i])),
+            ),
+          );
+          const record = {
+            alpha,
+            view,
+            cycle,
+            active: a,
+            inactive: b,
+            maximumDelta: delta,
+          };
+          focusRecords.push(record);
+          await writeFile(
+            resolve(root, "focus-results.json"),
+            JSON.stringify(focusRecords, null, 2),
+          );
+          console.log(JSON.stringify(record));
+          if (!baselineFocus)
+            assert.ok(
+              delta <= 8,
+              "Focus change must not replace material with a visibly different backing color",
+            );
+          if (cycle === 0) {
+            await mkdir(publicImages, { recursive: true });
+            const label = baselineFocus ? "ux302" : "ux303";
+            await copyFile(
+              active,
+              resolve(publicImages, `${label}-${alpha}-${view}-active.png`),
+            );
+            await copyFile(
+              inactive,
+              resolve(publicImages, `${label}-${alpha}-${view}-inactive.png`),
+            );
+          }
+        }
+      }
+    // Same CSS, same pixels: only the native brush changes. This distinguishes
+    // actual backdrop blur from a merely translucent tint.
+    await command({ action: "scene", scene: "text" });
+    await config("overview", 0.4, "frosted");
+    const blurred = await capture("texture-blurred");
+    await invoke("native_frost", { enabled: false });
+    const sharp = await capture("texture-sharp-control");
+    await invoke("native_frost", { enabled: true });
+    const images = await Promise.all(
+      [blurred, sharp].map(async (path) =>
+        (await readFile(path)).toString("base64"),
+      ),
+    );
+    const energy = await page.evaluate(async (images) => {
+      return Promise.all(
+        images.map(async (data) => {
+          const image = new Image();
+          image.src = "data:image/png;base64," + data;
+          await image.decode();
+          const canvas = document.createElement("canvas");
+          canvas.width = image.width;
+          canvas.height = image.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(image, 0, 0);
+          const x = Math.floor(image.width * 0.35),
+            y = Math.floor(image.height - (18 * image.height) / innerHeight),
+            width = Math.floor(image.width * 0.3),
+            height = Math.floor((12 * image.height) / innerHeight);
+          const pixels = ctx.getImageData(x, y, width, height).data;
+          let sum = 0,
+            count = 0;
+          for (let row = 0; row < height; row++)
+            for (let col = 1; col < width; col++)
+              for (let c = 0; c < 3; c++) {
+                const i = (row * width + col) * 4 + c;
+                sum += Math.abs(pixels[i] - pixels[i - 4]);
+                count++;
+              }
+          return sum / count;
+        }),
+      );
+    }, images);
+    await writeFile(
+      resolve(root, "blur-proof.json"),
+      JSON.stringify({ energy }),
+    );
+    assert.ok(
+      energy[1] > 0.2 && energy[0] < energy[1] * 0.75,
+      "Native brush must reduce texture detail, not just tint it: " + energy,
+    );
+    console.log(JSON.stringify({ nativeBlurEnergy: energy }));
+    console.log(
+      JSON.stringify({ focusPassed: !baselineFocus, baselineFocus, root }),
+    );
+  }
+  if (stabilityOnly && !focusOnly) {
     assert.ok(
       materials && !viewportOnly,
       "Stability requires native materials",
@@ -337,6 +475,7 @@ try {
             view,
             dom,
             backdrop: native.backdropType,
+            hostBackdrop: await invoke("native_frost_active"),
             pixels,
           });
           assert.equal(dom.shells, 1);
@@ -355,6 +494,7 @@ try {
             "View switches must not accumulate DOM surfaces",
           );
           assert.equal(native.backdropType, first.backdrop);
+          assert.equal(await invoke("native_frost_active"), first.hostBackdrop);
           for (const key of ["shell", "reading"])
             assert.ok(
               pixels[key].every(
@@ -367,7 +507,7 @@ try {
       console.log(`PASS native view stability: ${alpha}, 30 cycles`);
     }
     // Exercise actual settings without page reload, including a native failure
-    // after application. UI fallback must not coexist with leftover Acrylic.
+    // after application. UI fallback must not coexist with leftover native material.
     await config("overview", 0.4, "reading");
     await click("设置");
     for (const mode of ["轻玻璃", "梦幻毛玻璃", "阅读优先", "梦幻毛玻璃"]) {
@@ -405,7 +545,7 @@ try {
             .locator(".app-shell")
             .getAttribute("data-frost");
           assert.equal(
-            result.backdropType === 3,
+            await invoke("native_frost_active"),
             applied === "applied" && !opaque && alpha < 1,
           );
           return result;
@@ -426,14 +566,12 @@ try {
         const result = await original(input, init);
         if (
           fail &&
-          String(input).includes(
-            encodeURIComponent("plugin:window|set_effects"),
-          ) &&
+          String(input).includes(encodeURIComponent("native_frost")) &&
           JSON.parse(
             typeof init.body === "string"
               ? init.body
               : new TextDecoder().decode(init.body),
-          )?.value?.effects?.includes("acrylic")
+          )?.enabled === true
         ) {
           fail = false;
           const headers = new Headers(result.headers);
@@ -455,12 +593,12 @@ try {
       });
       await writeFile(
         resolve(root, "fault.json"),
-        JSON.stringify({ afterPartialFailure: state.backdropType }),
+        JSON.stringify({ afterPartialFailure: state }),
       );
-      assert.notEqual(
-        state.backdropType,
-        3,
-        "Fallback must clear partially applied Acrylic",
+      assert.equal(
+        await invoke("native_frost_active"),
+        false,
+        "Fallback clears partially applied material",
       );
     }
     await click("关闭对话框");
@@ -545,15 +683,15 @@ try {
                 alpha < 1
               )
                 assert.equal(
-                  result.backdropType,
-                  3,
-                  "Modern Windows Acrylic must be active at DWM level",
+                  await invoke("native_frost_active"),
+                  true,
+                  "Composition host backdrop must be enabled",
                 );
               else
                 assert.notEqual(
-                  result.backdropType,
-                  3,
-                  "Other materials/100% must clear Acrylic",
+                  await invoke("native_frost_active"),
+                  true,
+                  "Other materials/100% must clear host backdrop",
                 );
               return result;
             });
@@ -682,6 +820,15 @@ try {
               b = cells[i].getBoundingClientRect();
             return Math.abs(a.x + a.width / 2 - b.x - b.width / 2);
           }),
+          dateBackground: getComputedStyle(
+            document.querySelector(".day-cell:not(.today) .date-number"),
+          ).backgroundColor,
+          agendaBackground: getComputedStyle(
+            document.querySelector(".agenda-date"),
+          ).backgroundColor,
+          rowBackground: getComputedStyle(
+            document.querySelector(".agenda-day .task-row"),
+          ).backgroundColor,
           previewGap: getComputedStyle(
             document.querySelector(".calendar-previews"),
           ).gap,
@@ -697,7 +844,13 @@ try {
         "Weekdays align with the date columns",
       );
       if (mode !== "reading") {
-        assert.equal(alignment.previewGap, "5px");
+        for (const background of [
+          alignment.dateBackground,
+          alignment.agendaBackground,
+          alignment.rowBackground,
+        ])
+          assert.equal(background, "rgba(0, 0, 0, 0)");
+        assert.equal(alignment.previewGap, "4px");
         if (alignment.previewBackground !== null)
           assert.equal(alignment.previewBackground, "rgba(0, 0, 0, 0)");
       }
@@ -721,6 +874,7 @@ try {
         .getByRole("button", { name: new RegExp("^" + tasks[0].title) })
         .click();
       await page.getByRole("region", { name: "详细计划（只读）" }).waitFor();
+      await page.mouse.move(2, 2);
       if (mode !== "reading") {
         const spacing = await page.evaluate(() => {
           const items = [
@@ -734,10 +888,22 @@ try {
           return {
             gap: second.top - first.bottom,
             addGap: quick.top - second.bottom,
+            rowBackground: getComputedStyle(
+              document.querySelector(".focus-scroll .task-row"),
+            ).backgroundColor,
+            addPadding: getComputedStyle(
+              document.querySelector(".focus-scroll .quick-add"),
+            ).paddingLeft,
+            inputPadding: getComputedStyle(
+              document.querySelector(".focus-scroll .quick-add input"),
+            ).paddingLeft,
           };
         });
+        assert.equal(spacing.rowBackground, "rgba(0, 0, 0, 0)");
+        assert.equal(spacing.addPadding, "12px");
+        assert.equal(spacing.inputPadding, "6px");
         assert.ok(
-          spacing.gap >= 7,
+          spacing.gap >= 3,
           "Glass task groups need real space between them",
         );
         assert.ok(
@@ -747,6 +913,10 @@ try {
       }
       await capture(`${mode}-reader-${width}`);
       await click("编辑");
+      const editorFont = await page
+        .getByRole("textbox", { name: "详细计划", exact: true })
+        .evaluate((el) => getComputedStyle(el).fontSize);
+      assert.equal(editorFont, "14px");
       const footer = await page
         .getByRole("button", { name: "保存并收起", exact: true })
         .boundingBox();
@@ -839,7 +1009,7 @@ try {
   assert.deepEqual(errors, []);
   if (materials && !matrixOnly && !stabilityOnly) {
     // A taller viewport exercises the existing two-preview density threshold.
-    // These are WebView-only images, not evidence of native desktop Acrylic.
+    // These are WebView-only images, not evidence of native desktop blur.
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Emulation.setDeviceMetricsOverride", {
       width: 980,
@@ -855,7 +1025,7 @@ try {
         const first = await previews.nth(0).boundingBox(),
           second = await previews.nth(1).boundingBox();
         assert.ok(
-          second.y - first.y - first.height >= (mode === "reading" ? 3 : 5),
+          second.y - first.y - first.height >= (mode === "reading" ? 3 : 4),
         );
         if (!opaque)
           await page.screenshot({

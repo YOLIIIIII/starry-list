@@ -13,7 +13,7 @@ export function surfaceAlphas(
       : mode === "glass"
         ? [0.64, 0.58, 0.7, 0.44]
         : nativeFrost
-          ? [0.42, 0.35, 0.54, 0.25]
+          ? [0.42, 0.35, 0.6, 0.25]
           : [0.64, 0.6, 0.74, 0.42];
   const local = (floor: number) => floor + (1 - floor) * ((shell - 0.4) / 0.6);
   return {
@@ -25,7 +25,5 @@ export function surfaceAlphas(
     "--panel-alpha":
       mode === "reading" ? 0.985 + shell * 0.015 : local(floors[2]),
     "--cell-alpha": mode === "reading" ? 0.55 + shell * 0.45 : local(floors[3]),
-    "--task-alpha":
-      mode === "reading" ? 1 : local(mode === "glass" ? 0.67 : 0.78),
   };
 }

@@ -230,7 +230,7 @@ export default function App() {
     if (!initialized) return;
     let alive = true;
     if (wantsFrost) setFrostState("pending");
-    // Reading/light modes actively clear Acrylic left by a previous selection.
+    // Reading/light modes clear the native material left by a previous selection.
     void applyFrost(wantsFrost)
       .then((applied) => {
         if (alive)
@@ -1138,7 +1138,7 @@ export default function App() {
                       : (opacity ?? settings.background_opacity) === 1
                         ? "100% 使用实色材质，关闭桌面模糊。"
                         : frostState === "applied"
-                          ? "已请求系统 Acrylic；实际效果受 Windows 透明效果与硬件设置影响。"
+                          ? "已启用稳定毛玻璃；Windows 透明效果、电源与硬件策略仍可能影响材质。"
                           : frostState === "pending"
                             ? "正在应用材质，阅读衬底保持保护。"
                             : "本机未启用原生毛玻璃，已使用更清晰的柔紫玻璃衬底。"}

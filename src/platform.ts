@@ -4,7 +4,6 @@ import {
   getCurrentWindow,
   PhysicalPosition,
   PhysicalSize,
-  Effect,
 } from "@tauri-apps/api/window";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import {
@@ -107,7 +106,7 @@ export async function prepareWindow(alwaysOnTop: boolean) {
 }
 export const nativeTransparency = () =>
   isTauri() ? invoke<boolean>("native_transparency") : Promise.resolve(false);
-// One material per native window. Views never own or reapply Acrylic.
+// One composition material per native window; views never reapply it.
 let effectQueue: Promise<unknown> = Promise.resolve();
 let effectRevision = 0;
 let appliedFrost: boolean | undefined;
@@ -126,11 +125,13 @@ export function applyFrost(enabled: boolean): Promise<boolean> {
         // Replace, never stack. Reset an unknown/previous native effect before
         // applying a new one; keep the stronger CSS fallback until completion.
         appliedFrost = undefined;
+        await invoke("native_frost", { enabled: false });
         await win.clearEffects();
         if (supported && revision === effectRevision) {
-          await win.setEffects({ effects: [Effect.Acrylic] });
-          appliedFrost = true;
-          return true;
+          appliedFrost = await invoke<boolean>("native_frost", {
+            enabled: true,
+          });
+          return appliedFrost;
         }
         appliedFrost = false;
         return false;
@@ -138,6 +139,7 @@ export function applyFrost(enabled: boolean): Promise<boolean> {
         appliedFrost = undefined;
         // A failed application may already have changed the native window.
         // Clear it before the UI enables its stronger fallback surface.
+        await invoke("native_frost", { enabled: false });
         await win.clearEffects();
         throw error;
       }

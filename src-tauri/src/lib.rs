@@ -1,4 +1,6 @@
 mod db;
+#[cfg(target_os = "windows")]
+mod material;
 use db::{Backup, DayMark, Settings, Snapshot, Task};
 use rusqlite::Connection;
 use std::sync::Mutex;
@@ -6,6 +8,56 @@ use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_window_state::StateFlags;
 struct Database(Mutex<Connection>);
+#[tauri::command]
+async fn native_frost_active(window: tauri::WebviewWindow) -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let (send, receive) = std::sync::mpsc::sync_channel(1);
+        window
+            .run_on_main_thread(move || {
+                let _ = send.send(material::active());
+            })
+            .map_err(|e| e.to_string())?;
+        tauri::async_runtime::spawn_blocking(move || receive.recv().map_err(|e| e.to_string()))
+            .await
+            .map_err(|e| e.to_string())?
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = window;
+        Ok(false)
+    }
+}
+#[tauri::command]
+async fn native_frost(window: tauri::WebviewWindow, enabled: bool) -> Result<bool, String> {
+    if window.label() != "main" {
+        return Err("不支持的窗口".into());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        if enabled && !native_frost_supported(window.app_handle().clone()) {
+            return Ok(false);
+        }
+        let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as usize;
+        let (send, receive) = std::sync::mpsc::sync_channel(1);
+        window
+            .run_on_main_thread(move || {
+                let _ = send.send(material::set(
+                    windows::Win32::Foundation::HWND(hwnd as _),
+                    enabled,
+                ));
+            })
+            .map_err(|e| e.to_string())?;
+        tauri::async_runtime::spawn_blocking(move || receive.recv().map_err(|e| e.to_string())?)
+            .await
+            .map_err(|e| e.to_string())?
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = enabled;
+        Ok(false)
+    }
+}
 #[tauri::command]
 fn native_transparency(app: tauri::AppHandle) -> bool {
     app.config()
@@ -20,7 +72,7 @@ fn native_frost_supported(app: tauri::AppHandle) -> bool {
     if !native_transparency(app) {
         return false;
     }
-    // Use modern documented DWM Acrylic, avoiding the older slow accent path.
+    // Keep the established modern-Windows compatibility floor for composition.
     #[cfg(target_os = "windows")]
     {
         windows_version::OsVersion::current().build >= 22621
@@ -111,6 +163,12 @@ pub fn run() {
         window_state = window_state.with_filename(dir.join("window-state.json").to_string_lossy());
     }
     tauri::Builder::default()
+        .on_window_event(|window, event| {
+            if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                #[cfg(target_os = "windows")]
+                material::clear();
+            }
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -146,7 +204,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            native_transparency, native_frost_supported, load_snapshot, save_task, delete_task, save_settings,
+            native_transparency, native_frost_supported, native_frost, native_frost_active, load_snapshot, save_task, delete_task, save_settings,
             save_mark, reorder_tasks, export_backup, read_backup, import_backup
         ])
         .run(tauri::generate_context!())

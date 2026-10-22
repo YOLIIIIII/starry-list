@@ -141,8 +141,8 @@ svg {
   border-color: #f9f5ffcc;
 }
 .app-shell:not([data-appearance="reading"]) {
-  --preview-gap: 5px;
-  --task-row-gap: 7px;
+  --preview-gap: 4px;
+  --task-row-gap: 3px;
   --task-row-radius: 10px;
 }
 .app-shell[data-appearance="frosted"] {
@@ -163,19 +163,23 @@ svg {
 }
 .app-shell[data-appearance="glass"] .task-row,
 .app-shell[data-appearance="frosted"] .task-row {
-  background: rgba(255, 253, 250, var(--task-alpha));
+  background: transparent;
   border-radius: var(--task-row-radius);
   padding-left: 5px;
   padding-right: 5px;
 }
 .app-shell[data-appearance="glass"] .task-row:hover,
 .app-shell[data-appearance="frosted"] .task-row:hover {
-  background: #f4edfbe8;
+  background: #8565b812;
 }
 .app-shell[data-appearance="glass"] .agenda-date,
 .app-shell[data-appearance="frosted"] .agenda-date {
   border-radius: 8px;
-  background: #fffaf582;
+  background: transparent;
+}
+.app-shell:not([data-appearance="reading"]) .agenda-today .agenda-date small {
+  background: transparent;
+  padding: 0;
 }
 .app-shell[data-appearance="glass"] .focus-week,
 .app-shell[data-appearance="frosted"] .focus-week {
@@ -183,7 +187,7 @@ svg {
 }
 .app-shell[data-appearance="glass"] .date-number,
 .app-shell[data-appearance="frosted"] .date-number {
-  background: #fffaf57a;
+  background: transparent;
   border-radius: 6px;
 }
 .app-shell[data-appearance="glass"] .today .date-number,
@@ -918,7 +922,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 4px 3px;
+  padding: 4px 10px;
   color: #8a719f;
   min-width: 0;
   min-height: 29px;
@@ -931,7 +935,7 @@ h1 {
   border: 0;
   background: #fffdf9;
   outline: none;
-  padding: 5px 0;
+  padding: 5px 6px;
   font-size: 11px;
 }
 .quick-add:focus-within {
@@ -1139,7 +1143,7 @@ h1 {
   margin: 9px 0;
   background: #fff8;
   border: 1px dashed #ad96c44d;
-  padding: 8px;
+  padding: 8px 12px;
 }
 .focus-scroll .task-row {
   min-height: 43px;
@@ -1220,6 +1224,29 @@ h1 {
 }
 .drawer-dialog .dialog-heading h2 {
   font-size: 18px;
+}
+/* SL-004-B: improve only the task editor, not the global 14px task scale. */
+.drawer-dialog {
+  --editor-label-size: 12px;
+  --editor-input-size: 14px;
+  --editor-help-size: 11px;
+}
+.drawer-dialog
+  :is(
+    .field,
+    legend,
+    .pills button,
+    .advanced,
+    .editor-delete,
+    .editor-footer > button
+  ) {
+  font-size: var(--editor-label-size);
+}
+.drawer-dialog :is(.field input, .field textarea) {
+  font-size: var(--editor-input-size);
+}
+.drawer-dialog :is(.optional, .save-status) {
+  font-size: var(--editor-help-size);
 }
 .drawer-dialog .editor > .inline-error {
   flex-shrink: 0;

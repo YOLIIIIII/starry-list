@@ -8,6 +8,7 @@ using System.Windows.Forms;
 
 public sealed class StarryVisualBackdrop : Form {
     public string Scene = "light";
+    Form focusSink;
     public StarryVisualBackdrop() {
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -36,9 +37,10 @@ public sealed class StarryVisualBackdrop : Form {
     }
     // The backdrop must cover every captured pixel. Reject unrelated windows
     // above it, including windows behind the transparent test application.
-    void Guard(Rectangle area, uint appProcess) {
+    void Guard(Rectangle area, uint appProcess, bool inactive) {
         uint foreground; GetWindowThreadProcessId(GetForegroundWindow(), out foreground);
-        if (foreground != appProcess || !BoundsOf(Handle).Contains(area))
+        bool correctFocus = inactive ? focusSink != null && GetForegroundWindow() == focusSink.Handle && !focusSink.Bounds.IntersectsWith(area) : foreground == appProcess;
+        if (!correctFocus || !BoundsOf(Handle).Contains(area))
             throw new Exception("Capture refused: test foreground or synthetic coverage changed");
         bool found = false, appSeen = false, unsafeWindow = false;
         string unsafeClass = "none";
@@ -54,24 +56,36 @@ public sealed class StarryVisualBackdrop : Form {
             if (process != appProcess && process != (uint)System.Diagnostics.Process.GetCurrentProcess().Id && BoundsOf(window).IntersectsWith(area)) {
                 var name = new System.Text.StringBuilder(128);
                 GetClassName(window, name, 128);
-                unsafeClass = name.ToString(); // Class only; never read private window titles.
+                unsafeClass = name.ToString() + ", bounds=" + BoundsOf(window).ToString(); // No window titles or content.
                 unsafeWindow = true; return false;
             }
             return true;
         }, IntPtr.Zero);
         if (!found || !appSeen || unsafeWindow) throw new Exception("Capture refused: unrelated window may appear in the region (backdrop=" + found + ", app=" + appSeen + ", class=" + unsafeClass + ")");
     }
-    public void CaptureRegion(string path, uint appProcess, IntPtr appWindow, int blurMargin) {
+    public void CaptureRegion(string path, uint appProcess, IntPtr appWindow, int blurMargin, bool inactive) {
         Rectangle area = BoundsOf(appWindow);
         // Acrylic may sample beyond the window. Keep that region synthetic too.
         Rectangle guarded = Rectangle.Inflate(area, blurMargin, blurMargin);
-        Guard(guarded, appProcess);
+        Guard(guarded, appProcess, inactive);
         using (Bitmap pixels = new Bitmap(area.Width, area.Height)) {
             using (Graphics g = Graphics.FromImage(pixels))
                 g.CopyFromScreen(area.Location, Point.Empty, area.Size);
-            Guard(guarded, appProcess);
+            Guard(guarded, appProcess, inactive);
             pixels.Save(path, ImageFormat.Png);
         }
+    }
+    public void FocusAway() {
+        if (focusSink == null) {
+            focusSink = new Form { Text = "Synthetic focus target", FormBorderStyle = FormBorderStyle.None, ShowInTaskbar = false, StartPosition = FormStartPosition.Manual, Bounds = new Rectangle(Left + 10, Top + 10, 110, 50), BackColor = Color.FromArgb(220, 208, 244) };
+            focusSink.Controls.Add(new Label { Text = "Focus test", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter });
+            FormClosed += delegate { focusSink.Dispose(); };
+        }
+        focusSink.Show(); focusSink.BringToFront(); focusSink.Activate();
+        Point point = new Point(focusSink.Left + 20, focusSink.Top + 20);
+        if (GetAncestor(WindowFromPoint(point), 2) != focusSink.Handle) throw new Exception("Focus test refused: target is covered");
+        Cursor.Position = point;
+        mouse_event(2, 0, 0, 0, UIntPtr.Zero); mouse_event(4, 0, 0, 0, UIntPtr.Zero);
     }
     public int BackdropType(IntPtr appWindow) {
         int value;
@@ -84,6 +98,15 @@ public sealed class StarryVisualBackdrop : Form {
         // Move only this synthetic background, directly below its test app.
         if (!SetWindowPos(Handle, appWindow, 0, 0, 0, 0, 0x13))
             throw new Exception("Cannot position synthetic backdrop");
+    }
+    public void ParkPointer(uint appProcess, IntPtr appWindow) {
+        uint process; GetWindowThreadProcessId(appWindow, out process);
+        if (process != appProcess || !IsWindowVisible(appWindow))
+            throw new Exception("Pointer refused: not the isolated test window");
+        Rectangle bounds = BoundsOf(appWindow);
+        // CDP mouse events do not move the real OS cursor; native WebView title
+        // tooltips can otherwise outlive a navigation. Move, never click.
+        Cursor.Position = new Point(bounds.Left + 10, bounds.Top + 10);
     }
     public void DragRegion(uint appProcess, IntPtr appWindow, int fromX, int fromY, int toX, int toY) {
         uint foreground;

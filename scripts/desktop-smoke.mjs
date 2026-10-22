@@ -4,7 +4,7 @@
 // Use the isolated identifier + test-only focus permission config in docs/VALIDATION.md.
 // The foreground-transfer test launches its own temporary Edge profile.
 import { chromium } from "@playwright/test";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
@@ -235,6 +235,19 @@ try {
         label: "main",
       }),
   );
+  await page.evaluate(async () => {
+    window.__focusTrace = [];
+    for (const name of ["focus", "blur", "compositionstart", "compositionend"])
+      window.addEventListener(name, () => window.__focusTrace.push(name), true);
+    for (const event of ["tauri://focus", "tauri://blur"])
+      await window.__TAURI_INTERNALS__.invoke("plugin:event|listen", {
+        event,
+        target: { kind: "Window", label: "main" },
+        handler: window.__TAURI_INTERNALS__.transformCallback(() =>
+          window.__focusTrace.push(event),
+        ),
+      });
+  });
   // A separate real desktop browser is used, never the user's browser or app.
   await click(`为 ${nextDay} 添加任务`);
   await page
@@ -248,7 +261,8 @@ try {
     true,
     "Test app must start in the OS foreground before the focus transfer",
   );
-  const otherBrowser = await chromium.launch({
+  const edgeProfile = resolve(testDir, "edge-focus-profile");
+  const otherBrowser = await chromium.launchPersistentContext(edgeProfile, {
     channel: "msedge",
     headless: false,
     args: ["--no-first-run"],
@@ -260,18 +274,42 @@ try {
     );
     await other.bringToFront();
     await other.getByRole("button").click();
+    execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        resolve("scripts/focus-test-browser.ps1"),
+        "-Profile",
+        edgeProfile,
+      ],
+      { windowsHide: true },
+    );
     await page.waitForFunction(
       async () =>
         !(await window.__TAURI_INTERNALS__.invoke("plugin:window|is_focused", {
           label: "main",
         })),
     );
-    await page
-      .getByRole("textbox", { name: nextDate, exact: true })
-      .waitFor({ state: "detached" });
-    const added = (await invoke("load_snapshot")).tasks.filter(
-      (t) => t.title === "UX22 窗口失焦验证",
-    );
+    // An occluded WebView may defer rendering. Assert real persistence while
+    // Edge owns the foreground, then assert the collapsed UI after returning.
+    let added = [];
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const connection = new DatabaseSync(resolve(testDir, "starry-list.db"), {
+        readOnly: true,
+      });
+      try {
+        added = connection
+          .prepare("SELECT date FROM tasks WHERE title = ?")
+          .all("UX22 窗口失焦验证");
+      } finally {
+        connection.close();
+      }
+      if (added.length) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
     assert.equal(added.length, 1);
     assert.equal(added[0].date, nextDay);
     assert.equal(
@@ -283,6 +321,9 @@ try {
     // the real five-second undo window on a busy Windows machine.
     await page.bringToFront();
     await invoke("plugin:window|set_focus", { label: "main" });
+    await page
+      .getByRole("textbox", { name: nextDate, exact: true })
+      .waitFor({ state: "detached" });
     await page
       .getByRole("status", { name: "已添加 UX22 窗口失焦验证", exact: true })
       .getByRole("button", { name: "撤销", exact: true })
@@ -1178,6 +1219,18 @@ try {
   );
 } catch (error) {
   if (page) {
+    console.log(
+      "Focus diagnostics:",
+      await page
+        .evaluate(() => ({
+          events: window.__focusTrace,
+          active: document.activeElement?.getAttribute("aria-label"),
+          alerts: [...document.querySelectorAll('[role="alert"]')].map(
+            (el) => el.textContent,
+          ),
+        }))
+        .catch(() => null),
+    );
     console.log(
       "Native page:",
       page.url(),

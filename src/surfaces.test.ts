@@ -24,8 +24,8 @@ describe("透明外壳与阅读衬底", () => {
     expect(over(a["--header-alpha"], shell)).toBeGreaterThanOrEqual(0.97);
   });
   it("实色/原生不透明回退所有背景完全不透明，100% 无残余透视", () => {
-    expect(Object.values(surfaceAlphas(0.4, true))).toEqual([1, 1, 1, 1, 1, 1]);
-    expect(Object.values(surfaceAlphas(1, false))).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(Object.values(surfaceAlphas(0.4, true))).toEqual([1, 1, 1, 1, 1]);
+    expect(Object.values(surfaceAlphas(1, false))).toEqual([1, 1, 1, 1, 1]);
   });
   it.each(["reading", "glass", "frosted"] as const)(
     "%s 仍随滑块增强，实色完全不透视",
@@ -49,7 +49,7 @@ describe("透明外壳与阅读衬底", () => {
       }
     },
   );
-  it("材质差异真实，失去原生模糊时提高保护，任务行保留局部衬底", () => {
+  it("材质差异真实，失去原生模糊时提高整面保护，不依赖任务底贴", () => {
     const reading = surfaceAlphas(0.4, false),
       light = surfaceAlphas(0.4, false, "glass"),
       dream = surfaceAlphas(0.4, false, "frosted", true),
@@ -59,10 +59,7 @@ describe("透明外壳与阅读衬底", () => {
     expect(fallback["--panel-alpha"]).toBeGreaterThan(dream["--panel-alpha"]);
     for (const a of [light, dream, fallback])
       expect(
-        over(
-          a["--task-alpha"],
-          over(a["--panel-alpha"], a["--background-alpha"]),
-        ),
-      ).toBeGreaterThanOrEqual(0.93);
+        over(a["--panel-alpha"], a["--background-alpha"]),
+      ).toBeGreaterThanOrEqual(0.76);
   });
 });

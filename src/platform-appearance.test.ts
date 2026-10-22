@@ -10,9 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: native.capability,
 }));
 vi.mock("@tauri-apps/api/window", () => ({
-  Effect: { Acrylic: "acrylic" },
   getCurrentWindow: () => ({
-    setEffects: native.set,
     clearEffects: native.clear,
   }),
 }));
@@ -21,16 +19,30 @@ beforeEach(async () => {
   vi.resetModules();
   ({ applyFrost } = await import("./platform"));
   native.supported = true;
-  native.set.mockReset().mockResolvedValue(undefined);
+  native.set.mockReset().mockResolvedValue(true);
   native.clear.mockReset().mockResolvedValue(undefined);
   native.capability
     .mockReset()
-    .mockImplementation(async () => native.supported);
+    .mockImplementation(
+      async (command: string, args?: { enabled: boolean }) => {
+        if (command === "native_frost_supported") return native.supported;
+        return args?.enabled ? native.set() : false;
+      },
+    );
 });
 describe("原生毛玻璃边界", () => {
-  it("支持时请求 Acrylic，关闭后清除", async () => {
+  it("系统策略拒绝材质时返回降级，不把能力支持误认作应用成功", async () => {
+    native.set.mockResolvedValueOnce(false);
+    expect(await applyFrost(true)).toBe(false);
+    expect(native.set).toHaveBeenCalledOnce();
     expect(await applyFrost(true)).toBe(true);
-    expect(native.set).toHaveBeenCalledWith({ effects: ["acrylic"] });
+    expect(native.set).toHaveBeenCalledTimes(2);
+  });
+  it("支持时建立合成材质，关闭后清除", async () => {
+    expect(await applyFrost(true)).toBe(true);
+    expect(native.capability).toHaveBeenCalledWith("native_frost", {
+      enabled: true,
+    });
     expect(native.clear.mock.invocationCallOrder[0]).toBeLessThan(
       native.set.mock.invocationCallOrder[0],
     );
@@ -47,8 +59,8 @@ describe("原生毛玻璃边界", () => {
     let release!: () => void;
     native.set.mockImplementationOnce(
       () =>
-        new Promise<void>((r) => {
-          release = r;
+        new Promise<boolean>((r) => {
+          release = () => r(true);
         }),
     );
     const first = applyFrost(true);

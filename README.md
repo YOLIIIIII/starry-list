@@ -1,6 +1,6 @@
 # 星轨日历 · Starry List
 
-UX3.0.3 体验迭代：玻璃去小底贴、稳定失焦毛玻璃、编辑抽屉局部字号；仍待最终用户验收。[视觉对比与限制](docs/UX3_0_3_VISUAL_REVIEW.md) · [验证记录](docs/VALIDATION.md)。
+UX3.0.4 体验迭代：三材质共用清单布局、修复宽矮月历数量裁切，保留稳定毛玻璃；仍待最终用户验收。[布局对比与限制](docs/UX3_0_4_VISUAL_REVIEW.md) · [验证记录](docs/VALIDATION.md)。
 
 Lavender × Pastel Yellow × Cream。一个无需登录、可以留在桌面角落的离线日历清单。
 

@@ -10,12 +10,37 @@ import {
   dayProgress,
   backupSchema,
   defaults,
+  settingsSchema,
   dateSchema,
   type Task,
 } from "./domain";
 import { dayInfo } from "./holidays";
 import holidays from "./holidays/2026.json";
 import { makeTask } from "./test-fixtures";
+describe("UX3.1 兼容设置", () => {
+  it("旧设置及旧备份缺失字号时默认标准，无效字号拒绝", () => {
+    const legacy: Record<string, unknown> = { ...defaults };
+    delete legacy.text_size;
+    expect(settingsSchema.parse(legacy).text_size).toBe("standard");
+    const backup = {
+      format: "starry-list",
+      version: 1,
+      exported_at: new Date().toISOString(),
+      tasks: [makeTask()],
+      categories: [],
+      day_marks: [],
+      settings: legacy,
+    };
+    expect(backupSchema.parse(backup).settings.text_size).toBe("standard");
+    expect(
+      settingsSchema.safeParse({ ...defaults, text_size: "huge" }).success,
+    ).toBe(false);
+    for (const size of ["small", "standard", "large"])
+      expect(
+        settingsSchema.parse({ ...defaults, text_size: size }).text_size,
+      ).toBe(size);
+  });
+});
 describe("本地日历日期", () => {
   it("月份与跨年切换", () => {
     expect(shiftMonth("2026-12-31", 1)).toBe("2027-01-01");

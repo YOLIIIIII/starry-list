@@ -47,6 +47,7 @@ export async function checkLayout({
     [980, 680],
     [980, 860],
     [760, 480],
+    [760, 620],
     [760, 680],
     [500, 480],
     [500, 860],
@@ -81,6 +82,19 @@ export async function checkLayout({
         const bounds = cell.getBoundingClientRect(),
           date = cell.querySelector(".date-select");
         const key = date.getAttribute("aria-label").slice(3);
+        const dateNumber = date
+          .querySelector(".date-number")
+          .getBoundingClientRect();
+        for (const badge of date.querySelectorAll(".day-badge")) {
+          const b = badge.getBoundingClientRect();
+          if (
+            b.left < dateNumber.right - 0.51 &&
+            b.right > dateNumber.left + 0.51 &&
+            b.top < dateNumber.bottom - 0.51 &&
+            b.bottom > dateNumber.top + 0.51
+          )
+            issues.push(key + ": date/badge overlap");
+        }
         if (
           !contains(
             bounds,

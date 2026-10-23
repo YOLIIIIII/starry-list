@@ -19,7 +19,6 @@
   --muted: #6f5c7c;
   --line: #8565b82b;
   --danger: #a34e61;
-  --task-text-size: 14px;
   --task-row-gap: 0px;
   --task-row-radius: 8px;
   --preview-gap: 3px;
@@ -114,6 +113,23 @@ svg {
   background: transparent;
 }
 .app-shell {
+  /* Typography is independent of material and opacity. Standard preserves 14px tasks. */
+  --task-text-size: 14px;
+  --text-body: 13px;
+  --text-ui: 12px;
+  --text-help: 11px;
+  --text-caption: 10px;
+  --text-heading: 16px;
+  --text-dialog: 18px;
+  --text-page: 23px;
+  --text-page-compact: 20px;
+  --text-brand: 17px;
+  --text-brand-caption: 8px;
+  --text-calendar-date: 12px;
+  --text-calendar-badge: 8px;
+  --text-calendar-preview: 9px;
+  --text-calendar-count: 9px;
+  font-size: var(--text-ui);
   position: relative;
   padding: 3px;
   height: 100%;
@@ -129,6 +145,32 @@ svg {
     rgba(var(--shell-end), var(--background-alpha))
   );
   box-shadow: inset 0 0 0 1px #ffffff80;
+}
+.app-shell[data-text-size="small"] {
+  --task-text-size: 13px;
+  --text-body: 12px;
+  --text-ui: 11px;
+  --text-help: 10px;
+  --text-heading: 15px;
+  --text-dialog: 17px;
+  --text-page: 22px;
+  --text-page-compact: 19px;
+}
+.app-shell[data-text-size="large"] {
+  --task-text-size: 16px;
+  --text-body: 15px;
+  --text-ui: 14px;
+  --text-help: 12px;
+  --text-caption: 11px;
+  --text-heading: 18px;
+  --text-dialog: 20px;
+  --text-page: 25px;
+  --text-page-compact: 22px;
+  --text-calendar-date: 13px;
+  --text-calendar-badge: 9px;
+  --text-calendar-preview: 10px;
+  --text-calendar-count: 10px;
+  --calendar-preview-height: 18px;
 }
 .app-header {
   flex-shrink: 0;
@@ -238,7 +280,7 @@ svg {
 }
 .appearance-setting legend {
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .appearance-options {
   display: grid;
@@ -266,11 +308,11 @@ svg {
   margin: 0;
 }
 .appearance-options span {
-  font-size: 12px;
+  font-size: var(--text-ui);
 }
 .appearance-options small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-help);
   color: var(--muted);
   margin-top: 3px;
 }
@@ -343,8 +385,8 @@ svg {
 .titlebar {
   display: flex;
   align-items: center;
-  min-height: 65px;
-  padding: 13px 19px 6px 23px;
+  min-height: 55px;
+  padding: 8px 19px 5px 23px;
   flex-shrink: 0;
   user-select: none;
 }
@@ -352,7 +394,7 @@ svg {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 17px;
+  font-size: var(--text-brand);
   font-weight: 650;
   letter-spacing: 1.5px;
 }
@@ -368,7 +410,7 @@ svg {
 }
 .brand small {
   display: block;
-  font-size: 8px;
+  font-size: var(--text-brand-caption);
   letter-spacing: 3px;
   color: var(--muted);
   font-weight: 500;
@@ -398,8 +440,8 @@ svg {
   align-items: center;
 }
 .window-buttons button {
-  width: 29px;
-  height: 29px;
+  width: 30px;
+  height: 30px;
   color: #877791;
 }
 .window-buttons .window-close:hover {
@@ -420,7 +462,7 @@ svg {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 26px 18px;
+  padding: 5px 26px 9px;
   gap: 12px;
   flex-shrink: 0;
 }
@@ -433,8 +475,9 @@ svg {
   gap: 3px;
 }
 .view-switch button {
+  min-height: 34px;
   padding: 8px 16px;
-  font-size: 12px;
+  font-size: var(--text-ui);
   color: #776584;
 }
 .view-switch button.active {
@@ -444,7 +487,7 @@ svg {
   font-weight: 600;
 }
 .topbar-caption {
-  font-size: 11px;
+  font-size: var(--text-help);
   letter-spacing: 1px;
   color: #74617f;
 }
@@ -482,7 +525,7 @@ svg {
 }
 .eyebrow {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-help);
   letter-spacing: 1px;
   display: block;
   margin-bottom: 7px;
@@ -494,7 +537,7 @@ p {
   margin: 0;
 }
 h1 {
-  font-size: 23px;
+  font-size: var(--text-page);
   letter-spacing: 0.5px;
   font-weight: 600;
 }
@@ -514,7 +557,7 @@ h1 {
 .nav-buttons .today-button {
   background: #fff9;
   border: 1px solid #8565b822;
-  font-size: 11px;
+  font-size: var(--text-help);
   padding: 0 10px;
   margin: 0 3px;
 }
@@ -523,7 +566,7 @@ h1 {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
   padding: 0 0 10px;
-  font-size: 11px;
+  font-size: var(--text-help);
   color: #8b7b96;
   text-align: center;
 }
@@ -594,7 +637,7 @@ h1 {
   width: 100%;
   min-height: 25px;
   padding: 0 1px;
-  font-size: 12px;
+  font-size: var(--text-calendar-date);
   border-radius: 7px;
 }
 .date-number {
@@ -622,7 +665,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
+  font-size: var(--text-calendar-badge);
   width: 15px;
   height: 15px;
   border-radius: 4px;
@@ -656,7 +699,7 @@ h1 {
   width: 100%;
   min-width: 0;
   padding: 2px 3px;
-  font-size: 9px;
+  font-size: var(--text-calendar-preview);
   line-height: 1.4;
   border-radius: 4px;
   background: #fff8;
@@ -680,7 +723,7 @@ h1 {
 }
 .more-tasks {
   align-self: flex-start;
-  font-size: 9px;
+  font-size: var(--text-calendar-count);
   color: #8d7b9b;
   padding: 1px 4px;
 }
@@ -691,7 +734,7 @@ h1 {
   max-height: 12px;
   container: task-marker / size;
   gap: 3px;
-  font-size: 8px;
+  font-size: var(--text-calendar-count);
   color: #9a88a6;
   padding: 0 4px;
   margin-top: 1px;
@@ -709,7 +752,7 @@ h1 {
   }
 }
 .calendar-extra {
-  font-size: 8px;
+  font-size: var(--text-calendar-count);
   color: #8b769d;
   line-height: 15px;
 }
@@ -743,7 +786,7 @@ h1 {
   gap: 6px;
   align-items: center;
   color: #8a7b97;
-  font-size: 9px;
+  font-size: var(--text-caption);
   padding: 14px 3px 11px;
 }
 .legend-today,
@@ -766,7 +809,7 @@ h1 {
   margin-left: 12px;
 }
 .year-notice {
-  font-size: 10px;
+  font-size: var(--text-help);
   color: #8b785a;
   padding: 0 3px 7px;
 }
@@ -776,13 +819,13 @@ h1 {
   justify-content: space-between;
   border-top: 1px solid var(--line);
   padding: 9px 3px 3px;
-  font-size: 10px;
+  font-size: var(--text-help);
   color: #867491;
   gap: 8px;
 }
 .day-mark-control select {
   padding: 3px 5px;
-  font-size: 10px;
+  font-size: var(--text-help);
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fffcf9;
@@ -804,17 +847,17 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 .agenda-heading h2 {
-  font-size: 16px;
+  font-size: var(--text-heading);
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 600;
 }
 .agenda-heading .eyebrow {
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .range-label {
-  font-size: 9px;
+  font-size: var(--text-help);
   font-weight: 400;
   color: #9b8ba7;
   white-space: nowrap;
@@ -850,11 +893,11 @@ h1 {
   gap: 8px;
   padding: 2px 0;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--text-ui);
   font-weight: 600;
 }
 .agenda-date small {
-  font-size: 9px;
+  font-size: var(--text-help);
   font-weight: 400;
   color: #8e7c9b;
   white-space: nowrap;
@@ -867,7 +910,7 @@ h1 {
 }
 .task-count {
   margin-left: auto;
-  font-size: 9px;
+  font-size: var(--text-help);
   color: #a193ac;
   white-space: nowrap;
 }
@@ -907,7 +950,7 @@ h1 {
   text-align: left;
   padding: 1px 2px;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--text-ui);
   line-height: 1.6;
 }
 .task-open:hover {
@@ -933,11 +976,17 @@ h1 {
   padding-top: 2px;
 }
 .category-label {
-  font-size: 8px;
+  font-size: var(--text-caption);
   padding: 1px 4px;
   border-radius: 4px;
   background: #8565b807;
   white-space: nowrap;
+}
+.task-meta .category-label {
+  min-width: 0;
+  max-width: 6em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .quick-add {
   display: flex;
@@ -957,7 +1006,7 @@ h1 {
   background: #fffdf9;
   outline: none;
   padding: 5px 6px;
-  font-size: 11px;
+  font-size: var(--text-help);
 }
 .quick-add:focus-within {
   background: #ede5f647;
@@ -967,7 +1016,7 @@ h1 {
 .quick-add button {
   flex-shrink: 0;
   color: var(--purple);
-  font-size: 10px;
+  font-size: var(--text-help);
   background: #e9def560;
   padding: 4px 7px;
 }
@@ -976,7 +1025,7 @@ h1 {
   align-items: center;
   gap: 8px;
   color: #9887a4;
-  font-size: 9px;
+  font-size: var(--text-help);
 }
 .progress > span {
   display: flex;
@@ -1030,7 +1079,7 @@ h1 {
   justify-content: space-between;
   gap: 10px;
   padding: 11px 28px 12px;
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #74617f;
   flex-shrink: 0;
   position: relative;
@@ -1086,7 +1135,7 @@ h1 {
   gap: 12px;
 }
 .focus-heading h1 small {
-  font-size: 12px;
+  font-size: var(--text-ui);
   font-weight: 400;
   color: #8e7c9b;
 }
@@ -1108,10 +1157,10 @@ h1 {
   color: #8c7a9c;
 }
 .focus-week button span {
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .focus-week button strong {
-  font-size: 17px;
+  font-size: var(--text-heading);
   font-weight: 500;
 }
 .focus-week button.active {
@@ -1139,14 +1188,14 @@ h1 {
   padding: 22px 12px 10px;
 }
 .focus-list-heading h2 {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
   display: flex;
   gap: 7px;
   align-items: center;
 }
 .focus-list-heading h2 > span {
-  font-size: 10px;
+  font-size: var(--text-help);
   font-weight: 400;
   border-radius: 5px;
   background: #e7dff0a0;
@@ -1172,7 +1221,7 @@ h1 {
   padding: 9px 6px;
 }
 .focus-scroll .task-open {
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .order-buttons {
   display: flex;
@@ -1218,7 +1267,7 @@ h1 {
 }
 .editor .save-status {
   margin: 0 0 17px;
-  font-size: 11px;
+  font-size: var(--text-help);
 }
 .modal-backdrop.drawer-backdrop {
   justify-content: flex-end;
@@ -1244,13 +1293,13 @@ h1 {
   margin: 0;
 }
 .drawer-dialog .dialog-heading h2 {
-  font-size: 18px;
+  font-size: var(--text-dialog);
 }
-/* SL-004-B: improve only the task editor, not the global 14px task scale. */
+/* SL-004-B keeps independent scrolling and a fixed footer; roles now follow SL-004. */
 .drawer-dialog {
-  --editor-label-size: 12px;
-  --editor-input-size: 14px;
-  --editor-help-size: 11px;
+  --editor-label-size: var(--text-ui);
+  --editor-input-size: var(--task-text-size);
+  --editor-help-size: var(--text-help);
 }
 .drawer-dialog
   :is(
@@ -1289,14 +1338,14 @@ h1 {
   max-height: 6em;
   overflow-y: auto;
   margin: 0;
-  font-size: 14px;
+  font-size: var(--task-text-size);
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
 .reader-heading button {
   flex-shrink: 0;
   padding: 5px;
-  font-size: 11px;
+  font-size: var(--text-help);
 }
 .reader-edit {
   color: var(--purple-dark);
@@ -1308,12 +1357,18 @@ h1 {
   gap: 8px 14px;
   margin: 9px 0 0;
   color: #817089;
-  font-size: 10px;
+  font-size: var(--text-help);
 }
 .reader-meta > span {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+.reader-meta .category-label {
+  display: inline-flex;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .reader-description {
   max-height: min(280px, 40vh);
@@ -1322,7 +1377,7 @@ h1 {
   margin-top: 14px;
   padding-right: 8px;
   color: #352b47;
-  font-size: 13px;
+  font-size: var(--task-text-size);
   line-height: 1.9;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1351,28 +1406,28 @@ h1 {
   background: #e8def37a;
   color: var(--purple-dark);
   gap: 3px;
-  font-size: 10px;
+  font-size: var(--text-help);
 }
 .agenda-empty-hint {
-  font-size: 11px;
+  font-size: var(--text-help);
   line-height: 1.8;
   color: #94819e;
   padding: 12px 0 0;
 }
 .agenda-panel .task-open {
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .editor-heading {
   display: flex;
   align-items: center;
   gap: 9px;
   margin-bottom: 13px;
-  font-size: 11px;
+  font-size: var(--text-help);
   color: var(--purple-dark);
 }
 .save-status {
   margin-left: auto;
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #9986a6;
 }
 .editor-heading button {
@@ -1383,7 +1438,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 10px;
+  font-size: var(--text-help);
   color: #8b779b;
   margin-bottom: 14px;
 }
@@ -1396,7 +1451,7 @@ h1 {
   padding: 9px 10px;
   width: 100%;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--text-ui);
 }
 .field textarea {
   min-height: 156px;
@@ -1423,13 +1478,13 @@ fieldset {
   margin: 0 0 14px;
 }
 legend {
-  font-size: 10px;
+  font-size: var(--text-help);
   color: #8b779b;
   margin-bottom: 8px;
 }
 .optional {
   color: #a594af;
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .pills {
   display: flex;
@@ -1439,7 +1494,7 @@ legend {
 .pills button {
   min-height: 29px;
   padding: 5px 9px;
-  font-size: 10px;
+  font-size: var(--text-help);
   border: 1px solid #8565b822;
   background: #fff9;
   border-radius: 7px;
@@ -1459,7 +1514,7 @@ legend {
   height: 12px;
 }
 .advanced {
-  font-size: 10px;
+  font-size: var(--text-help);
   color: #887294;
   padding-bottom: 9px;
 }
@@ -1480,11 +1535,11 @@ legend {
   border-top: 1px solid var(--line);
 }
 .editor-footer > button {
-  font-size: 10px;
+  font-size: var(--text-help);
   padding: 7px 10px;
 }
 .key-hint {
-  font-size: 8px;
+  font-size: var(--text-caption);
   color: #a493af;
   margin-right: auto;
 }
@@ -1540,10 +1595,10 @@ legend {
   text-align: center;
 }
 .empty span {
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .empty p {
-  font-size: 10px;
+  font-size: var(--text-help);
   color: #a090ac;
 }
 .empty-orbit {
@@ -1580,7 +1635,7 @@ legend {
   flex-direction: column;
   gap: 16px;
   color: var(--purple);
-  font-size: 12px;
+  font-size: var(--text-ui);
   padding: 20px;
   text-align: center;
 }
@@ -1599,7 +1654,7 @@ legend {
   border-radius: 9px;
   background: #fff2e9;
   border: 1px solid #d6a38955;
-  font-size: 11px;
+  font-size: var(--text-help);
   color: #955545;
   max-height: 105px;
   overflow: auto;
@@ -1613,7 +1668,7 @@ legend {
   padding: 2px;
 }
 .inline-error {
-  font-size: 11px;
+  font-size: var(--text-help);
   color: #a34e61;
   margin: 0 0 9px;
 }
@@ -1646,7 +1701,7 @@ legend {
   margin-bottom: 19px;
 }
 .dialog-heading h2 {
-  font-size: 17px;
+  font-size: var(--text-heading);
   font-weight: 600;
 }
 .dialog-heading button {
@@ -1655,7 +1710,7 @@ legend {
   height: 26px;
 }
 .dialog-copy {
-  font-size: 12px;
+  font-size: var(--text-ui);
   line-height: 1.9;
   color: #87718f;
   margin: 14px 0;
@@ -1669,12 +1724,12 @@ legend {
 }
 .dialog-actions button {
   padding: 8px 15px;
-  font-size: 12px;
+  font-size: var(--text-ui);
 }
 .setting-opacity > label {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--text-ui);
 }
 .setting-opacity strong {
   color: var(--purple);
@@ -1687,7 +1742,7 @@ legend {
 }
 .setting-opacity p,
 .backup-section p {
-  font-size: 10px;
+  font-size: var(--text-help);
   color: #95839f;
   line-height: 1.8;
 }
@@ -1703,11 +1758,11 @@ legend {
   padding: 13px 0;
   border-bottom: 1px solid #8565b813;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-ui);
 }
 .setting-row small {
   display: block;
-  font-size: 9px;
+  font-size: var(--text-help);
   color: #95839f;
   margin-top: 5px;
 }
@@ -1744,7 +1799,7 @@ legend {
   padding: 18px 0;
 }
 .backup-section h3 {
-  font-size: 12px;
+  font-size: var(--text-ui);
   margin-bottom: 7px;
 }
 .backup-buttons {
@@ -1756,7 +1811,7 @@ legend {
   padding: 8px 12px;
   background: #eae1f46b;
   border: 1px solid var(--line);
-  font-size: 11px;
+  font-size: var(--text-help);
   color: var(--purple-dark);
 }
 .about {
@@ -1769,17 +1824,17 @@ legend {
 }
 .about strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-ui);
   font-weight: 500;
 }
 .about span {
   display: block;
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #95839f;
   margin-top: 5px;
 }
 .about p {
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #95839f;
   line-height: 1.9;
   margin-top: 9px;
@@ -1799,14 +1854,14 @@ legend {
   border: 1px solid #d6c4e5;
   border-radius: 10px;
   box-shadow: 0 5px 20px #8565b822;
-  font-size: 11px;
+  font-size: var(--text-help);
   color: #78628c;
 }
 .toast > span {
   min-width: 0;
 }
 .toast button {
-  font-size: 11px;
+  font-size: var(--text-help);
   color: var(--purple);
   padding: 2px 4px;
 }
@@ -1814,7 +1869,7 @@ legend {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 12px;
+  font-size: var(--text-ui);
   color: #a34e61;
 }
 .import-choice input {
@@ -1862,6 +1917,17 @@ legend {
   }
 }
 @media (min-width: 1100px) {
+  .app-shell {
+    --text-calendar-date: 14px;
+    --text-calendar-preview: 11px;
+  }
+  .app-shell[data-text-size="large"] {
+    --text-calendar-date: 15px;
+    --text-calendar-preview: 12px;
+  }
+  .app-shell[data-text-size="large"] .month-grid {
+    --calendar-preview-height: 21px;
+  }
   .month-grid {
     --calendar-preview-height: 20px;
     --preview-gap: 5px;
@@ -1872,7 +1938,7 @@ legend {
     padding: 0 30px;
   }
   .calendar-task {
-    font-size: 11px;
+    font-size: var(--text-calendar-preview);
   }
   .day-cell {
     padding: 7px;
@@ -1881,7 +1947,7 @@ legend {
     gap: var(--preview-gap);
   }
   .date-number {
-    font-size: 14px;
+    font-size: var(--text-calendar-date);
   }
 }
 @media (max-width: 899px) {
@@ -1925,19 +1991,26 @@ legend {
     padding-top: 4px;
   }
   .topbar-caption {
-    font-size: 10px;
+    font-size: var(--text-help);
   }
 }
 @media (max-width: 619px) {
+  .app-shell {
+    --text-brand: 15px;
+    --text-calendar-date: 11px;
+  }
+  .app-shell[data-text-size="large"] {
+    --text-calendar-date: 12px;
+  }
   .month-grid {
     --calendar-preview-capacity: 0;
   }
   .titlebar {
-    padding: 10px 10px 4px 15px;
-    min-height: 59px;
+    padding: 6px 10px 4px 15px;
+    min-height: 49px;
   }
   .brand {
-    font-size: 15px;
+    font-size: var(--text-brand);
     gap: 8px;
   }
   .brand-icon {
@@ -1946,20 +2019,20 @@ legend {
     border-radius: 11px;
   }
   .brand small {
-    font-size: 7px;
+    display: none;
     letter-spacing: 2.5px;
   }
   .window-buttons {
     gap: 0;
   }
   .window-buttons button {
-    width: 27px;
+    width: 30px;
   }
   .window-divider {
     margin: 0 3px;
   }
   .topbar {
-    padding: 10px 15px 15px;
+    padding: 5px 15px 7px;
   }
   .topbar-caption {
     display: none;
@@ -1982,10 +2055,10 @@ legend {
     padding-bottom: 14px;
   }
   h1 {
-    font-size: 20px;
+    font-size: var(--text-page-compact);
   }
   .eyebrow {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .month-grid {
     gap: 4px;
@@ -2000,7 +2073,7 @@ legend {
   }
   .date-select {
     min-height: 22px;
-    font-size: 11px;
+    font-size: var(--text-calendar-date);
   }
   .date-number {
     width: 21px;
@@ -2009,7 +2082,7 @@ legend {
   .day-badge {
     width: 12px;
     height: 12px;
-    font-size: 7px;
+    font-size: var(--text-calendar-badge);
   }
   .day-badges {
     gap: 1px;
@@ -2020,7 +2093,7 @@ legend {
   .compact-tasks {
     display: flex;
     gap: 3px;
-    font-size: 8px;
+    font-size: var(--text-calendar-count);
     color: #9a88a6;
     padding: 0 4px;
     margin-top: 1px;
@@ -2038,21 +2111,21 @@ legend {
     background: #c49b38;
   }
   .week-labels {
-    font-size: 10px;
+    font-size: var(--text-help);
     padding-bottom: 7px;
   }
   .calendar-bottom {
-    font-size: 8px;
+    font-size: var(--text-caption);
     padding: 10px 3px 8px;
   }
   .day-mark-control {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .agenda-panel {
     max-height: 390px;
   }
   .agenda-heading h2 {
-    font-size: 15px;
+    font-size: var(--text-heading);
   }
   .focus {
     width: calc(100% - 28px);
@@ -2065,7 +2138,7 @@ legend {
     padding: 8px 1px;
   }
   .focus-week button strong {
-    font-size: 15px;
+    font-size: var(--text-heading);
   }
   .focus-heading h1 {
     gap: 8px;
@@ -2099,7 +2172,7 @@ legend {
   }
   .app-footer {
     padding: 10px 19px;
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .modal-backdrop {
     padding: 14px;
@@ -2122,15 +2195,15 @@ legend {
     min-height: 365px;
   }
   .titlebar {
-    min-height: 53px;
-    padding-top: 8px;
+    min-height: 51px;
+    padding-top: 5px;
   }
   .topbar {
-    padding-bottom: 12px;
+    padding-bottom: 7px;
   }
 }
 
-/* Shared task text; this is not a global font-size setting. */
+/* Shared task body and quick input; SL-004-A keeps the same role. */
 .quick-add input,
 .focus-scroll .task-open,
 .agenda-panel .task-open {
@@ -2155,7 +2228,7 @@ legend {
   background: #f1eaf8;
   border-radius: 9px;
   color: #67488f;
-  font-size: 12px;
+  font-size: var(--text-ui);
   line-height: 1.7;
 }
 .quick-draft-prompt > div {
@@ -2167,7 +2240,7 @@ legend {
 .quick-draft-prompt button {
   padding: 5px 7px;
   background: #fffc;
-  font-size: 12px;
+  font-size: var(--text-ui);
 }
 .task-actions-trigger {
   flex-shrink: 0;
@@ -2216,7 +2289,7 @@ legend {
   padding: 10px;
   gap: 9px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .task-actions-menu button:hover,
 .task-actions-menu button:focus-visible {
@@ -2264,7 +2337,7 @@ legend {
   border-radius: 9px;
   background: #fff8e9;
   color: #654a85;
-  font-size: 11px;
+  font-size: var(--text-help);
 }
 .app-shell:has(.notification-region.below-toolbar:not([hidden]))
   .section-heading
@@ -2309,7 +2382,7 @@ legend {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #887294;
-  font-size: 10px;
+  font-size: var(--text-help);
 }
 .toast > svg,
 .toast > button {
@@ -2345,7 +2418,74 @@ legend {
 }
 .inline-title-editor [role="alert"] {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-help);
   color: #a34e61;
   padding: 3px;
+}
+
+/* Reading preferences share geometry across all three materials. */
+.text-size-setting {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+.text-size-setting legend {
+  font-size: var(--text-ui);
+  color: #67488f;
+}
+.text-size-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.text-size-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+.text-size-options label:has(:checked) {
+  background: #e8def366;
+  border-color: #ad96c4;
+}
+.text-size-options input {
+  accent-color: var(--purple);
+  margin: 0;
+}
+.text-size-setting p {
+  margin-top: 8px;
+  font-size: var(--text-help);
+  line-height: 1.8;
+  color: var(--muted);
+}
+.text-size-setting .text-size-status {
+  margin: 0;
+  min-height: 1.8em;
+}
+.agenda-date,
+.agenda-date > button:first-child,
+.focus-heading,
+.focus-heading h1 {
+  flex-wrap: wrap;
+}
+.editor-footer > button {
+  flex-shrink: 0;
+}
+.dialog-heading {
+  gap: 8px;
+}
+.dialog-heading h2 {
+  min-width: 0;
+}
+.dialog-heading button {
+  flex-shrink: 0;
+}
+@media (max-height: 600px) {
+  .topbar-caption {
+    display: none;
+  }
 }

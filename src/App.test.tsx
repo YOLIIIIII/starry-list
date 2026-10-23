@@ -64,12 +64,8 @@ describe("SL-003 背景设置", () => {
     });
     const surfaces = shell.getAttribute("style");
     for (let i = 0; i < 5; i++) {
-      await user.click(
-        screen.getByRole("button", { name: "专注编辑" }),
-      );
-      await user.click(
-        screen.getByRole("button", { name: "统筹总览" }),
-      );
+      await user.click(screen.getByRole("button", { name: "专注编辑" }));
+      await user.click(screen.getByRole("button", { name: "统筹总览" }));
       expect(document.querySelectorAll("main")).toHaveLength(1);
       expect(document.querySelectorAll(".app-shell")).toHaveLength(1);
       expect(document.querySelectorAll(".modal-backdrop")).toHaveLength(0);
@@ -1255,5 +1251,84 @@ describe("UX2.2 行内修改与删除竞态", () => {
         "最新保存的计划",
       ),
     );
+  });
+});
+
+describe("UX3.1 文字大小", () => {
+  it("三档与外观独立，重载保留；Logo 和模式按钮不属于拖动区域", async () => {
+    const user = userEvent.setup();
+    const ui = render(<App />);
+    await user.click(await screen.findByRole("button", { name: "设置" }));
+    for (const [label, value] of [
+      ["小", "small"],
+      ["大", "large"],
+      ["标准（默认）", "standard"],
+    ]) {
+      await user.click(screen.getByRole("radio", { name: label }));
+      await waitFor(() => expect(backend.data!.settings.text_size).toBe(value));
+      expect(
+        document.querySelector(".app-shell")?.getAttribute("data-text-size"),
+      ).toBe(value);
+      expect(backend.data!.settings.appearance_mode).toBe("reading");
+    }
+    await user.click(screen.getByRole("radio", { name: "大" }));
+    await waitFor(() => expect(backend.data!.settings.text_size).toBe("large"));
+    await user.click(screen.getByRole("radio", { name: /^轻玻璃/ }));
+    await waitFor(() =>
+      expect(backend.data!.settings.appearance_mode).toBe("glass"),
+    );
+    expect(backend.data!.settings.text_size).toBe("large");
+    ui.unmount();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "设置" }));
+    expect(screen.getByRole("radio", { name: "大" })).toHaveProperty(
+      "checked",
+      true,
+    );
+    expect(
+      document.querySelector(".brand [data-tauri-drag-region]"),
+    ).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "统筹总览" })
+        .closest("[data-tauri-drag-region]"),
+    ).toBeNull();
+    expect(
+      document
+        .querySelector(".drag-space")
+        ?.hasAttribute("data-tauri-drag-region"),
+    ).toBe(true);
+  });
+  it("等待 SQLite 时立即预览，失败回滚且可重试，期间不误报保存成功", async () => {
+    const { repository } = await import("./platform");
+    let reject!: (error: Error) => void;
+    vi.mocked(repository.saveSettings).mockImplementationOnce(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "设置" }));
+    await user.click(screen.getByRole("radio", { name: "大" }));
+    expect(
+      document.querySelector(".app-shell")?.getAttribute("data-text-size"),
+    ).toBe("large");
+    expect(backend.data!.settings.text_size).toBe("standard");
+    expect(screen.getByText("正在保存文字大小…")).toBeTruthy();
+    expect(
+      screen.getByRole("radio", { name: "小" }).closest("fieldset"),
+    ).toHaveProperty("disabled", true);
+    reject(new Error("文字大小保存失败"));
+    await screen.findByText("文字大小保存失败");
+    await waitFor(() =>
+      expect(
+        document.querySelector(".app-shell")?.getAttribute("data-text-size"),
+      ).toBe("standard"),
+    );
+    expect(screen.queryByText("正在保存文字大小…")).toBeNull();
+    await user.click(screen.getByRole("radio", { name: "大" }));
+    await waitFor(() => expect(backend.data!.settings.text_size).toBe("large"));
   });
 });

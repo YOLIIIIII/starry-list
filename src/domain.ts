@@ -52,6 +52,8 @@ export const markSchema = z.object({
 export type DayMark = z.infer<typeof markSchema>;
 export const appearanceSchema = z.enum(["reading", "glass", "frosted"]);
 export type Appearance = z.infer<typeof appearanceSchema>;
+export const textSizeSchema = z.enum(["small", "standard", "large"]);
+export type TextSize = z.infer<typeof textSizeSchema>;
 export const settingsSchema = z.object({
   active_view: z.enum(["overview", "focus"]),
   background_opacity: z.number().min(0.4).max(1),
@@ -61,6 +63,7 @@ export const settingsSchema = z.object({
   show_weekends: z.boolean(),
   opaque_fallback: z.boolean(),
   appearance_mode: appearanceSchema.default("reading"),
+  text_size: textSizeSchema.default("standard"),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 export const defaults: Settings = {
@@ -72,6 +75,7 @@ export const defaults: Settings = {
   show_weekends: true,
   opaque_fallback: false,
   appearance_mode: "reading",
+  text_size: "standard",
 };
 export const backupSchema = z
   .object({

@@ -227,10 +227,17 @@ export function NotificationRail({
   useLayoutEffect(() => {
     const toolbar = document.querySelector(".topbar");
     if (!toolbar) return;
+    const viewSwitch = toolbar.querySelector(".view-switch");
     const measure = () => {
       const rect = toolbar.getBoundingClientRect();
-      const below = window.innerWidth < 860;
-      setPosition({ top: below ? rect.bottom - 12 : rect.top + 4, below });
+      const buttons = viewSwitch?.getBoundingClientRect();
+      const railWidth = Math.min(360, window.innerWidth - 32);
+      const below =
+        !buttons || buttons.right + 8 > (window.innerWidth - railWidth) / 2;
+      setPosition({
+        top: below ? (buttons?.bottom ?? rect.bottom) + 3 : rect.top + 4,
+        below,
+      });
     };
     measure();
     const observer =
@@ -238,6 +245,7 @@ export function NotificationRail({
         ? new ResizeObserver(measure)
         : null;
     observer?.observe(toolbar);
+    if (viewSwitch) observer?.observe(viewSwitch);
     window.addEventListener("resize", measure);
     return () => {
       observer?.disconnect();

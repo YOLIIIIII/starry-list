@@ -11,7 +11,9 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { shiftDay, backupSchema } from "../src/domain.ts";
 const testDir = resolve(".cache/desktop-smoke-" + Date.now());
-const screenshots = resolve("docs/screenshots");
+const screenshots = resolve(
+  process.env.STARRY_LIST_SCREENSHOT_DIR ?? "docs/screenshots",
+);
 await mkdir(testDir, { recursive: true });
 await mkdir(screenshots, { recursive: true });
 const executable = resolve("src-tauri/target/debug/starry-list.exe");
@@ -52,6 +54,39 @@ async function launch() {
       }),
   );
   await page.waitForTimeout(150);
+  await page.evaluate(() => {
+    window.__focusTrace = [];
+    for (const type of [
+      "focus",
+      "blur",
+      "focusin",
+      "pointerdown",
+      "wheel",
+      "keydown",
+      "keyup",
+    ]) {
+      window.addEventListener(
+        type,
+        (event) => {
+          const record = {
+            type,
+            label: event.target?.getAttribute?.("aria-label"),
+            key: event.key,
+            focused: document.hasFocus(),
+            time: performance.now(),
+          };
+          window.__focusTrace.push(record);
+          void window.__TAURI_INTERNALS__
+            .invoke("plugin:window|is_focused", { label: "main" })
+            .then((native) => {
+              record.native = native;
+            });
+          if (window.__focusTrace.length > 80) window.__focusTrace.shift();
+        },
+        true,
+      );
+    }
+  });
   const header = await readFile(resolve(testDir, "starry-list.db"));
   assert.equal(
     header.subarray(0, 16).toString(),
@@ -142,7 +177,14 @@ try {
       await page
         .getByRole("button", { name: `添加到 ${date}`, exact: true })
         .waitFor();
-      await input.press("Enter");
+      // CDP DOM focus is not native foreground. Re-establish the actual native
+      // precondition immediately before keyboard submission, not just per date.
+      await focusNative();
+      assert.equal(
+        await input.evaluate((el) => document.activeElement === el),
+        true,
+      );
+      await page.keyboard.press("Enter");
       await page.waitForFunction(
         (date) =>
           document.activeElement?.getAttribute("aria-label") ===
@@ -1149,7 +1191,11 @@ try {
   // Only this isolated test database is changed; settings retain the same table.
   const appearanceSettings = (await invoke("load_snapshot")).settings;
   await invoke("save_settings", {
-    settings: { ...appearanceSettings, appearance_mode: "frosted" },
+    settings: {
+      ...appearanceSettings,
+      appearance_mode: "frosted",
+      text_size: "large",
+    },
   });
   const exitPromise = new Promise((r) => child.once("exit", r));
   await invoke("plugin:window|close", { label: "main" });
@@ -1184,6 +1230,17 @@ try {
   );
   assert.equal(restarted.settings.active_view, "focus");
   assert.equal(restarted.settings.appearance_mode, "frosted");
+  assert.equal(restarted.settings.text_size, "large");
+  assert.equal(
+    await page
+      .locator(".task-open")
+      .first()
+      .evaluate((el) => getComputedStyle(el).fontSize),
+    "16px",
+  );
+  results.push(
+    "UX3.1 large text survives a real native process restart independently of appearance",
+  );
   await page.waitForFunction(
     () =>
       document.querySelector(".app-shell")?.getAttribute("data-appearance") ===

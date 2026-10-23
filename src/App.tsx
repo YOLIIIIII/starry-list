@@ -45,6 +45,7 @@ import {
   type Backup,
   type Settings,
   type Appearance,
+  type TextSize,
 } from "./domain";
 import { dayInfo } from "./holidays";
 import { store, useStore } from "./store";
@@ -85,6 +86,9 @@ export default function App() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [textPreview, setTextPreview] = useState<TextSize | null>(null);
+  const [textSaving, setTextSaving] = useState(false);
+  const textSave = useRef(false);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [undos, setUndos] = useState<UndoEntry[]>([]);
   const [inlineId, setInlineId] = useState<string | null>(null);
@@ -448,17 +452,18 @@ export default function App() {
     <div
       className={`app-shell ${settings.animations_enabled ? "" : "no-motion"}`}
       data-appearance={settings.appearance_mode}
+      data-text-size={textPreview ?? settings.text_size}
       data-frost={frostState}
       style={style}
     >
       <div className="app-header">
         <header className="titlebar">
-          <div className="brand" data-tauri-drag-region>
-            <span className="brand-icon" data-tauri-drag-region>
-              <Orbit size={26} data-tauri-drag-region />
+          <div className="brand">
+            <span className="brand-icon">
+              <Orbit size={26} />
             </span>
-            <span data-tauri-drag-region>
-              星轨日历<small data-tauri-drag-region>STARRY LIST</small>
+            <span>
+              星轨日历<small>STARRY LIST</small>
             </span>
           </div>
           <div className="drag-space" data-tauri-drag-region />
@@ -1090,6 +1095,48 @@ export default function App() {
           }}
         >
           <div className="settings-content">
+            <fieldset
+              className="text-size-setting"
+              disabled={textSaving || pending > 0}
+            >
+              <legend>文字大小</legend>
+              <div className="text-size-options">
+                {(
+                  [
+                    ["small", "小"],
+                    ["standard", "标准（默认）"],
+                    ["large", "大"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={value}>
+                    <input
+                      type="radio"
+                      name="text-size"
+                      value={value}
+                      checked={(textPreview ?? settings.text_size) === value}
+                      onChange={() => {
+                        if (textSave.current) return;
+                        textSave.current = true;
+                        setTextPreview(value);
+                        setTextSaving(true);
+                        void safe(() =>
+                          saveSetting({ text_size: value }),
+                        ).finally(() => {
+                          setTextPreview(null);
+                          setTextSaving(false);
+                          textSave.current = false;
+                        });
+                      }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <p>按阅读习惯选择，日历预览保持紧凑。即时预览，重启后保留。</p>
+              <p className="text-size-status" role="status" aria-live="polite">
+                {textSaving ? "正在保存文字大小…" : ""}
+              </p>
+            </fieldset>
             <div className="setting-opacity">
               <fieldset className="appearance-setting" disabled={pending > 0}>
                 <legend>外观模式</legend>

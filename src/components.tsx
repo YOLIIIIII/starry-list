@@ -403,6 +403,7 @@ export function TaskRow({
             {category && (
               <span
                 className="category-label"
+                title={category.name}
                 style={{ color: category.color }}
               >
                 {category.name}

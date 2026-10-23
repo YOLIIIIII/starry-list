@@ -10,8 +10,18 @@ import { defaults } from "../src/domain.ts";
 import { makeTask } from "../src/test-fixtures.ts";
 import "./prepare-visual-baseline.mjs";
 import { checkLayout } from "./check-layout.mjs";
+import { checkTypography } from "./check-typography.mjs";
 
 const opaque = process.argv.includes("--opaque");
+const typographyOnly = process.argv.includes("--typography-only");
+const textSize =
+  process.argv.find((arg) => arg.startsWith("--text-size="))?.split("=")[1] ??
+  "standard";
+assert.ok(["small", "standard", "large"].includes(textSize));
+const ux31 =
+  typographyOnly ||
+  process.argv.includes("--ux31") ||
+  process.argv.some((arg) => arg.startsWith("--text-size="));
 const materials = process.argv.includes("--materials");
 const foregroundOnly = process.argv.includes("--foreground-only");
 const viewportOnly = process.argv.includes("--viewport-only");
@@ -28,7 +38,8 @@ const stabilityOnly =
   process.argv.includes("--stability-only") ||
   faultOnly ||
   focusOnly ||
-  layoutOnly;
+  layoutOnly ||
+  typographyOnly;
 assert.ok(
   !(matrixOnly && foregroundOnly),
   "Choose matrix or foreground checks, not both flags",
@@ -46,9 +57,11 @@ const variants = materials
   : opaque
     ? ["ux30"]
     : ["ux23", "ux30"];
-const publicImages = materials
-  ? "docs/screenshots/ux304"
-  : "docs/screenshots/ux30";
+const publicImages = ux31
+  ? `docs/screenshots/ux31/${textSize}`
+  : materials
+    ? "docs/screenshots/ux304"
+    : "docs/screenshots/ux30";
 const root = resolve(
   `.cache/visual-${materials ? "materials-" : ""}${opaque ? "opaque-" : ""}${Date.now()}`,
 );
@@ -102,7 +115,7 @@ async function chooseMaterial(name) {
   await radio.click();
   await until(async () => assert.equal(await radio.isChecked(), true));
 }
-async function config(view, alpha, appearance = "reading") {
+async function config(view, alpha, appearance = "reading", size = textSize) {
   await invoke("save_settings", {
     settings: {
       ...defaults,
@@ -110,6 +123,7 @@ async function config(view, alpha, appearance = "reading") {
       background_opacity: alpha,
       animations_enabled: false,
       appearance_mode: appearance,
+      text_size: size,
     },
   });
   await page.reload();
@@ -253,6 +267,12 @@ try {
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=9224",
     },
   });
+  app.stderr.on("data", (data) =>
+    console.log("Native test stderr:", data.toString()),
+  );
+  app.on("exit", (code, signal) =>
+    console.log(JSON.stringify({ nativeTestExit: code, signal })),
+  );
   browser = await until(() => chromium.connectOverCDP("http://127.0.0.1:9224"));
   page = browser.contexts()[0].pages()[0];
   await page.addInitScript(() => {
@@ -334,6 +354,17 @@ try {
     },
   });
   await config("overview", 0.7);
+  if (typographyOnly) {
+    await checkTypography({
+      page,
+      invoke,
+      config,
+      click,
+      root,
+      images: publicImages,
+      opaque,
+    });
+  }
   if (layoutOnly) {
     await checkLayout({
       page,
@@ -363,6 +394,24 @@ try {
       for (const view of ["overview", "focus"]) {
         await config(view, alpha, "frosted");
         for (let cycle = 0; cycle < 3; cycle++) {
+          if (ux31) {
+            await click("设置");
+            await page
+              .getByRole("radio", {
+                name: ["小", "标准（默认）", "大"][cycle],
+                exact: true,
+              })
+              .click();
+            await page.waitForFunction(
+              () => !document.querySelector(".text-size-setting").disabled,
+            );
+            await click("关闭对话框");
+            assert.equal(
+              await invoke("native_frost_active"),
+              true,
+              "Changing text size must retain the native material",
+            );
+          }
           const active = await capture(
             `focus-${alpha}-${view}-${cycle}-active`,
           );
@@ -392,6 +441,7 @@ try {
             alpha,
             view,
             cycle,
+            textSize: ux31 ? ["small", "standard", "large"][cycle] : textSize,
             active: a,
             inactive: b,
             maximumDelta: delta,
@@ -409,7 +459,7 @@ try {
             );
           if (cycle === 0) {
             await mkdir(publicImages, { recursive: true });
-            const label = baselineFocus ? "ux302" : "ux304";
+            const label = baselineFocus ? "ux302" : ux31 ? "ux31" : "ux304";
             await copyFile(
               active,
               resolve(publicImages, `${label}-${alpha}-${view}-active.png`),
@@ -476,7 +526,7 @@ try {
       JSON.stringify({ focusPassed: !baselineFocus, baselineFocus, root }),
     );
   }
-  if (stabilityOnly && !focusOnly && !layoutOnly) {
+  if (stabilityOnly && !focusOnly && !layoutOnly && !typographyOnly) {
     assert.ok(
       materials && !viewportOnly,
       "Stability requires native materials",
@@ -1107,6 +1157,16 @@ try {
     });
   }
   if (!viewportOnly && !matrixOnly && !stabilityOnly) {
+    if (ux31) {
+      for (const selector of [".brand-icon", ".view-switch button.active"]) {
+        await drag(selector, 20, 0);
+        assert.deepEqual(
+          await invoke("plugin:window|outer_position", { label: "main" }),
+          positionBefore,
+          "Logo and mode controls must not drag the native window",
+        );
+      }
+    }
     await drag(".drag-space", 40, 30);
     const positionAfter = await invoke("plugin:window|outer_position", {
       label: "main",

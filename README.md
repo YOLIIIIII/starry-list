@@ -1,6 +1,6 @@
 # 星轨日历 · Starry List
 
-UX3.0.4 体验迭代：三材质共用清单布局、修复宽矮月历数量裁切，保留稳定毛玻璃；仍待最终用户验收。[布局对比与限制](docs/UX3_0_4_VISUAL_REVIEW.md) · [验证记录](docs/VALIDATION.md)。
+UX3.1 体验迭代：全局小 / 标准 / 大字号，保留 14px 标准与 UX3.0.4 三种材质，收紧顶部留白；SL-004 / SL-005 待安装验收。[字号与空间对比](docs/UX3_1_VISUAL_REVIEW.md) · [验证记录](docs/VALIDATION.md)。
 
 Lavender × Pastel Yellow × Cream。一个无需登录、可以留在桌面角落的离线日历清单。
 
@@ -142,7 +142,7 @@ docs/VALIDATION.md     验证范围与限制
 
 详细计划见 [开发路线图](docs/ROADMAP.md)，需求、优先级、状态与验收标准见 [产品需求池](docs/PRODUCT_BACKLOG.md)，重要取舍见 [产品决策记录](docs/DECISIONS.md)。登记需求不会自动启动开发，不承诺未经评估的版本范围或发布日期。
 
-UX3.0.1 续修 SL-003：设置可选「阅读优先 / 轻玻璃 / 梦幻毛玻璃」，阅读优先仍默认；模式与 40%–100% 外壳不透明度独立，支持的现代 Windows 可请求 Acrylic，其他环境明确降级。通知关闭按钮最右、撤销在前，保留五秒与暂停。14px 与核心交互不变；当前 In Review，等待视觉体验确认。见 [三种外观对比](docs/UX3_0_1_VISUAL_REVIEW.md) 与 [UX3.0 历史对比](docs/UX3_VISUAL_REVIEW.md)。SL-002 / SL-019 原体验已验收 Done，SL-021 保持 Done，尚未正式发布；SL-001 / SL-004-A 仍 In Review。全局字号、顶部空间及其他规划需后续独立授权。
+UX3.0.1 续修 SL-003：设置可选「阅读优先 / 轻玻璃 / 梦幻毛玻璃」，阅读优先仍默认；模式与 40%–100% 外壳不透明度独立，支持的现代 Windows 可请求 Acrylic，其他环境明确降级。通知关闭按钮最右、撤销在前，保留五秒与暂停。14px 与核心交互不变；当前 In Review，等待视觉体验确认。见 [三种外观对比](docs/UX3_0_1_VISUAL_REVIEW.md) 与 [UX3.0 历史对比](docs/UX3_VISUAL_REVIEW.md)。SL-002 / SL-019 原体验已验收 Done，SL-021 保持 Done，尚未正式发布；SL-001 / SL-004-A 仍 In Review。当时全局字号与顶部空间列为后续独立授权；现已按 UX3.1 请求实现并待验收，其他规划仍需独立授权。
 
 初始 V1.0 源码已同步，第一轮 UX 改进已作为独立实现提交 [`23a7cd3`](https://github.com/YOLIIIIII/starry-list/commit/23a7cd3941a28d0724e254ca7b9bb71c9b8fd5c8) 纳入历史；后续验收状态以需求池为准。本项目尚无正式 GitHub Release。原 V1.1 / V2.0 列表作为候选想法整合到需求池，不代表已实现功能或发布日期。
 

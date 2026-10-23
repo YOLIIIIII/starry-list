@@ -8,6 +8,7 @@ import {
 } from "./quick-actions";
 import { useEnterReturn } from "./use-enter-return";
 import { surfaceAlphas } from "./surfaces";
+import { observeCalendar } from "./calendar-layout";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CalendarDays,
@@ -408,20 +409,12 @@ export default function App() {
   const focusTasks = displayTasks(byDate.get(selected) ?? []);
   const seven = weekDays(selected);
   const monthGrid = monthDays(month);
+  const monthKey = month.slice(0, 7);
   useEffect(() => {
     const grid = calendarGrid.current;
     if (!grid || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      const cell = grid.querySelector<HTMLElement>(".day-cell");
-      if (!cell) return;
-      const { width, height } = cell.getBoundingClientRect();
-      setPreviewLimit(
-        height >= 86 && width >= 65 ? 2 : height >= 54 && width >= 50 ? 1 : 0,
-      );
-    });
-    observer.observe(grid);
-    return () => observer.disconnect();
-  }, [settings.active_view, monthGrid.length, loading, initialized]);
+    return observeCalendar(grid, setPreviewLimit);
+  }, [settings.active_view, monthKey, tasks, day_marks, loading, initialized]);
   const monthKnown = dayInfo(month).known;
   function dateBadges(date: string) {
     const info = dayInfo(date);
@@ -612,6 +605,7 @@ export default function App() {
                     <button
                       className="date-select"
                       aria-label={`选择 ${date}`}
+                      aria-description={`${dayTasks.length} 项任务`}
                       aria-pressed={date === selected}
                       onClick={() => select(date)}
                       onKeyDown={(e) => {
@@ -680,7 +674,7 @@ export default function App() {
                               : "task-dot"
                           }
                         />
-                        <span>{dayTasks.length}</span>
+                        <span className="task-total">{dayTasks.length}</span>
                       </button>
                     )}
                   </div>

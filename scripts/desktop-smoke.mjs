@@ -68,6 +68,18 @@ async function invoke(command, args = {}) {
 async function click(button) {
   await page.getByRole("button", { name: button, exact: true }).click();
 }
+// Preview navigation requires space below the date header; compact calendars
+// deliberately expose a full count/dot instead. Do not force a clipped preview.
+async function openCalendarTask(title) {
+  await invoke("plugin:window|set_size", {
+    label: "main",
+    value: { Logical: { width: 980, height: 860 } },
+  });
+  await page
+    .getByRole("region", { name: "月历" })
+    .getByRole("button", { name: new RegExp(title) })
+    .click();
+}
 async function focusNative() {
   await invoke("plugin:window|set_focus", { label: "main" });
   await page.waitForFunction(
@@ -632,10 +644,7 @@ try {
   results.push(
     "7-day quick add binds group date; real SQLite contains both tasks",
   );
-  await page
-    .getByRole("region", { name: "月历" })
-    .getByRole("button", { name: new RegExp(title) })
-    .click();
+  await openCalendarTask(title);
   await page.getByRole("region", { name: "任务详情阅读" }).waitFor();
   assert.ok(
     (await page.getByRole("region", { name: "任务详情阅读" }).boundingBox())
@@ -885,10 +894,7 @@ try {
   await page.reload();
   await page.getByRole("region", { name: "月历" }).waitFor();
   await page.screenshot({ path: resolve(screenshots, "overview.png") });
-  await page
-    .getByRole("region", { name: "月历" })
-    .getByRole("button", { name: new RegExp(title) })
-    .click();
+  await openCalendarTask(title);
   await page.getByRole("region", { name: "任务详情阅读" }).waitFor();
   await page.screenshot({ path: resolve(screenshots, "focus.png") });
   await click("设置");
@@ -1117,10 +1123,7 @@ try {
   await invoke("import_backup", { backup: exported, replace: true });
   await page.reload();
   await page.getByRole("region", { name: "月历" }).waitFor();
-  await page
-    .getByRole("region", { name: "月历" })
-    .getByRole("button", { name: new RegExp(title) })
-    .click();
+  await openCalendarTask(title);
   await click("编辑");
   await page
     .getByRole("textbox", { name: "详细计划", exact: true })

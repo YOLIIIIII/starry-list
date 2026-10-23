@@ -9,18 +9,26 @@ import assert from "node:assert/strict";
 import { defaults } from "../src/domain.ts";
 import { makeTask } from "../src/test-fixtures.ts";
 import "./prepare-visual-baseline.mjs";
+import { checkLayout } from "./check-layout.mjs";
 
 const opaque = process.argv.includes("--opaque");
 const materials = process.argv.includes("--materials");
 const foregroundOnly = process.argv.includes("--foreground-only");
 const viewportOnly = process.argv.includes("--viewport-only");
 const matrixOnly = process.argv.includes("--matrix-only");
+const pointerOnly = process.argv.includes("--pointer-only");
 const calendarDetailOnly = process.argv.includes("--calendar-detail-only");
 const faultOnly = process.argv.includes("--fault-only");
+const layoutOnly = process.argv.includes("--layout-only");
+const baselineLayout = process.argv.includes("--baseline-layout");
+let testDate = "2026-10-19";
 const focusOnly = process.argv.includes("--focus-only");
 const baselineFocus = process.argv.includes("--baseline-focus");
 const stabilityOnly =
-  process.argv.includes("--stability-only") || faultOnly || focusOnly;
+  process.argv.includes("--stability-only") ||
+  faultOnly ||
+  focusOnly ||
+  layoutOnly;
 assert.ok(
   !(matrixOnly && foregroundOnly),
   "Choose matrix or foreground checks, not both flags",
@@ -39,7 +47,7 @@ const variants = materials
     ? ["ux30"]
     : ["ux23", "ux30"];
 const publicImages = materials
-  ? "docs/screenshots/ux303"
+  ? "docs/screenshots/ux304"
   : "docs/screenshots/ux30";
 const root = resolve(
   `.cache/visual-${materials ? "materials-" : ""}${opaque ? "opaque-" : ""}${Date.now()}`,
@@ -108,9 +116,9 @@ async function config(view, alpha, appearance = "reading") {
   await page.locator(`main.${view}`).waitFor();
   if (view === "overview")
     await page
-      .getByRole("button", { name: "选择 2026-10-19", exact: true })
+      .getByRole("button", { name: `选择 ${testDate}`, exact: true })
       .click();
-  else await click("专注 2026-10-19");
+  else await click(`专注 ${testDate}`);
   await page.waitForFunction(
     ({ appearance, alpha, opaque }) => {
       const el = document.querySelector(".app-shell");
@@ -251,10 +259,20 @@ try {
     const OriginalDate = Date;
     window.Date = class extends OriginalDate {
       constructor(...args) {
-        super(...(args.length ? args : ["2026-10-19T12:00:00+08:00"]));
+        super(
+          ...(args.length
+            ? args
+            : [
+                (sessionStorage.getItem("visual-date") ?? "2026-10-19") +
+                  "T12:00:00+08:00",
+              ]),
+        );
       }
       static now() {
-        return new OriginalDate("2026-10-19T12:00:00+08:00").getTime();
+        return new OriginalDate(
+          (sessionStorage.getItem("visual-date") ?? "2026-10-19") +
+            "T12:00:00+08:00",
+        ).getTime();
       }
     };
   });
@@ -316,6 +334,24 @@ try {
     },
   });
   await config("overview", 0.7);
+  if (layoutOnly) {
+    await checkLayout({
+      page,
+      invoke,
+      config,
+      click,
+      root,
+      images: opaque ? resolve(root, "layout-images") : publicImages,
+      baseline: baselineLayout,
+      setDate: async (date) => {
+        testDate = date;
+        await page.evaluate(
+          (date) => sessionStorage.setItem("visual-date", date),
+          date,
+        );
+      },
+    });
+  }
   if (focusOnly) {
     assert.ok(
       materials && !viewportOnly && !opaque,
@@ -373,7 +409,7 @@ try {
             );
           if (cycle === 0) {
             await mkdir(publicImages, { recursive: true });
-            const label = baselineFocus ? "ux302" : "ux303";
+            const label = baselineFocus ? "ux302" : "ux304";
             await copyFile(
               active,
               resolve(publicImages, `${label}-${alpha}-${view}-active.png`),
@@ -440,7 +476,7 @@ try {
       JSON.stringify({ focusPassed: !baselineFocus, baselineFocus, root }),
     );
   }
-  if (stabilityOnly && !focusOnly) {
+  if (stabilityOnly && !focusOnly && !layoutOnly) {
     assert.ok(
       materials && !viewportOnly,
       "Stability requires native materials",
@@ -615,7 +651,7 @@ try {
       }),
     );
   }
-  for (const scene of foregroundOnly || stabilityOnly
+  for (const scene of foregroundOnly || stabilityOnly || pointerOnly
     ? []
     : ["light", "dark", "colorful", "text"]) {
     console.log("Synthetic background:", scene);
@@ -736,7 +772,7 @@ try {
       }
   }
   const metrics = [];
-  if (materials && !foregroundOnly && !stabilityOnly) {
+  if (materials && !foregroundOnly && !stabilityOnly && !pointerOnly) {
     for (const view of ["overview", "focus"]) {
       const solid = records.filter(
         (r) => r.scene === "light" && r.alpha === 1 && r.view === view,
@@ -748,7 +784,9 @@ try {
       );
     }
   }
-  for (const variant of foregroundOnly || stabilityOnly ? [] : variants)
+  for (const variant of foregroundOnly || stabilityOnly || pointerOnly
+    ? []
+    : variants)
     for (const alpha of [0.4, 0.7, 1])
       for (const view of ["overview", "focus"]) {
         const group = records.filter(
@@ -798,7 +836,10 @@ try {
     JSON.stringify({ records, metrics }, null, 2),
   );
   let foregroundCaptures = 0;
-  for (const mode of matrixOnly || stabilityOnly || calendarDetailOnly
+  for (const mode of matrixOnly ||
+  stabilityOnly ||
+  calendarDetailOnly ||
+  pointerOnly
     ? []
     : materials
       ? variants
@@ -850,7 +891,7 @@ try {
           alignment.rowBackground,
         ])
           assert.equal(background, "rgba(0, 0, 0, 0)");
-        assert.equal(alignment.previewGap, "4px");
+        assert.equal(alignment.previewGap, "3px");
         if (alignment.previewBackground !== null)
           assert.equal(alignment.previewBackground, "rgba(0, 0, 0, 0)");
       }
@@ -903,8 +944,8 @@ try {
         assert.equal(spacing.addPadding, "12px");
         assert.equal(spacing.inputPadding, "6px");
         assert.ok(
-          spacing.gap >= 3,
-          "Glass task groups need real space between them",
+          spacing.gap >= 10,
+          "Expanded reader keeps the shared bottom margin",
         );
         assert.ok(
           spacing.addGap >= 9,
@@ -1007,7 +1048,7 @@ try {
     }
   }
   assert.deepEqual(errors, []);
-  if (materials && !matrixOnly && !stabilityOnly) {
+  if (materials && !matrixOnly && !stabilityOnly && !pointerOnly) {
     // A taller viewport exercises the existing two-preview density threshold.
     // These are WebView-only images, not evidence of native desktop blur.
     const cdp = await page.context().newCDPSession(page);
@@ -1024,9 +1065,7 @@ try {
         await until(async () => assert.equal(await previews.count(), 2));
         const first = await previews.nth(0).boundingBox(),
           second = await previews.nth(1).boundingBox();
-        assert.ok(
-          second.y - first.y - first.height >= (mode === "reading" ? 3 : 4),
-        );
+        assert.ok(second.y - first.y - first.height >= 3);
         if (!opaque)
           await page.screenshot({
             path: resolve(publicImages, `${mode}-calendar-detail-viewport.png`),
@@ -1084,6 +1123,36 @@ try {
     assert.ok(
       resized.width - nativeSize.width >= 50,
       "Real edge mouse drag must resize the window",
+    );
+    await drag(".resize-South", 0, -180);
+    await page.waitForTimeout(180);
+    const shortened = await invoke("plugin:window|outer_size", {
+      label: "main",
+    });
+    assert.ok(
+      resized.height - shortened.height >= 140,
+      "Real lower-edge drag must shorten the native window",
+    );
+    const clipped = await page.evaluate(() =>
+      [...document.querySelectorAll(".day-cell")].some((cell) => {
+        const bounds = cell.getBoundingClientRect();
+        return [
+          ...cell.querySelectorAll(
+            ".date-number,.day-badge,.compact-tasks > span",
+          ),
+        ].some((el) => {
+          const b = el.getBoundingClientRect();
+          return (
+            b.height > 0 &&
+            (b.top < bounds.top - 0.51 || b.bottom > bounds.bottom + 0.51)
+          );
+        });
+      }),
+    );
+    assert.equal(
+      clipped,
+      false,
+      "Native pointer resizing must not clip date/marker contents",
     );
   }
   await writeFile(

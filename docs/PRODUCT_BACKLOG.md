@@ -234,7 +234,7 @@ UX3.1 历史状态（2026-10-23）：用户已安装 UX3.0.4，确认三种外�
 - 当前状态：**Research（2026-10-26，用户正式授权 SL-006-A）**；研究已开始，独立最小原型与正式程序隔离，报告见 [Windows 桌面驻留研究](research/SL-006-WINDOWS-DESKTOP-RESIDENCY.md)。A 的完成/验证缺口按报告记录；B 须用户后续确认，不接入主窗口、不打正式包、不发布，父项不标 Done。
 - 验收标准 A：提交候选方案对照、风险、限制、推荐方式及失败回退；研究 Tauri 2 窗口能力、Win32 HWND_BOTTOM / SetWindowPos 的局限、点击后重新上浮、Progman / WorkerW 嵌入、Win+D、Explorer 重启、多显示器/混合 DPI、焦点/文本输入、Windows 10/11、系统更新与透明窗口兼容性。每项记录实测通过、失败或未验证，不能用推测代替结论。
 - 验收标准 B：获准方案在上述矩阵达到已约定目标，三模式可切换并持久化，任务/编辑/窗口操作正常，无抢焦点或全屏干扰；Explorer 异常或不支持环境可恢复普通窗口；限制向用户明确说明并验收。若 A 不可行，记录原因后改为 Blocked 或 Won't Do，不伪称完成。
-- 相关 Commit / PR / Issue：本轮隔离研究源码与报告见 `research/sl006-desktop-probe/` 及上述报告；研究提交以本轮 Git 历史与交付记录为准，无 SL-006-B 实现提交，PR / Issue 未创建。
+- 相关 Commit / PR / Issue：隔离研究源码、实测证据与报告已提交并 Push：[`0065d1a`](https://github.com/YOLIIIIII/starry-list/commit/0065d1abd144c159fb89568a93c903bd94a9bb5c)。无 SL-006-B 实现提交，PR / Issue 未创建；不是正式发布。
 
 #### SL-006-A
 

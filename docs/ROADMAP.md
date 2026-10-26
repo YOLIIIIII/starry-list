@@ -14,6 +14,8 @@ Windows 是当前主要平台，未来考虑 macOS。桌面驻留是待验证的
 
 SL-006 **Backlog → Research**；本次明确授权仅 A 技术研究和隔离原型。Tauri 内置 bottom 在本机能持续靠后，但 Win+D 实际最小化原型；单次 HWND_BOTTOM 激活后会上浮。当前完整目标的结论为 **C：暂不推荐实现**，不进入 SL-006-B。候选比较、真实 Windows 11 测试、未验证矩阵与回退见 [研究报告](research/SL-006-WINDOWS-DESKTOP-RESIDENCY.md)。无正式窗口/数据/权限变更，无 Tag / Release / 安装包；等待用户确认技术限制后再决定下一步。
 
+研究源码与证据已提交并 Push：[`0065d1a`](https://github.com/YOLIIIIII/starry-list/commit/0065d1abd144c159fb89568a93c903bd94a9bb5c)，[对应 CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40324170432)；本机测试和远程 CI 的范围分列于报告。
+
 ## UX3.2 历史实现（2026-10-26）
 
 用户认可 UX3.1 字号切换，但希望恢复顶部美观并保持连续新增。授权范围为 SL-005-A 顶部双模式、SL-001-A 专注底部新增区；其他规划不开发。经典顶部默认恢复舒展双行，紧凑顶部为双语品牌/图标导航/窗口控制同一行，独立持久化；任务列表滚动、新增区固定在专注面板底部，复用既有提交和草稿逻辑。

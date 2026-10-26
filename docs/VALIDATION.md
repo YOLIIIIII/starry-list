@@ -16,6 +16,8 @@ OS 输入采用子进程 PID / 根窗命中保护；早期被其他窗口遮挡�
 
 后续独立 `--watchdog-only` 等待 125 秒，实际确认 120 秒的 bottom 约束解除；180 秒自动退出与 UI 彻底挂死未验证。独立 Edge 的内容页已打开，原生命中仍不能确认其覆盖原型，明确记为未验证。已完成正常退出/重启及 watchdog 两次设施运行，保留产品行为失败（Win+D、单次置底激活），不把 runner 退出码 0 当作产品通过。公开 [归一化 JSON](../research/sl006-desktop-probe/evidence-2026-10-26.json) 删除 HWND 和本机路径，仅含研究窗状态。
 
+研究提交 [`0065d1a`](https://github.com/YOLIIIIII/starry-list/commit/0065d1abd144c159fb89568a93c903bd94a9bb5c) 已 Push 至 main，对应 [CI 运行](https://github.com/YOLIIIIII/starry-list/actions/runs/40324170432)。本轮引用补充属于后续独立文档提交；最新 SHA 的 CI 以 GitHub 和最终交付记录为准。暂存审查 19 个文本文件、敏感文件检查、104 个本地 Markdown 目标及 diff --check 通过；未修改 Git 身份配置或历史。
+
 ## 2026-10-26：UX3.2 顶部双模式与专注固定新增
 
 本轮授权 SL-005-A / SL-001-A；基于 main `63451ff`，保留 UX3.1 字号、三种材质、原生失焦合成与任务保存状态机。子项及父项 In Review，等待用户安装体验；记录「UX3.1 字号切换体验良好」，不以局部反馈关闭全部历史验收。SL-002 / SL-019 / SL-021 保持 Done。无任务表、Schema/迁移、正式版本号或应用 ID 变化，无 Tag / Release。

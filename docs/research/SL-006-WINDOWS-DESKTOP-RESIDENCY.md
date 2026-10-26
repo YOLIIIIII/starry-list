@@ -211,4 +211,8 @@ Windows 10、其他 Windows 11 构建、实际混合 DPI、多 GPU、独占全�
 
 ## Git、验证与发布边界
 
-本轮提交范围仅报告、需求/决策/验证同步、隔离研究源码与必要测试。最终 Commit / Push / CI 以交付消息和 GitHub 对应 SHA 的真实运行结果为准；研究源码被 Push 不表示发布。没有 Tag、Release、安装器、正式窗口改动或用户数据库操作。没有公开桌面截图、个人壁纸/照片、备份、密钥或本机绝对路径。
+研究实现与本轮证据已提交并 Push 至现有 main：[`0065d1a`](https://github.com/YOLIIIIII/starry-list/commit/0065d1abd144c159fb89568a93c903bd94a9bb5c)，对应 [GitHub CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40324170432)。后续仅补充提交引用的文档提交可从 Git 历史查看；最新 CI 的实际结果随最终交付记录，不以旧提交通过代替新提交检查。
+
+提交前核实 git var 的实际作者/提交者与仓库本地 GitHub noreply 一致，审查 19 个暂存文本文件及敏感信息，正式源码/配置/权限/lockfile 差异为空；104 个本地 Markdown 链接目标有效。原型锁定构建、fmt、Clippy -D warnings、JS ESLint / 格式检查通过，完成一次 17 项记录的桌面研究运行与 2 项记录的 browser/watchdog 后续运行；记录中的失败/未验证仍保留。现有 CI 验证正式项目基础检查和 JS Lint，未自动运行原型 Rust/真实桌面矩阵，后者为本机证据。
+
+本轮提交范围仅报告、需求/决策/验证同步、隔离研究源码与必要测试；研究源码被 Push 不表示发布。没有 Tag、Release、安装器、正式窗口改动或用户数据库操作。没有公开桌面截图、个人壁纸/照片、备份、密钥或本机绝对路径。

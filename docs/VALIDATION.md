@@ -1,5 +1,21 @@
 # V1.0 验证记录
 
+## 2026-10-26：SL-006-A 隔离研究与 UX3.2 用户确认
+
+用户已安装 UX3.2 并确认「功能都还不错，已经可以了，我们接下来看下一项任务」。核对下方历史测试及 UX3.2 对比，SL-005-A / SL-001-A **Done**；父项和历史子项逐项核对见 [研究报告](research/SL-006-WINDOWS-DESKTOP-RESIDENCY.md#ux32-验收复核)，不以此次反馈批量关闭。以下 UX3.2 章节“待体验”保留为交付当时状态，不代表仍未收到本次确认；未正式发布。
+
+本轮新授权仅 SL-006-A。独立 Rust/Tauri 研究 crate、App ID、exe、WebView2/Edge profile；没有 SQLite、任务/备份或窗口设置插件，不启动正式应用。`src-tauri` 正式源码/配置/capability/lockfile 与正式前端均无修改；已运行的正式 Starry List 实例保留，未关闭或重启。研究标识不会替换正式标识，没有执行安装器、Tag 或 Release。
+
+真实环境 Windows 11 build 26200、scale=2、WebView2 UA Edg/155，Intel Iris Xe 32.0.101.5542。独立原型 `cargo build --locked --offline`、Rust fmt、Clippy `-D warnings`、仓库 JS ESLint 通过；正式 UI/数据库未改，不重新构建正式软件。CI 不等于桌面测试，其结果须按本轮提交 SHA 查询。
+
+已实际执行 Rust/JS bottom、Win32 单次置底、原生顺序/前台/WS_EX_TOPMOST/IsIconic 观测、真实 OS 按钮/标题拖动/东南角缩放、三模式协调、独立 recovery IPC、合成无边框全屏、毛玻璃启停与内容事件、真实 Win+D/再次恢复和研究进程正常重启。关键结果：**A 在 Win+D 后被最小化；B 在激活后上浮；直接同时 top/bottom 会出现 API top 标志与原生 WS_EX_TOPMOST 不一致。** 报告结论 C，暂不推荐进入 SL-006-B，父项 Research。
+
+OS 输入采用子进程 PID / 根窗命中保护；早期被其他窗口遮挡的点拒绝点击，保留未验证。缩放先最小化自己的 cover，露出角落后完成；除授权的成对 Win+D 外，不主动最小化用户应用，也不结束用户应用。输入英文与中文 Unicode 使用 CDP，不冒充真实物理键盘或 IME；HostBackdropBrush 创建成功不冒充视觉像素稳定。Explorer 重启/WorkerW/SetParent、锁屏、Alt+Tab、Win10、混合 DPI/显示器热插拔、其他 GPU 与独占全屏均未验证。没有执行 Explorer 重启或上传桌面截图。
+
+完整 20 项矩阵、复现、失败尝试及限制见 [研究报告](research/SL-006-WINDOWS-DESKTOP-RESIDENCY.md) 和 [原型说明](../research/sl006-desktop-probe/README.md)。原始 evidence.json 仅保留在忽略的本地缓存；公开文档不包含个人壁纸/照片、数据备份、真实数据库、完整邮箱或本机绝对路径。
+
+后续独立 `--watchdog-only` 等待 125 秒，实际确认 120 秒的 bottom 约束解除；180 秒自动退出与 UI 彻底挂死未验证。独立 Edge 的内容页已打开，原生命中仍不能确认其覆盖原型，明确记为未验证。已完成正常退出/重启及 watchdog 两次设施运行，保留产品行为失败（Win+D、单次置底激活），不把 runner 退出码 0 当作产品通过。公开 [归一化 JSON](../research/sl006-desktop-probe/evidence-2026-10-26.json) 删除 HWND 和本机路径，仅含研究窗状态。
+
 ## 2026-10-26：UX3.2 顶部双模式与专注固定新增
 
 本轮授权 SL-005-A / SL-001-A；基于 main `63451ff`，保留 UX3.1 字号、三种材质、原生失焦合成与任务保存状态机。子项及父项 In Review，等待用户安装体验；记录「UX3.1 字号切换体验良好」，不以局部反馈关闭全部历史验收。SL-002 / SL-019 / SL-021 保持 Done。无任务表、Schema/迁移、正式版本号或应用 ID 变化，无 Tag / Release。

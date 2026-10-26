@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" />
+  <title>SL006 isolated probe</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      font: 16px system-ui;
+      background: transparent;
+      color: #252139;
+    }
+    main {
+      padding: 20px;
+      background: rgba(245, 237, 255, 0.7);
+      min-height: 100vh;
+      box-sizing: border-box;
+      border: 2px solid #8972ac;
+    }
+    button,
+    input {
+      font: inherit;
+      margin: 5px;
+      padding: 6px;
+    }
+    header {
+      background: #ccc1e3;
+      padding: 12px;
+      cursor: move;
+    }
+    #resize {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      padding: 15px;
+      cursor: se-resize;
+    }
+    #status {
+      white-space: pre-wrap;
+      font-size: 12px;
+    }
+  </style>
+  <main>
+    <header id="drag">SL006 独立研究窗口 · 拖动空白</header>
+    <p>临时输入与按钮；无数据库、无设置持久化</p>
+    <button id="normal">返回普通窗口</button
+    ><button id="bottom">Tauri 底层</button><button id="top">置顶</button>
+    <button id="once">Win32 单次置底</button
+    ><button id="frost">毛玻璃开关</button> <button id="counter">点击 0</button
+    ><input id="input" aria-label="研究输入" placeholder="English / 中文" />
+    <button id="exit">退出研究程序</button><output id="status"></output>
+    <div id="resize">↘</div>
+  </main>
+  <script src="probe.js"></script>
+</html>

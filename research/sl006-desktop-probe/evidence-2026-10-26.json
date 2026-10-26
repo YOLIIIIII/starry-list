@@ -1,0 +1,464 @@
+{
+  "date": "2026-10-26",
+  "timezone": "Asia/Shanghai",
+  "environment": "Windows 11 build 26200, scale=2, WebView2 Edg/155",
+  "note": "Derived from actual isolated runs. Native handles and local profile paths omitted. Rank is only relative within each sample. Partial and unverified outcomes are retained. The ordinary-cover suite is distinct from the browser/watchdog follow-up.",
+  "suite": [
+    {
+      "name": "environment",
+      "result": "实际通过",
+      "detail": {
+        "coverRank": 69,
+        "foregroundCover": false,
+        "foregroundProbe": true,
+        "height": 720,
+        "minimized": false,
+        "parentNull": true,
+        "probeRank": 56,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 1000,
+        "x": 80,
+        "y": 120,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+      }
+    },
+    {
+      "name": "Rust bottom + ordinary cover + no focus theft",
+      "result": "实际通过",
+      "detail": {
+        "beforeBottom": {
+          "coverRank": 56,
+          "foregroundCover": true,
+          "foregroundProbe": false,
+          "height": 720,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 57,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1000,
+          "x": 80,
+          "y": 120
+        },
+        "afterBottom": {
+          "coverRank": 56,
+          "foregroundCover": true,
+          "foregroundProbe": false,
+          "height": 720,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 447,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1000,
+          "x": 80,
+          "y": 120
+        },
+        "rustBottom": {
+          "coverRank": 56,
+          "foregroundCover": true,
+          "foregroundProbe": false,
+          "height": 720,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 447,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1000,
+          "x": 80,
+          "y": 120
+        }
+      }
+    },
+    {
+      "name": "button + native activation / bottom ordering",
+      "result": "实际通过",
+      "detail": {
+        "coverRank": 56,
+        "foregroundCover": false,
+        "foregroundProbe": true,
+        "height": 720,
+        "minimized": false,
+        "parentNull": true,
+        "probeRank": 440,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 1000,
+        "x": 80,
+        "y": 120
+      }
+    },
+    {
+      "name": "English + Unicode text in WebView",
+      "result": "部分满足",
+      "detail": "CDP keyboard/insertText; real IME candidate window unverified"
+    },
+    {
+      "name": "JavaScript setAlwaysOnBottom",
+      "result": "实际通过",
+      "detail": {
+        "coverRank": 52,
+        "foregroundCover": false,
+        "foregroundProbe": true,
+        "height": 720,
+        "minimized": false,
+        "parentNull": true,
+        "probeRank": 430,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 1000,
+        "x": 80,
+        "y": 120
+      }
+    },
+    {
+      "name": "HWND_BOTTOM once then native activation + OS click",
+      "result": "实际失败",
+      "detail": {
+        "before": {
+          "coverRank": 56,
+          "foregroundCover": true,
+          "foregroundProbe": false,
+          "height": 720,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 428,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1000,
+          "x": 80,
+          "y": 120
+        },
+        "after": {
+          "coverRank": 57,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 720,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 56,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1000,
+          "x": 80,
+          "y": 120
+        }
+      }
+    },
+    {
+      "name": "move + resize in bottom",
+      "result": "实际通过",
+      "detail": {
+        "moved": {
+          "coverRank": 56,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 720,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 443,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1000,
+          "x": 125,
+          "y": 145
+        },
+        "resized": {
+          "coverRank": 441,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 747,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 442,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1045,
+          "x": 125,
+          "y": 145
+        },
+        "nativeDrag": true,
+        "nativeResize": true
+      }
+    },
+    {
+      "name": "minimize ordinary cover",
+      "result": "实际通过",
+      "detail": {
+        "coverRank": 441,
+        "foregroundCover": false,
+        "foregroundProbe": true,
+        "height": 747,
+        "minimized": false,
+        "parentNull": true,
+        "probeRank": 442,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 1045,
+        "x": 125,
+        "y": 145
+      }
+    },
+    {
+      "name": "own borderless fullscreen cover",
+      "result": "部分满足",
+      "detail": {
+        "coverRank": 55,
+        "foregroundCover": true,
+        "foregroundProbe": false,
+        "height": 747,
+        "minimized": false,
+        "parentNull": true,
+        "probeRank": 441,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 1045,
+        "x": 125,
+        "y": 145
+      }
+    },
+    {
+      "name": "existing HostBackdropBrush in bottom",
+      "result": "部分满足",
+      "detail": {
+        "enabled": true,
+        "state": {
+          "coverRank": 56,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 747,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 442,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1045,
+          "x": 125,
+          "y": 145
+        },
+        "note": "native setup + interaction; visual texture/focus stability not measured"
+      }
+    },
+    {
+      "name": "real isolated Edge covers probe",
+      "result": "未验证",
+      "detail": {
+        "syntheticBrowserAtPoint": false,
+        "targetAtPoint": true,
+        "hitRole": "other-app-or-probe",
+        "foregroundProbe": true
+      }
+    },
+    {
+      "name": "Win+D remains visible",
+      "result": "实际失败",
+      "detail": {
+        "coverRank": 419,
+        "foregroundCover": false,
+        "foregroundProbe": false,
+        "height": 50,
+        "minimized": true,
+        "parentNull": true,
+        "probeRank": 420,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 314,
+        "x": -32000,
+        "y": -32000
+      }
+    },
+    {
+      "name": "second Win+D",
+      "result": "实际通过",
+      "detail": {
+        "coverRank": 56,
+        "foregroundCover": false,
+        "foregroundProbe": false,
+        "height": 747,
+        "minimized": false,
+        "parentNull": true,
+        "probeRank": 442,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 1045,
+        "x": 125,
+        "y": 145
+      }
+    },
+    {
+      "name": "independent recovery to ordinary",
+      "result": "实际通过",
+      "detail": {
+        "coverRank": 57,
+        "foregroundCover": false,
+        "foregroundProbe": true,
+        "height": 747,
+        "minimized": false,
+        "parentNull": true,
+        "probeRank": 56,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 1045,
+        "x": 125,
+        "y": 145
+      }
+    },
+    {
+      "name": "unmediated top=true + bottom=true",
+      "result": "部分满足",
+      "detail": {
+        "native": {
+          "coverRank": 52,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 747,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 442,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1045,
+          "x": 125,
+          "y": 145
+        },
+        "tauriTopFlag": true
+      }
+    },
+    {
+      "name": "three mutually exclusive modes",
+      "result": "实际通过",
+      "detail": {
+        "top": {
+          "coverRank": 57,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 747,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 25,
+          "scale": 2,
+          "topmost": true,
+          "visible": true,
+          "width": 1045,
+          "x": 125,
+          "y": 145
+        },
+        "bottom": {
+          "coverRank": 52,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 747,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 442,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1045,
+          "x": 125,
+          "y": 145
+        },
+        "normal": {
+          "coverRank": 57,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 747,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 56,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1045,
+          "x": 125,
+          "y": 145
+        }
+      }
+    },
+    {
+      "name": "normal process restart without persisted modes",
+      "result": "实际通过",
+      "detail": {
+        "coverRank": 68,
+        "foregroundCover": false,
+        "foregroundProbe": false,
+        "height": 720,
+        "minimized": false,
+        "parentNull": true,
+        "probeRank": 69,
+        "scale": 2,
+        "topmost": false,
+        "visible": true,
+        "width": 1000,
+        "x": 80,
+        "y": 120
+      }
+    }
+  ],
+  "browser_and_watchdog_follow_up": [
+    {
+      "name": "real isolated Edge covers probe",
+      "result": "未验证",
+      "detail": {
+        "syntheticBrowserAtPoint": false,
+        "targetAtPoint": true,
+        "hitRole": "other-app-or-probe",
+        "foregroundProbe": true
+      }
+    },
+    {
+      "name": "120s native watchdog releases bottom constraint",
+      "result": "实际通过",
+      "detail": {
+        "before": {
+          "coverRank": 68,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 720,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 442,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1000,
+          "x": 80,
+          "y": 120
+        },
+        "after": {
+          "coverRank": 69,
+          "foregroundCover": false,
+          "foregroundProbe": true,
+          "height": 720,
+          "minimized": false,
+          "parentNull": true,
+          "probeRank": 56,
+          "scale": 2,
+          "topmost": false,
+          "visible": true,
+          "width": 1000,
+          "x": 80,
+          "y": 120
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "productName": "SL006 Isolated Research",
+  "version": "0.1.0",
+  "identifier": "app.starrylist.research.sl006",
+  "build": { "frontendDist": "ui" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "probe",
+        "title": "SL006 Probe",
+        "width": 500,
+        "height": 360,
+        "x": 40,
+        "y": 60,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "backgroundColor": "#00000000"
+      },
+      {
+        "label": "cover",
+        "title": "SL006 Ordinary Cover",
+        "url": "index.html?cover",
+        "width": 400,
+        "height": 320,
+        "x": 360,
+        "y": 90
+      },
+      {
+        "label": "recovery",
+        "title": "SL006 Recovery - Return to normal or Exit",
+        "url": "index.html?recovery",
+        "width": 430,
+        "height": 240,
+        "x": 650,
+        "y": 430
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": { "active": false, "icon": ["../../src-tauri/icons/icon.ico"] }
+}

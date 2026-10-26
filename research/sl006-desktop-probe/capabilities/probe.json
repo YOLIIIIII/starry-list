@@ -1,0 +1,17 @@
+{
+  "identifier": "isolated-probe",
+  "windows": ["probe", "cover", "recovery"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-always-on-bottom",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-minimize",
+    "core:window:allow-unminimize",
+    "core:window:allow-start-dragging",
+    "core:window:allow-start-resize-dragging"
+  ]
+}

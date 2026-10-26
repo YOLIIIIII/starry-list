@@ -1,6 +1,6 @@
 # 星轨日历 · Starry List
 
-UX3.1 体验迭代：全局小 / 标准 / 大字号，保留 14px 标准与 UX3.0.4 三种材质，收紧顶部留白；SL-004 / SL-005 待安装验收。[字号与空间对比](docs/UX3_1_VISUAL_REVIEW.md) · [验证记录](docs/VALIDATION.md)。
+UX3.2 体验迭代：经典顶部（默认）/ 紧凑单行顶部可切换并记住；专注页新增入口固定在面板底部，长任务在列表内滚动。保留三档字号、14px 标准与三种材质；SL-005-A / SL-001-A 待安装验收。[本轮对比](docs/UX3_2_VISUAL_REVIEW.md) · [验证记录](docs/VALIDATION.md)。
 
 Lavender × Pastel Yellow × Cream。一个无需登录、可以留在桌面角落的离线日历清单。
 

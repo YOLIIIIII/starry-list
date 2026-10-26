@@ -1,5 +1,69 @@
 # V1.0 验证记录
 
+## 2026-10-26：UX3.2 顶部双模式与专注固定新增
+
+本轮授权 SL-005-A / SL-001-A；基于 main `63451ff`，保留 UX3.1 字号、三种材质、原生失焦合成与任务保存状态机。子项及父项 In Review，等待用户安装体验；记录「UX3.1 字号切换体验良好」，不以局部反馈关闭全部历史验收。SL-002 / SL-019 / SL-021 保持 Done。无任务表、Schema/迁移、正式版本号或应用 ID 变化，无 Tag / Release。
+
+### 实现与证据
+
+- 设置 → 顶部布局：经典顶部（默认）恢复舒展双行与导航文字；紧凑顶部将双语品牌、图标导航、独立拖动空白与窗口控制放在同一行。图标保留 aria-label / title / aria-pressed，窗口按钮至少 30×30px、模式按钮至少 34px。只在空白区拖窗，Logo/模式/控制不作拖动区域。
+- 独立 `header_layout: classic | compact` 复用 AppStore 串行队列与 SQLite 设置 JSON；即时预览、保存中、失败回滚和真实错误、重试；重启保留。Zod / Serde 缺字段默认 classic，旧 JSON/备份版本 1 兼容，读取不改写旧文档。18 种顶部/字号/材质设置导出/替换导入仍保持任务内容及 user_version=1。
+- 专注新增区移到列表外、面板底部，不覆盖正文；长标题/详情完整随任务列表滚动，去掉详情嵌套滚动条，抽屉继续独立滚动并固定保存栏。矮窗口只收紧日期导航间距；取消草稿使用更短提示与并排按钮，避免窄矮窗口确认区越过页脚。
+- 真实高度及合成截图见 [UX3.2 对比](UX3_2_VISUAL_REVIEW.md)。980×680 标准：UX3.1 顶部 113px，经典 136px，紧凑 64px；大档 116 / 139 / 64px。经典→紧凑主体净增 72 / 75px。980×480 标准顶部 107 / 124 / 64px，大档 110 / 127 / 64px；主体增 60 / 63px。窄屏为通知预留固定通道，不能将全部顶部差值冒充任务列表净增益。
+
+### 执行结果
+
+- TypeScript、ESLint、生产前端构建通过；**141 项前端测试**通过。新增顶部即时预览/失败回滚/重试/重载/独立性、可访问名称与长任务固定新增的连续提交/取消保护。Rust fmt、**14 项 Rust/SQLite 测试**与 Clippy `-D warnings` 通过；扩展旧设置/备份不回写、两顶部×三字号×三材质、非法值拒绝与 Schema 不变的测试。
+- **25 组真实 Windows / WebView2 功能回归通过**：三日期连续 Enter、真实独立 Edge 窗口失焦保存且不抢焦点、输入/更新/删除 SQLite 故障与重试、七天行内编辑、完成、详情/长计划/抽屉固定保存、草稿、删除确认/撤销与计时、JSON 事务导入、置顶/透明度、原生最小化、正常关闭保存与进程重启。经典/紧凑两种偏好各自实际关闭/重启后保留，字号/材质/任务/分类/窗口几何同时保持。
+- 透明窗口 **180 个布局状态**：两顶部×三字号×三材质×五组尺寸×两视图（980×680、980×480、760×620、500×480、380×480）。逐项检查品牌/按钮/导航/拖动空白、横向溢出、长详情单列表滚动、输入位置不随列表滚动、实际新增/撤销及通知不与操作重叠；同一字号/顶部/窗口下三材质几何完全一致。
+- 大字号下两顶部另跑 **216 个日历组合、144 个清单状态、36 次原生快速缩放请求**：每顶部为 108 / 72 / 18；三材质×四/五/六周（2021-02 / 2026-10 / 2026-08）×12 个宽高。日期、节假日/补班/个人标记、预览/完整数量/圆点、宽窄任务及底部新增的共用布局通过；无新增裁切。
+- 梦幻原生材质两顶部各 **12 组**，合计 **24 组**：40% / 70% × 两视图 × 三字号。真实激活→自绘背景窗口失焦→再激活，切换字号/视图；所有指定采样点激活/失焦最大 RGB 差为 **0**。原生模糊开关纹理能量约 **0.327 / 9.969**，确认不是单纯染色。示例：[经典激活](screenshots/ux32/focus-classic/ux31-0.4-overview-active.png) / [失焦](screenshots/ux32/focus-classic/ux31-0.4-overview-inactive.png)、[紧凑激活](screenshots/ux32/focus-compact/ux31-0.4-overview-active.png) / [失焦](screenshots/ux32/focus-compact/ux31-0.4-overview-inactive.png)。这些图片保留测试工具的 `ux31` 文件前缀，目录与本次源码为 UX3.2；自绘背景与遮挡拒绝保护保留。
+- 两顶部各做一次真实 OS 鼠标检查：Logo/模式按钮不会拖窗，空白区域可拖动，右边/下边拖动可缩放，日期标记不裁切；其余边缘元素/API 保留，没有逐方向人工认证。Tab 导航与通知/抽屉焦点保护沿用前端和桌面回归。
+- 原生不透明窗口同样 **180 个布局状态通过**，两顶部、三字号、三材质、五尺寸、两视图；每个材质组合原生毛玻璃均保持关闭，设置中的透明度滑块禁用。真实 SQLite 设置 UPDATE 失败、旧布局回滚、重试、两模式重载通过。透明/不透明各 **6 组 380×480 草稿确认**（两顶部×三字号）通过：确认区及输入在页脚之上，继续填写保留文字，放弃不创建任务。失败尝试不计通过。
+
+初次真实短窗验证发现任务视口偏少，调整短窗日期导航间距；紧凑窄屏通知碰到日期按钮后改为固定通知通道。草稿确认测试又发现经典 380×480 下提示越过页脚，改为短提示/并排按钮并保留 30px 命中。材料几何测试曾未等待异步切换视图、旧样式还原测量曾未等待样式表生效，均修正测试等待后重跑；没有以放宽断言掩盖问题。并行构建中的前端五秒超时不计通过，构建结束后完整重跑 141 项通过；没有扩大超时或跳过断言。
+
+### 复现与边界
+
+使用历史章节的独立 debug 标识、测试专用焦点权限和 `STARRY_LIST_TEST_DATA_DIR`；确认隔离 SQLite 文件头再写入合成数据。正式构建不接受测试目录，不能拿正式 exe 跑写入测试。同标识的原生脚本顺序执行，不能并发。
+
+```powershell
+npm run check
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
+# 构建独立透明 debug 配置后：
+$env:STARRY_LIST_SCREENSHOT_DIR = '.cache/ux32-desktop-images'
+npm run test:desktop
+$env:STARRY_LIST_SCREENSHOT_DIR = 'docs/screenshots/ux32'
+npm run test:appearance -- --ux32-only
+foreach ($layout in @('classic', 'compact')) {
+  $env:STARRY_LIST_SCREENSHOT_DIR = ".cache/ux32-layout-$layout"
+  npm run test:appearance -- --layout-only --text-size=large --header-layout=$layout
+  $env:STARRY_LIST_SCREENSHOT_DIR = ".cache/ux32-focus-$layout"
+  npm run test:appearance -- --focus-only --ux31 --header-layout=$layout
+  npm run test:appearance -- --pointer-only --text-size=large --header-layout=$layout
+}
+# 单独构建独立原生不透明 debug 配置后：
+$env:STARRY_LIST_SCREENSHOT_DIR = '.cache/ux32-opaque-images'
+npm run test:appearance -- --opaque --ux32-only
+```
+
+`--ux32-only --measure-only` 只生成顶部对照高度；`--ux32-only --draft-only` 定向检查窄矮草稿和设置失败/重载。图片输出环境变量隔离本轮与历史证据，原始日志/SQLite/测试 WebView 配置仅在忽略的缓存。公开图片只来自合成任务与自绘背景，没有个人照片、壁纸、真实任务或备份；未关闭用户正在运行的实例。
+
+本机 Windows 11 build 26200、Intel Iris Xe 32.0.101.5542（另有 Sharing Monitor）、WebView2，原生约 200%。桌面回归含 WebView 倍率 1 / 1.5 / 2 模拟；不等于实际系统文字缩放、物理混合 DPI 或多显示器认证。Windows 10、其他 GPU/驱动、实际 IME 候选窗、节能/电池、远程桌面和高对比策略没有重新认证；本轮没有执行安装器、升级/卸载或人工最终体验，NSIS 构建与真实安装分开记录。
+
+### 体验构建与 Git
+
+默认透明与原生不透明 Windows x64 NSIS 体验包均构建成功，最终 CSS / JS 资源指纹相同；分别使用独立 UX3.2 文件名，不覆盖 UX3.1/UX3.0.4，不提升正式版本号。安装包与校验文件 `UX3.2-PREVIEW-20261026-SHA256SUMS.txt` 留在本地忽略的 `artifacts/`，不提交 GitHub。
+
+| 安装包 | SHA256 |
+| --- | --- |
+| `Starry-List_1.0.0_x64-ux3.2-preview-20261026-setup.exe` | `f0fcf83ab23e73008f96be4dd7dd73eb8ed696173bb504f9ee2a7f92c35111c2` |
+| `Starry-List_1.0.0_x64-ux3.2-opaque-preview-20261026-setup.exe` | `8970f576723a37aeb8667b8c3c87ffc720995be4aae2e423d41f4a1bb3470eca` |
+
+实现提交 [`4586f33`](https://github.com/YOLIIIIII/starry-list/commit/4586f33e062714dd255c4645bf521efaad47a4e3)，源码/文档分开提交。Push 后的 [main CI](https://github.com/YOLIIIIII/starry-list/actions?query=branch%3Amain) 由最终交付报告核对具体 run；本节不把 UX3.1 的旧 CI 冒充新结果。构建、测试、用户验收和正式发布分开。
+
 ## 2026-10-23：UX3.1 全局字号与顶部空间
 
 范围只含正式授权的 SL-004 / SL-005；保留 UX3.0.4 视觉基线、原生合成与任务行为。实现后两项 In Review，等待安装确认。SL-003 审查：A / C 结合本次安装反馈及既有证据 Done，B 沿用 Done；D / E 尚缺原环境长时间切换及失焦的针对性用户确认，D / E / 父项继续 In Review。SL-004-A / B 与 SL-001 仍 In Review，SL-002 / SL-019 / SL-021 保持 Done。未正式发布，版本仍 1.0.0。

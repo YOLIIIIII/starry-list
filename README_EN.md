@@ -1,6 +1,6 @@
 # Starry List · 星轨日历
 
-UX3.1 preview: small / standard / large text, a more compact header, and the established UX3.0.4 materials. Standard task text stays at 14px; user acceptance is pending. [Typography and space comparison (Chinese)](docs/UX3_1_VISUAL_REVIEW.md) · [Validation](docs/VALIDATION.md).
+UX3.2 preview: a classic header by default, an optional single-row compact header, and a persistent quick-add area at the bottom of Focus. Three text sizes and the established materials remain available. User acceptance is pending. [Comparison (Chinese)](docs/UX3_2_VISUAL_REVIEW.md) · [Validation](docs/VALIDATION.md).
 
 A cozy offline desktop calendar and task list in lavender, pastel yellow and cream. V1.0 targets **Windows 10/11 x64**; Simplified Chinese is the default UI language.
 

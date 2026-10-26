@@ -226,16 +226,34 @@ export function NotificationRail({
   const [position, setPosition] = useState({ top: 70, below: false });
   useLayoutEffect(() => {
     const toolbar = document.querySelector(".topbar");
-    if (!toolbar) return;
+    const header = document.querySelector(".app-header");
+    if (!toolbar || !header) return;
     const viewSwitch = toolbar.querySelector(".view-switch");
     const measure = () => {
       const rect = toolbar.getBoundingClientRect();
       const buttons = viewSwitch?.getBoundingClientRect();
       const railWidth = Math.min(360, window.innerWidth - 32);
+      const controls = header
+        .querySelector(".window-buttons")
+        ?.getBoundingClientRect();
+      const compact =
+        header.closest(".app-shell")?.getAttribute("data-header-layout") ===
+        "compact";
       const below =
-        !buttons || buttons.right + 8 > (window.innerWidth - railWidth) / 2;
+        !buttons ||
+        buttons.right + 8 > (window.innerWidth - railWidth) / 2 ||
+        (compact &&
+          (!controls ||
+            controls.left - 8 < (window.innerWidth + railWidth) / 2));
       setPosition({
-        top: below ? (buttons?.bottom ?? rect.bottom) + 3 : rect.top + 4,
+        top: compact
+          ? below
+            ? header.getBoundingClientRect().bottom + 3
+            : header.getBoundingClientRect().top +
+              (header.getBoundingClientRect().height - 24) / 2
+          : below
+            ? (buttons?.bottom ?? rect.bottom) + 3
+            : rect.top + 4,
         below,
       });
     };
@@ -245,6 +263,7 @@ export function NotificationRail({
         ? new ResizeObserver(measure)
         : null;
     observer?.observe(toolbar);
+    observer?.observe(header);
     if (viewSwitch) observer?.observe(viewSwitch);
     window.addEventListener("resize", measure);
     return () => {

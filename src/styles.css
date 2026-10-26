@@ -1209,11 +1209,39 @@ h1 {
   padding: 0 6px 15px;
   margin: 0 6px 6px;
 }
-.focus-scroll > .quick-add-area .quick-add {
+.focus-composer .quick-add {
   margin: 9px 0;
   background: #fff8;
   border: 1px dashed #ad96c44d;
   padding: 8px 12px;
+}
+.focus-composer {
+  flex-shrink: 0;
+  padding: 0 12px 3px;
+  border-top: 1px solid var(--line);
+}
+.focus-composer .quick-draft-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  margin: 0 0 4px;
+  font-size: var(--text-help);
+}
+.focus-composer .quick-draft-prompt > div {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  margin: 0;
+}
+.focus-composer .quick-draft-prompt button {
+  min-height: 30px;
+}
+/* The list owns scrolling; long plans do not create a second scroll pane. */
+.focus-scroll .reader-description,
+.focus-scroll .reader-heading h3 {
+  max-height: none;
+  overflow: visible;
 }
 .focus-scroll .task-row {
   min-height: 43px;
@@ -2487,5 +2515,126 @@ legend {
 @media (max-height: 600px) {
   .topbar-caption {
     display: none;
+  }
+}
+
+/* UX3.2: header geometry is independent of material and reading size. */
+.app-shell[data-header-layout="classic"] .titlebar {
+  min-height: 65px;
+  padding: 13px 19px 6px 23px;
+}
+.app-shell[data-header-layout="classic"] .topbar {
+  padding: 9px 26px 18px;
+}
+.app-shell[data-header-layout="compact"] .app-header {
+  display: grid;
+  grid-template-columns: auto auto minmax(12px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 19px 10px 23px;
+}
+.app-shell[data-header-layout="compact"] :is(.titlebar, .topbar) {
+  display: contents;
+}
+.app-shell[data-header-layout="compact"] .brand {
+  grid-column: 1;
+  grid-row: 1;
+}
+.app-shell[data-header-layout="compact"] .view-switch {
+  grid-column: 2;
+  grid-row: 1;
+  width: auto;
+  padding: 3px;
+}
+.app-shell[data-header-layout="compact"] .view-switch button {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  flex: none;
+}
+.app-shell[data-header-layout="compact"] :is(.view-label, .topbar-caption) {
+  display: none;
+}
+.app-shell[data-header-layout="compact"] .drag-space {
+  grid-column: 3;
+  grid-row: 1;
+}
+.app-shell[data-header-layout="compact"] .window-buttons {
+  grid-column: 4;
+  grid-row: 1;
+}
+@media (max-width: 619px) {
+  .app-shell[data-header-layout="classic"] .titlebar {
+    min-height: 59px;
+    padding: 10px 10px 4px 15px;
+  }
+  .app-shell[data-header-layout="classic"] .topbar {
+    padding: 9px 15px 16px;
+  }
+  .app-shell[data-header-layout="classic"] .brand small {
+    display: block;
+  }
+  .app-shell[data-header-layout="compact"] .app-header {
+    min-height: 56px;
+    gap: 4px;
+    padding: 8px;
+    grid-template-columns: auto auto minmax(8px, 1fr) auto;
+  }
+  .app-shell[data-header-layout="compact"] .brand {
+    gap: 6px;
+    letter-spacing: 1px;
+  }
+  .app-shell[data-header-layout="compact"] .brand-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+  }
+  .app-shell[data-header-layout="compact"] .brand small {
+    display: block;
+    letter-spacing: 1px;
+  }
+  .app-shell[data-header-layout="compact"] .window-divider {
+    display: none;
+  }
+  .app-shell[data-header-layout="compact"] .view-switch {
+    gap: 1px;
+    padding: 2px;
+  }
+  .focus-composer {
+    padding-inline: 6px;
+  }
+}
+@media (max-height: 600px) and (min-width: 900px) {
+  .app-shell[data-header-layout="classic"] .titlebar {
+    min-height: 59px;
+    padding-top: 8px;
+  }
+  .app-shell[data-header-layout="classic"] .topbar {
+    padding-bottom: 12px;
+  }
+}
+@media (max-height: 560px) {
+  .focus-heading {
+    padding-bottom: 6px;
+  }
+  .focus-week button {
+    padding-block: 3px;
+    gap: 1px;
+    line-height: 1.2;
+  }
+  .focus-list-heading {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .focus-composer .quick-add {
+    margin-block: 6px;
+  }
+}
+@media (max-width: 899px) {
+  /* Reserve a calm notification lane when the single row has no spare width. */
+  .app-shell[data-header-layout="compact"]
+    :is(.focus-heading, .section-heading) {
+    padding-top: 28px;
   }
 }

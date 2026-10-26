@@ -48,6 +48,11 @@ pub struct Settings {
     pub appearance_mode: String,
     #[serde(default = "default_text_size")]
     pub text_size: String,
+    #[serde(default = "default_header_layout")]
+    pub header_layout: String,
+}
+fn default_header_layout() -> String {
+    "classic".into()
 }
 fn default_text_size() -> String {
     "standard".into()
@@ -67,6 +72,7 @@ impl Default for Settings {
             opaque_fallback: false,
             appearance_mode: default_appearance(),
             text_size: default_text_size(),
+            header_layout: default_header_layout(),
         }
     }
 }
@@ -119,6 +125,7 @@ pub fn validate_settings(s: &Settings) -> Result<()> {
     if !["overview", "focus"].contains(&s.active_view.as_str())
         || !["reading", "glass", "frosted"].contains(&s.appearance_mode.as_str())
         || !["small", "standard", "large"].contains(&s.text_size.as_str())
+        || !["classic", "compact"].contains(&s.header_layout.as_str())
         || !s.background_opacity.is_finite()
         || !(0.4..=1.).contains(&s.background_opacity)
     {
@@ -474,12 +481,14 @@ mod tests {
         save_task(&c, &task()).unwrap();
         let mut legacy = serde_json::to_value(Settings::default()).unwrap();
         legacy.as_object_mut().unwrap().remove("text_size");
+        legacy.as_object_mut().unwrap().remove("header_layout");
         c.execute(
             "UPDATE app_settings SET value=?1 WHERE id=1",
             [legacy.to_string()],
         )
         .unwrap();
         assert_eq!(snapshot(&c).unwrap().settings.text_size, "standard");
+        assert_eq!(snapshot(&c).unwrap().settings.header_layout, "classic");
         let raw: String = c
             .query_row("SELECT value FROM app_settings", [], |r| r.get(0))
             .unwrap();
@@ -487,34 +496,48 @@ mod tests {
             !raw.contains("text_size"),
             "Reading legacy JSON must not rewrite settings"
         );
+        assert!(!raw.contains("header_layout"));
         let mut old_backup = serde_json::to_value(export(&c).unwrap()).unwrap();
         old_backup["settings"]
             .as_object_mut()
             .unwrap()
             .remove("text_size");
+        old_backup["settings"]
+            .as_object_mut()
+            .unwrap()
+            .remove("header_layout");
         let backup: Backup = serde_json::from_value(old_backup).unwrap();
         import(&mut c, backup, true).unwrap();
         assert_eq!(snapshot(&c).unwrap().settings.text_size, "standard");
+        assert_eq!(snapshot(&c).unwrap().settings.header_layout, "classic");
         let original = snapshot(&c).unwrap();
         for mode in ["reading", "glass", "frosted"] {
             for size in ["small", "standard", "large"] {
-                let mut s = original.settings.clone();
-                s.appearance_mode = mode.into();
-                s.text_size = size.into();
-                save_settings(&c, &s).unwrap();
-                let b = export(&c).unwrap();
-                assert_eq!(b.settings.text_size, size);
-                import(&mut c, b, true).unwrap();
-                let loaded = snapshot(&c).unwrap();
-                assert_eq!(loaded.settings.text_size, size);
-                assert_eq!(loaded.settings.appearance_mode, mode);
-                assert_eq!(loaded.tasks[0].title, original.tasks[0].title);
+                for header in ["classic", "compact"] {
+                    let mut s = original.settings.clone();
+                    s.appearance_mode = mode.into();
+                    s.text_size = size.into();
+                    s.header_layout = header.into();
+                    save_settings(&c, &s).unwrap();
+                    let b = export(&c).unwrap();
+                    assert_eq!(b.settings.text_size, size);
+                    import(&mut c, b, true).unwrap();
+                    let loaded = snapshot(&c).unwrap();
+                    assert_eq!(loaded.settings.text_size, size);
+                    assert_eq!(loaded.settings.appearance_mode, mode);
+                    assert_eq!(loaded.settings.header_layout, header);
+                    assert_eq!(loaded.tasks[0].title, original.tasks[0].title);
+                }
             }
         }
         let mut invalid = snapshot(&c).unwrap().settings;
         invalid.text_size = "unknown".into();
         assert!(save_settings(&c, &invalid).is_err());
         assert_eq!(snapshot(&c).unwrap().settings.text_size, "large");
+        invalid = snapshot(&c).unwrap().settings;
+        invalid.header_layout = "invalid".into();
+        assert!(save_settings(&c, &invalid).is_err());
+        assert_eq!(snapshot(&c).unwrap().settings.header_layout, "compact");
         assert_eq!(
             c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
                 .unwrap(),

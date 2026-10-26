@@ -222,6 +222,8 @@ export async function checkLayout({
         view === "overview" ? ".agenda-scroll" : ".focus-scroll",
       );
       const origin = region.getBoundingClientRect();
+      const queryRoot =
+        view === "focus" ? document.querySelector("main.focus") : region;
       const selectors = [
         ".task-row",
         ".task-open",
@@ -237,7 +239,7 @@ export async function checkLayout({
       return Object.fromEntries(
         selectors.map((selector) => [
           selector,
-          [...region.querySelectorAll(selector)].map((el) => {
+          [...queryRoot.querySelectorAll(selector)].map((el) => {
             const b = el.getBoundingClientRect(),
               s = getComputedStyle(el);
             return [

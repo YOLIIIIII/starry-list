@@ -21,7 +21,9 @@ describe("UX3.1 兼容设置", () => {
   it("旧设置及旧备份缺失字号时默认标准，无效字号拒绝", () => {
     const legacy: Record<string, unknown> = { ...defaults };
     delete legacy.text_size;
+    delete legacy.header_layout;
     expect(settingsSchema.parse(legacy).text_size).toBe("standard");
+    expect(settingsSchema.parse(legacy).header_layout).toBe("classic");
     const backup = {
       format: "starry-list",
       version: 1,
@@ -32,6 +34,14 @@ describe("UX3.1 兼容设置", () => {
       settings: legacy,
     };
     expect(backupSchema.parse(backup).settings.text_size).toBe("standard");
+    expect(backupSchema.parse(backup).settings.header_layout).toBe("classic");
+    expect(
+      settingsSchema.safeParse({ ...defaults, header_layout: "tiny" }).success,
+    ).toBe(false);
+    expect(
+      settingsSchema.parse({ ...defaults, header_layout: "compact" })
+        .header_layout,
+    ).toBe("compact");
     expect(
       settingsSchema.safeParse({ ...defaults, text_size: "huge" }).success,
     ).toBe(false);

@@ -11,9 +11,16 @@ import { makeTask } from "../src/test-fixtures.ts";
 import "./prepare-visual-baseline.mjs";
 import { checkLayout } from "./check-layout.mjs";
 import { checkTypography } from "./check-typography.mjs";
+import { checkUx32 } from "./check-ux32.mjs";
 
 const opaque = process.argv.includes("--opaque");
 const typographyOnly = process.argv.includes("--typography-only");
+const ux32Only = process.argv.includes("--ux32-only");
+const headerLayout =
+  process.argv
+    .find((arg) => arg.startsWith("--header-layout="))
+    ?.split("=")[1] ?? "classic";
+assert.ok(["classic", "compact"].includes(headerLayout));
 const textSize =
   process.argv.find((arg) => arg.startsWith("--text-size="))?.split("=")[1] ??
   "standard";
@@ -39,6 +46,7 @@ const stabilityOnly =
   faultOnly ||
   focusOnly ||
   layoutOnly ||
+  ux32Only ||
   typographyOnly;
 assert.ok(
   !(matrixOnly && foregroundOnly),
@@ -57,11 +65,13 @@ const variants = materials
   : opaque
     ? ["ux30"]
     : ["ux23", "ux30"];
-const publicImages = ux31
-  ? `docs/screenshots/ux31/${textSize}`
-  : materials
-    ? "docs/screenshots/ux304"
-    : "docs/screenshots/ux30";
+const publicImages =
+  process.env.STARRY_LIST_SCREENSHOT_DIR ??
+  (ux31
+    ? `docs/screenshots/ux31/${textSize}`
+    : materials
+      ? "docs/screenshots/ux304"
+      : "docs/screenshots/ux30");
 const root = resolve(
   `.cache/visual-${materials ? "materials-" : ""}${opaque ? "opaque-" : ""}${Date.now()}`,
 );
@@ -115,7 +125,13 @@ async function chooseMaterial(name) {
   await radio.click();
   await until(async () => assert.equal(await radio.isChecked(), true));
 }
-async function config(view, alpha, appearance = "reading", size = textSize) {
+async function config(
+  view,
+  alpha,
+  appearance = "reading",
+  size = textSize,
+  header = headerLayout,
+) {
   await invoke("save_settings", {
     settings: {
       ...defaults,
@@ -124,6 +140,7 @@ async function config(view, alpha, appearance = "reading", size = textSize) {
       animations_enabled: false,
       appearance_mode: appearance,
       text_size: size,
+      header_layout: header,
     },
   });
   await page.reload();
@@ -354,6 +371,19 @@ try {
     },
   });
   await config("overview", 0.7);
+  if (ux32Only) {
+    await checkUx32({
+      page,
+      invoke,
+      config,
+      click,
+      root,
+      images: publicImages,
+      opaque,
+      measureOnly: process.argv.includes("--measure-only"),
+      draftOnly: process.argv.includes("--draft-only"),
+    });
+  }
   if (typographyOnly) {
     await checkTypography({
       page,
@@ -526,7 +556,13 @@ try {
       JSON.stringify({ focusPassed: !baselineFocus, baselineFocus, root }),
     );
   }
-  if (stabilityOnly && !focusOnly && !layoutOnly && !typographyOnly) {
+  if (
+    stabilityOnly &&
+    !focusOnly &&
+    !layoutOnly &&
+    !typographyOnly &&
+    !ux32Only
+  ) {
     assert.ok(
       materials && !viewportOnly,
       "Stability requires native materials",

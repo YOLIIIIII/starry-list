@@ -46,6 +46,7 @@ import {
   type Settings,
   type Appearance,
   type TextSize,
+  type HeaderLayout,
 } from "./domain";
 import { dayInfo } from "./holidays";
 import { store, useStore } from "./store";
@@ -89,6 +90,9 @@ export default function App() {
   const [textPreview, setTextPreview] = useState<TextSize | null>(null);
   const [textSaving, setTextSaving] = useState(false);
   const textSave = useRef(false);
+  const [headerPreview, setHeaderPreview] = useState<HeaderLayout | null>(null);
+  const [headerSaving, setHeaderSaving] = useState(false);
+  const headerSave = useRef(false);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [undos, setUndos] = useState<UndoEntry[]>([]);
   const [inlineId, setInlineId] = useState<string | null>(null);
@@ -453,6 +457,7 @@ export default function App() {
       className={`app-shell ${settings.animations_enabled ? "" : "no-motion"}`}
       data-appearance={settings.appearance_mode}
       data-text-size={textPreview ?? settings.text_size}
+      data-header-layout={headerPreview ?? settings.header_layout}
       data-frost={frostState}
       style={style}
     >
@@ -509,18 +514,22 @@ export default function App() {
             <button
               className={settings.active_view === "overview" ? "active" : ""}
               aria-pressed={settings.active_view === "overview"}
+              aria-label="统筹总览"
+              title="统筹总览"
               onClick={() => changeView("overview")}
             >
               <CalendarDays size={16} />
-              统筹总览
+              <span className="view-label">统筹总览</span>
             </button>
             <button
               className={settings.active_view === "focus" ? "active" : ""}
               aria-pressed={settings.active_view === "focus"}
+              aria-label="专注编辑"
+              title="专注编辑"
               onClick={() => changeView("focus")}
             >
               <ListTodo size={16} />
-              专注编辑
+              <span className="view-label">专注编辑</span>
             </button>
           </div>
           <span className="topbar-caption">把日子，过成喜欢的样子。</span>
@@ -942,8 +951,8 @@ export default function App() {
                 )}
               </div>
             ))}
-            {quickInput(selected)}
           </div>
+          <div className="focus-composer">{quickInput(selected)}</div>
         </main>
       )}
       <footer className="app-footer">
@@ -1095,6 +1104,60 @@ export default function App() {
           }}
         >
           <div className="settings-content">
+            <fieldset
+              className="appearance-setting"
+              disabled={headerSaving || pending > 0}
+            >
+              <legend>顶部布局</legend>
+              <div className="appearance-options">
+                {(
+                  [
+                    [
+                      "classic",
+                      "经典顶部（默认）",
+                      "舒展双行，保留工作模式文字",
+                    ],
+                    [
+                      "compact",
+                      "紧凑顶部",
+                      "单行图标导航，为日历和任务留出空间",
+                    ],
+                  ] as const
+                ).map(([value, label, hint]) => (
+                  <label key={value}>
+                    <input
+                      type="radio"
+                      name="header-layout"
+                      value={value}
+                      checked={
+                        (headerPreview ?? settings.header_layout) === value
+                      }
+                      onChange={() => {
+                        if (headerSave.current) return;
+                        headerSave.current = true;
+                        setHeaderPreview(value);
+                        setHeaderSaving(true);
+                        void safe(() =>
+                          saveSetting({ header_layout: value }),
+                        ).finally(() => {
+                          setHeaderPreview(null);
+                          setHeaderSaving(false);
+                          headerSave.current = false;
+                        });
+                      }}
+                    />
+                    <span>
+                      {label}
+                      <small>{hint}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p>即时预览，重启后保留；不影响字号与外观。</p>
+              <p className="text-size-status" role="status" aria-live="polite">
+                {headerSaving ? "正在保存顶部布局…" : ""}
+              </p>
+            </fieldset>
             <fieldset
               className="text-size-setting"
               disabled={textSaving || pending > 0}

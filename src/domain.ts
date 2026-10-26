@@ -54,6 +54,8 @@ export const appearanceSchema = z.enum(["reading", "glass", "frosted"]);
 export type Appearance = z.infer<typeof appearanceSchema>;
 export const textSizeSchema = z.enum(["small", "standard", "large"]);
 export type TextSize = z.infer<typeof textSizeSchema>;
+export const headerLayoutSchema = z.enum(["classic", "compact"]);
+export type HeaderLayout = z.infer<typeof headerLayoutSchema>;
 export const settingsSchema = z.object({
   active_view: z.enum(["overview", "focus"]),
   background_opacity: z.number().min(0.4).max(1),
@@ -64,6 +66,7 @@ export const settingsSchema = z.object({
   opaque_fallback: z.boolean(),
   appearance_mode: appearanceSchema.default("reading"),
   text_size: textSizeSchema.default("standard"),
+  header_layout: headerLayoutSchema.default("classic"),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 export const defaults: Settings = {
@@ -76,6 +79,7 @@ export const defaults: Settings = {
   opaque_fallback: false,
   appearance_mode: "reading",
   text_size: "standard",
+  header_layout: "classic",
 };
 export const backupSchema = z
   .object({

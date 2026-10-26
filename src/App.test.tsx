@@ -1332,3 +1332,82 @@ describe("UX3.1 文字大小", () => {
     await waitFor(() => expect(backend.data!.settings.text_size).toBe("large"));
   });
 });
+
+describe("UX3.2 顶部偏好", () => {
+  it("即时预览、持久化和失败回滚；图标模式保留可访问名称", async () => {
+    const { repository } = await import("./platform");
+    const user = userEvent.setup();
+    const ui = render(<App />);
+    await user.click(await screen.findByRole("button", { name: "设置" }));
+    const shell = document.querySelector(".app-shell")!;
+    expect(shell.getAttribute("data-header-layout")).toBe("classic");
+    let reject!: (error: Error) => void;
+    vi.mocked(repository.saveSettings).mockImplementationOnce(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
+    await user.click(screen.getByRole("radio", { name: /^紧凑顶部/ }));
+    expect(shell.getAttribute("data-header-layout")).toBe("compact");
+    expect(backend.data!.settings.header_layout).toBe("classic");
+    expect(screen.getByText("正在保存顶部布局…")).toBeTruthy();
+    reject(new Error("顶部布局保存失败"));
+    await screen.findByText("顶部布局保存失败");
+    await waitFor(() =>
+      expect(shell.getAttribute("data-header-layout")).toBe("classic"),
+    );
+    await user.click(screen.getByRole("radio", { name: /^紧凑顶部/ }));
+    await waitFor(() =>
+      expect(backend.data!.settings.header_layout).toBe("compact"),
+    );
+    expect(backend.data!.settings.text_size).toBe("standard");
+    expect(backend.data!.settings.appearance_mode).toBe("reading");
+    ui.unmount();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "设置" }));
+    expect(screen.getByRole("radio", { name: /^紧凑顶部/ })).toHaveProperty(
+      "checked",
+      true,
+    );
+    for (const name of ["统筹总览", "专注编辑"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button.getAttribute("title")).toBe(name);
+      expect(button.closest("[data-tauri-drag-region]")).toBeNull();
+    }
+  });
+  it("长任务展开时新增区独立于列表，连续新增与取消保护仍工作", async () => {
+    const date = backend.data!.tasks[0].date;
+    backend.data!.settings.active_view = "focus";
+    backend.data!.tasks[0].description = "很长的合成计划\n".repeat(100);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: backend.data!.tasks[0].title,
+      }),
+    );
+    expect(
+      document.querySelector(".reader-description")!.textContent,
+    ).toContain("很长的合成计划");
+    const input = screen.getByRole("textbox", { name: `${date} 新任务标题` });
+    expect(input.closest(".focus-scroll")).toBeNull();
+    expect(input.closest(".focus-composer")).not.toBeNull();
+    for (const title of ["固定底部新增一", "固定底部新增二"]) {
+      await user.type(input, title + "{Enter}");
+      await waitFor(() =>
+        expect(backend.data!.tasks.some((task) => task.title === title)).toBe(
+          true,
+        ),
+      );
+      expect(input).toHaveProperty("value", "");
+    }
+    await user.type(input, "需要保护的草稿");
+    await user.click(screen.getByRole("button", { name: "取消快速新增" }));
+    expect(
+      screen.getByRole("group", { name: "处理未添加的任务" }),
+    ).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "继续填写" }));
+    expect(input).toHaveProperty("value", "需要保护的草稿");
+  });
+});

@@ -320,7 +320,7 @@ export const QuickAdd = forwardRef<
           role="group"
           aria-label="处理未添加的任务"
         >
-          <span>要放弃这条尚未添加的任务吗？</span>
+          <span>放弃未添加的任务？</span>
           <div>
             <button
               type="button"

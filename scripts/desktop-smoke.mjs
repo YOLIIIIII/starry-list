@@ -1116,7 +1116,7 @@ try {
       );
       assert.equal(
         await page
-          .locator(".focus-scroll .quick-add input")
+          .locator(".focus-composer .quick-add input")
           .evaluate((el) => getComputedStyle(el).fontSize),
         "14px",
       );
@@ -1195,6 +1195,7 @@ try {
       ...appearanceSettings,
       appearance_mode: "frosted",
       text_size: "large",
+      header_layout: "compact",
     },
   });
   const exitPromise = new Promise((r) => child.once("exit", r));
@@ -1231,6 +1232,11 @@ try {
   assert.equal(restarted.settings.active_view, "focus");
   assert.equal(restarted.settings.appearance_mode, "frosted");
   assert.equal(restarted.settings.text_size, "large");
+  assert.equal(restarted.settings.header_layout, "compact");
+  assert.equal(
+    await page.locator(".app-shell").getAttribute("data-header-layout"),
+    "compact",
+  );
   assert.equal(
     await page
       .locator(".task-open")
@@ -1255,6 +1261,32 @@ try {
   );
   results.push(
     "Native close saves draft; process restart retains tasks, category, view, opacity and window geometry",
+  );
+  await click("设置");
+  await page.getByRole("radio", { name: /^经典顶部/ }).click();
+  await page.waitForFunction(
+    () =>
+      document.querySelector(".app-shell").dataset.headerLayout === "classic" &&
+      !document.querySelector('input[name="header-layout"]').closest("fieldset")
+        .disabled,
+  );
+  await click("关闭对话框");
+  const classicExit = new Promise((done) => child.once("exit", done));
+  await invoke("plugin:window|close", { label: "main" });
+  await classicExit;
+  await browser.close();
+  browser = null;
+  await launch();
+  assert.equal(
+    (await invoke("load_snapshot")).settings.header_layout,
+    "classic",
+  );
+  assert.equal(
+    await page.locator(".app-shell").getAttribute("data-header-layout"),
+    "classic",
+  );
+  results.push(
+    "UX3.2 classic and compact header preferences each survive a real process restart",
   );
   await click("最小化");
   await page.waitForFunction(

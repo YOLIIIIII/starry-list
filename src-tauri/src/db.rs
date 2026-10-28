@@ -50,6 +50,11 @@ pub struct Settings {
     pub text_size: String,
     #[serde(default = "default_header_layout")]
     pub header_layout: String,
+    #[serde(default = "default_agenda_range")]
+    pub agenda_range: String,
+}
+fn default_agenda_range() -> String {
+    "rolling".into()
 }
 fn default_header_layout() -> String {
     "classic".into()
@@ -73,6 +78,7 @@ impl Default for Settings {
             appearance_mode: default_appearance(),
             text_size: default_text_size(),
             header_layout: default_header_layout(),
+            agenda_range: default_agenda_range(),
         }
     }
 }
@@ -126,6 +132,7 @@ pub fn validate_settings(s: &Settings) -> Result<()> {
         || !["reading", "glass", "frosted"].contains(&s.appearance_mode.as_str())
         || !["small", "standard", "large"].contains(&s.text_size.as_str())
         || !["classic", "compact"].contains(&s.header_layout.as_str())
+        || !["rolling", "week"].contains(&s.agenda_range.as_str())
         || !s.background_opacity.is_finite()
         || !(0.4..=1.).contains(&s.background_opacity)
     {
@@ -538,6 +545,72 @@ mod tests {
         invalid.header_layout = "invalid".into();
         assert!(save_settings(&c, &invalid).is_err());
         assert_eq!(snapshot(&c).unwrap().settings.header_layout, "compact");
+        assert_eq!(
+            c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
+    #[test]
+    fn agenda_range_legacy_roundtrip_and_settings_failure_preserve_tasks() {
+        let mut c = connection();
+        save_task(&c, &task()).unwrap();
+        let original_tasks = serde_json::to_value(snapshot(&c).unwrap().tasks).unwrap();
+        let mut legacy = serde_json::to_value(Settings::default()).unwrap();
+        legacy.as_object_mut().unwrap().remove("agenda_range");
+        let raw = legacy.to_string();
+        c.execute("UPDATE app_settings SET value=?1 WHERE id=1", [&raw])
+            .unwrap();
+        assert_eq!(snapshot(&c).unwrap().settings.agenda_range, "rolling");
+        assert_eq!(
+            c.query_row("SELECT value FROM app_settings", [], |r| r
+                .get::<_, String>(0))
+                .unwrap(),
+            raw
+        );
+        let mut old_backup = serde_json::to_value(export(&c).unwrap()).unwrap();
+        old_backup["settings"]
+            .as_object_mut()
+            .unwrap()
+            .remove("agenda_range");
+        import(&mut c, serde_json::from_value(old_backup).unwrap(), true).unwrap();
+        assert_eq!(snapshot(&c).unwrap().settings.agenda_range, "rolling");
+        for range in ["rolling", "week"] {
+            for appearance in ["reading", "glass", "frosted"] {
+                for size in ["small", "standard", "large"] {
+                    for header in ["classic", "compact"] {
+                        let mut settings = snapshot(&c).unwrap().settings;
+                        settings.agenda_range = range.into();
+                        settings.appearance_mode = appearance.into();
+                        settings.text_size = size.into();
+                        settings.header_layout = header.into();
+                        save_settings(&c, &settings).unwrap();
+                        let backup = export(&c).unwrap();
+                        assert_eq!(backup.settings.agenda_range, range);
+                        import(&mut c, backup, true).unwrap();
+                        assert_eq!(snapshot(&c).unwrap().settings.agenda_range, range);
+                        assert_eq!(
+                            serde_json::to_value(snapshot(&c).unwrap().tasks).unwrap(),
+                            original_tasks
+                        );
+                    }
+                }
+            }
+        }
+        let mut settings = snapshot(&c).unwrap().settings;
+        settings.agenda_range = "month".into();
+        assert!(save_settings(&c, &settings).is_err());
+        settings.agenda_range = "rolling".into();
+        c.execute_batch("CREATE TRIGGER reject_range BEFORE UPDATE ON app_settings BEGIN SELECT RAISE(FAIL, 'range failure'); END;").unwrap();
+        assert!(save_settings(&c, &settings).is_err());
+        assert_eq!(snapshot(&c).unwrap().settings.agenda_range, "week");
+        c.execute_batch("DROP TRIGGER reject_range;").unwrap();
+        save_settings(&c, &settings).unwrap();
+        assert_eq!(snapshot(&c).unwrap().settings.agenda_range, "rolling");
+        assert_eq!(
+            serde_json::to_value(snapshot(&c).unwrap().tasks).unwrap(),
+            original_tasks
+        );
         assert_eq!(
             c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
                 .unwrap(),

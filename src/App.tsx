@@ -38,6 +38,7 @@ import {
   shiftDay,
   shiftMonth,
   weekDays,
+  agendaDays,
   displayTasks,
   previewTasks,
   taskLabel,
@@ -47,6 +48,7 @@ import {
   type Appearance,
   type TextSize,
   type HeaderLayout,
+  type AgendaRange,
 } from "./domain";
 import { dayInfo } from "./holidays";
 import { store, useStore } from "./store";
@@ -93,6 +95,8 @@ export default function App() {
   const [headerPreview, setHeaderPreview] = useState<HeaderLayout | null>(null);
   const [headerSaving, setHeaderSaving] = useState(false);
   const headerSave = useRef(false);
+  const [agendaPreview, setAgendaPreview] = useState<AgendaRange | null>(null);
+  const [agendaSaving, setAgendaSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [undos, setUndos] = useState<UndoEntry[]>([]);
   const [inlineId, setInlineId] = useState<string | null>(null);
@@ -301,6 +305,21 @@ export default function App() {
   function goToday() {
     select(today);
   }
+  function changeAgendaRange(value: AgendaRange) {
+    void guard(async () => {
+      if (value === store.getSnapshot().data.settings.agenda_range) return;
+      setAgendaPreview(value);
+      setAgendaSaving(true);
+      try {
+        await store.saveSettings({ agenda_range: value });
+      } finally {
+        // The store changes only after persistence. On failure it retains the
+        // previous range; guard reports the error. Drafts used the same guard.
+        setAgendaPreview(null);
+        setAgendaSaving(false);
+      }
+    });
+  }
   function closeEditor(collapse = false) {
     const id = editing;
     setEditing(null);
@@ -415,7 +434,8 @@ export default function App() {
     frostState === "applied",
   ) as CSSProperties;
   const focusTasks = displayTasks(byDate.get(selected) ?? []);
-  const seven = weekDays(selected);
+  const agendaRange = agendaPreview ?? settings.agenda_range;
+  const seven = agendaDays(selected, agendaRange);
   const monthGrid = monthDays(month);
   const monthKey = month.slice(0, 7);
   useEffect(() => {
@@ -737,19 +757,29 @@ export default function App() {
           </section>
           <section className="agenda-panel" aria-label="七天日程">
             <div className="agenda-heading">
-              <div>
-                <span className="eyebrow">一步一步，靠近计划</span>
-                <h2>
-                  接下来七天
-                  <span className="range-label">
-                    {pretty(selected, "M.d")} —{" "}
-                    {pretty(shiftDay(selected, 6), "M.d")}
-                  </span>
-                </h2>
-              </div>
+              <h2
+                aria-label={agendaRange === "week" ? "本周日程" : "接下来七天"}
+              >
+                <select
+                  className="agenda-range-select"
+                  aria-label="日程范围"
+                  aria-describedby="agenda-range-description"
+                  aria-busy={agendaSaving}
+                  value={agendaRange}
+                  disabled={agendaSaving}
+                  title="本周显示选中日期所在的周一至周日"
+                  onChange={(e) =>
+                    changeAgendaRange(e.target.value as AgendaRange)
+                  }
+                >
+                  <option value="rolling">接下来七天</option>
+                  <option value="week">本周</option>
+                </select>
+              </h2>
               <div className="nav-buttons">
                 <button
                   aria-label="上一周"
+                  title={agendaRange === "week" ? "上一自然周" : "向前七天"}
                   onClick={() => select(shiftDay(selected, -7))}
                 >
                   <ChevronLeft size={16} />
@@ -763,6 +793,7 @@ export default function App() {
                 </button>
                 <button
                   aria-label="下一周"
+                  title={agendaRange === "week" ? "下一自然周" : "向后七天"}
                   onClick={() => select(shiftDay(selected, 7))}
                 >
                   <ChevronRight size={16} />
@@ -778,6 +809,17 @@ export default function App() {
                   <span>新增</span>
                 </button>
               </div>
+              <span
+                id="agenda-range-description"
+                className="range-label agenda-range-description"
+                aria-live="polite"
+              >
+                {agendaRange === "week" ? "选中日期所在周 · " : ""}
+                {pretty(seven[0], "yyyy.M.d")} — {pretty(seven[6], "yyyy.M.d")}
+              </span>
+              <span className="visually-hidden" role="status">
+                {agendaSaving ? "正在保存日程范围…" : ""}
+              </span>
             </div>
             <div className="agenda-scroll">
               {seven.map((date) => {
@@ -848,7 +890,8 @@ export default function App() {
               })}
               {seven.every((date) => !byDate.get(date)?.length) && (
                 <p className="agenda-empty-hint">
-                  这七天还没有任务，点日期旁的加号开始安排。
+                  {agendaRange === "week" ? "这一周" : "这七天"}
+                  还没有任务，点日期旁的加号开始安排。
                 </p>
               )}
             </div>

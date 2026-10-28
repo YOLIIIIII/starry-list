@@ -4,6 +4,7 @@ import {
   shiftMonth,
   shiftDay,
   weekDays,
+  agendaDays,
   previewTasks,
   taskLabel,
   displayTasks,
@@ -17,6 +18,47 @@ import {
 import { dayInfo } from "./holidays";
 import holidays from "./holidays/2026.json";
 import { makeTask } from "./test-fixtures";
+describe("SL-007 日程日期范围", () => {
+  it.each([
+    ["2026-10-18", "2026-10-12", "2026-10-18"],
+    ["2026-10-19", "2026-10-19", "2026-10-25"],
+    ["2027-01-01", "2026-12-28", "2027-01-03"],
+    ["2024-02-29", "2024-02-26", "2024-03-03"],
+    ["2026-04-01", "2026-03-30", "2026-04-05"],
+    ["2021-02-14", "2021-02-08", "2021-02-14"],
+  ])("%s 按选中日期所在自然周，不锚定今天", (selected, first, last) => {
+    const week = agendaDays(selected, "week");
+    expect(week).toHaveLength(7);
+    expect(week[0]).toBe(first);
+    expect(week[6]).toBe(last);
+    expect(agendaDays(selected, "rolling")).toEqual(weekDays(selected));
+    expect(agendaDays(shiftDay(selected, 7), "week")[0]).toBe(
+      shiftDay(first, 7),
+    );
+    expect(agendaDays(shiftDay(selected, -7), "week")[0]).toBe(
+      shiftDay(first, -7),
+    );
+  });
+  it("旧设置/备份默认连续七天，拒绝非法值且不回写输入", () => {
+    const legacy: Record<string, unknown> = { ...defaults };
+    delete legacy.agenda_range;
+    expect(settingsSchema.parse(legacy).agenda_range).toBe("rolling");
+    expect(legacy).not.toHaveProperty("agenda_range");
+    const backup = backupSchema.parse({
+      format: "starry-list",
+      version: 1,
+      exported_at: new Date().toISOString(),
+      tasks: [makeTask({ category_id: null })],
+      categories: [],
+      day_marks: [],
+      settings: legacy,
+    });
+    expect(backup.settings.agenda_range).toBe("rolling");
+    expect(
+      settingsSchema.safeParse({ ...defaults, agenda_range: "month" }).success,
+    ).toBe(false);
+  });
+});
 describe("UX3.1 兼容设置", () => {
   it("旧设置及旧备份缺失字号时默认标准，无效字号拒绝", () => {
     const legacy: Record<string, unknown> = { ...defaults };

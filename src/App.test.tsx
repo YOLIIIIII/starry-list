@@ -259,7 +259,9 @@ describe("UX2.3 连续新增焦点", () => {
         await user.keyboard("{Enter}");
         expect(document.activeElement).not.toBe(plus);
         if (intent === "pointer")
-          await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
+          await user.click(
+            document.querySelector(".agenda-range-description")!,
+          );
         if (intent === "blur") fireEvent(window, new Event("blur"));
         if (intent === "navigation")
           await user.click(screen.getByRole("button", { name: "专注编辑" }));
@@ -323,7 +325,7 @@ describe("UX2.3 连续新增焦点", () => {
       await user.click(
         screen.getByRole("button", { name: "添加到 2026-10-16" }),
       );
-    else await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
+    else await user.click(document.querySelector(".agenda-range-description")!);
     await waitFor(() =>
       expect(
         backend.data!.tasks.some((t) => t.title === "非键盘主动保存"),
@@ -684,7 +686,7 @@ describe("第二轮基础任务交互", () => {
     await user.click(plus());
     expect(document.activeElement).toBe(input());
     await user.type(input(), "   ");
-    await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
+    await user.click(document.querySelector(".agenda-range-description")!);
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
     await user.click(plus());
     await user.click(plus());
@@ -701,7 +703,7 @@ describe("第二轮基础任务交互", () => {
     const user = await overview();
     await user.click(plus());
     await user.type(input(), "喝水");
-    await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
+    await user.click(document.querySelector(".agenda-range-description")!);
     await waitFor(() =>
       expect(screen.queryAllByRole("textbox")).toHaveLength(0),
     );
@@ -892,7 +894,7 @@ describe("第二轮基础任务交互", () => {
     await user.type(input(), "待处理");
     await user.keyboard("{Escape}");
     await user.clear(input());
-    await user.click(screen.getByRole("heading", { name: /接下来七天/ }));
+    await user.click(document.querySelector(".agenda-range-description")!);
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
     expect(backend.data!.tasks).toHaveLength(2);
     await user.click(plus("2026-10-17"));
@@ -1076,7 +1078,7 @@ describe("UX2.2 快速操作", () => {
       complete = resolve;
     });
     fireEvent(window, new Event("blur"));
-    fireEvent.pointerDown(screen.getByRole("heading", { name: /接下来七天/ }));
+    fireEvent.pointerDown(document.querySelector(".agenda-range-description")!);
     fireEvent.submit(input().closest("form")!);
     fireEvent.click(screen.getByRole("button", { name: "专注编辑" }));
     expect(input()).toHaveProperty("value", "跨窗口喝水");
@@ -1409,5 +1411,201 @@ describe("UX3.2 顶部偏好", () => {
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "继续填写" }));
     expect(input).toHaveProperty("value", "需要保护的草稿");
+  });
+});
+
+describe("SL-007 日程范围切换", () => {
+  async function overviewRange() {
+    const user = userEvent.setup();
+    const ui = render(<App />);
+    const range = await screen.findByRole("combobox", { name: "日程范围" });
+    return { user, ui, range };
+  }
+  it("打开范围选择但不改选项，也沿用应用内失焦保存", async () => {
+    const { user, range } = await overviewRange();
+    await user.click(
+      screen.getByRole("button", { name: "为 2026-10-14 添加任务" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "2026-10-14 新任务标题" }),
+      "只打开范围选择",
+    );
+    await user.click(range);
+    await waitFor(() =>
+      expect(
+        backend
+          .data!.tasks.filter((t) => t.title === "只打开范围选择")
+          .map((t) => t.date),
+      ).toEqual(["2026-10-14"]),
+    );
+    expect(range).toHaveProperty("value", "rolling");
+  });
+  it("自然周导航按选中日期，切回连续七天不移动任务日期", async () => {
+    const original = structuredClone(backend.data!.tasks);
+    const { user, range } = await overviewRange();
+    expect(range).toHaveProperty("value", "rolling");
+    await user.selectOptions(range, "week");
+    expect(
+      screen.getByRole("button", { name: "为 2026-10-12 添加任务" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("选中日期所在周 · 2026.10.12 — 2026.10.18"),
+    ).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "下一周" }));
+    await screen.findByRole("button", { name: "为 2026-10-19 添加任务" });
+    await user.selectOptions(range, "rolling");
+    expect(
+      screen.getByRole("button", { name: "为 2026-10-21 添加任务" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "为 2026-10-19 添加任务" }),
+    ).toBeNull();
+    expect(backend.data!.tasks).toEqual(original);
+  });
+  it("非空草稿先保存到原日期，等待中多次切换/Enter 不重复创建", async () => {
+    const { user, range } = await overviewRange();
+    await user.click(
+      screen.getByRole("button", { name: "为 2026-10-20 添加任务" }),
+    );
+    const input = screen.getByRole("textbox", {
+      name: "2026-10-20 新任务标题",
+    });
+    await user.type(input, "切换范围的草稿");
+    let release!: () => void;
+    backend.saveWait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await user.selectOptions(range, "week");
+    expect(range).toHaveProperty("value", "rolling");
+    expect(input).toHaveProperty("value", "切换范围的草稿");
+    fireEvent.change(range, { target: { value: "week" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    release();
+    await waitFor(() => expect(range).toHaveProperty("value", "week"));
+    const added = backend.data!.tasks.filter(
+      (t) => t.title === "切换范围的草稿",
+    );
+    expect(added).toHaveLength(1);
+    expect(added[0].date).toBe("2026-10-20");
+    expect(
+      screen.queryByRole("textbox", { name: "2026-10-20 新任务标题" }),
+    ).toBeNull();
+    await user.click(
+      within(
+        screen.getByRole("status", { name: "已添加 切换范围的草稿" }),
+      ).getByRole("button", { name: "撤销" }),
+    );
+    await waitFor(() =>
+      expect(backend.data!.tasks.some((t) => t.id === added[0].id)).toBe(false),
+    );
+  });
+  it("草稿保存失败不切换，保留输入，重试保存到原日期", async () => {
+    const { user, range } = await overviewRange();
+    await user.click(
+      screen.getByRole("button", { name: "为 2026-10-20 添加任务" }),
+    );
+    const input = screen.getByRole("textbox", {
+      name: "2026-10-20 新任务标题",
+    });
+    await user.type(input, "失败保留");
+    backend.fail = true;
+    await user.selectOptions(range, "week");
+    await screen.findByText("磁盘错误");
+    expect(range).toHaveProperty("value", "rolling");
+    expect(input).toHaveProperty("value", "失败保留");
+    expect(backend.data!.tasks.some((t) => t.title === "失败保留")).toBe(false);
+    backend.fail = false;
+    await user.selectOptions(range, "week");
+    await waitFor(() => expect(range).toHaveProperty("value", "week"));
+    expect(
+      backend
+        .data!.tasks.filter((t) => t.title === "失败保留")
+        .map((t) => t.date),
+    ).toEqual(["2026-10-20"]);
+  });
+  it("IME 组合期间不保存或切换，结束后复用原保存流程", async () => {
+    const { user, range } = await overviewRange();
+    await user.click(
+      screen.getByRole("button", { name: "为 2026-10-14 添加任务" }),
+    );
+    const input = screen.getByRole("textbox", {
+      name: "2026-10-14 新任务标题",
+    });
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "输入法草稿" } });
+    fireEvent.change(range, { target: { value: "week" } });
+    expect(range).toHaveProperty("value", "rolling");
+    expect(input).toHaveProperty("value", "输入法草稿");
+    expect(backend.data!.tasks.some((t) => t.title === "输入法草稿")).toBe(
+      false,
+    );
+    fireEvent.compositionEnd(input);
+    await user.selectOptions(range, "week");
+    await waitFor(() => expect(range).toHaveProperty("value", "week"));
+    expect(
+      backend.data!.tasks.filter((t) => t.title === "输入法草稿"),
+    ).toHaveLength(1);
+  });
+  it("范围即时预览，设置失败回滚，重试和重新加载保留选择", async () => {
+    const original = structuredClone(backend.data!.tasks);
+    const { repository } = await import("./platform");
+    const { user, ui, range } = await overviewRange();
+    let reject!: (error: Error) => void;
+    vi.mocked(repository.saveSettings).mockImplementationOnce(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
+    await user.selectOptions(range, "week");
+    expect(range).toHaveProperty("value", "week");
+    expect(range).toHaveProperty("disabled", true);
+    expect(screen.getByText("正在保存日程范围…")).toBeTruthy();
+    expect(backend.data!.settings.agenda_range).toBe("rolling");
+    reject(new Error("范围保存失败"));
+    await screen.findByText("范围保存失败");
+    expect(range).toHaveProperty("value", "rolling");
+    await user.selectOptions(range, "week");
+    await waitFor(() =>
+      expect(backend.data!.settings.agenda_range).toBe("week"),
+    );
+    expect(backend.data!.tasks).toEqual(original);
+    ui.unmount();
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "日程范围" })).toHaveProperty(
+        "value",
+        "week",
+      ),
+    );
+  });
+  it("本周新增仍绑定选中日期，行内编辑失败阻止切换", async () => {
+    const { user, range } = await overviewRange();
+    await user.selectOptions(range, "week");
+    await user.click(screen.getByRole("button", { name: "新增任务" }));
+    const input = screen.getByRole("textbox", {
+      name: "2026-10-14 新任务标题",
+    });
+    await user.type(input, "本周新增{Enter}");
+    await waitFor(() =>
+      expect(
+        backend.data!.tasks.find((t) => t.title === "本周新增")?.date,
+      ).toBe("2026-10-14"),
+    );
+    await user.click(screen.getByRole("button", { name: "快速修改 本周新增" }));
+    const edit = screen.getByRole("textbox", { name: "快速修改任务标题" });
+    await user.clear(edit);
+    await user.type(edit, "已改标题");
+    backend.fail = true;
+    await user.selectOptions(range, "rolling");
+    await screen.findByText("磁盘错误");
+    expect(range).toHaveProperty("value", "week");
+    expect(edit).toHaveProperty("value", "已改标题");
+    backend.fail = false;
+    await user.selectOptions(range, "rolling");
+    await waitFor(() => expect(range).toHaveProperty("value", "rolling"));
+    expect(backend.data!.tasks.find((t) => t.title === "已改标题")?.date).toBe(
+      "2026-10-14",
+    );
   });
 });

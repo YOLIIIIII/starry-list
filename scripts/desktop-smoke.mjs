@@ -224,7 +224,7 @@ try {
   // Round two UX: all mutations below remain in the verified isolated database.
   await click(`为 ${nextDay} 添加任务`);
   await page.getByRole("textbox", { name: nextDate, exact: true }).fill("   ");
-  await page.getByRole("heading", { name: /接下来七天/ }).click();
+  await page.locator(".agenda-range-description").click();
   assert.equal(await page.locator(".agenda-scroll input").count(), 0);
   await click(`为 ${nextDay} 添加任务`);
   await click(`为 ${nextDay} 添加任务`);
@@ -338,6 +338,7 @@ try {
         resolve("scripts/focus-test-browser.ps1"),
         "-Profile",
         edgeProfile,
+        "-EnsureVisible",
       ],
       { windowsHide: true },
     );
@@ -410,7 +411,7 @@ try {
   await page
     .getByRole("textbox", { name: "快速修改任务标题", exact: true })
     .fill(title);
-  await page.getByRole("heading", { name: /接下来七天/ }).click();
+  await page.locator(".agenda-range-description").click();
   await page
     .getByRole("button", { name: `快速修改 ${title}`, exact: true })
     .waitFor();

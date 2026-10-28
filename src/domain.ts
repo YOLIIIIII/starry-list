@@ -56,6 +56,8 @@ export const textSizeSchema = z.enum(["small", "standard", "large"]);
 export type TextSize = z.infer<typeof textSizeSchema>;
 export const headerLayoutSchema = z.enum(["classic", "compact"]);
 export type HeaderLayout = z.infer<typeof headerLayoutSchema>;
+export const agendaRangeSchema = z.enum(["rolling", "week"]);
+export type AgendaRange = z.infer<typeof agendaRangeSchema>;
 export const settingsSchema = z.object({
   active_view: z.enum(["overview", "focus"]),
   background_opacity: z.number().min(0.4).max(1),
@@ -67,6 +69,7 @@ export const settingsSchema = z.object({
   appearance_mode: appearanceSchema.default("reading"),
   text_size: textSizeSchema.default("standard"),
   header_layout: headerLayoutSchema.default("classic"),
+  agenda_range: agendaRangeSchema.default("rolling"),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 export const defaults: Settings = {
@@ -80,6 +83,7 @@ export const defaults: Settings = {
   appearance_mode: "reading",
   text_size: "standard",
   header_layout: "classic",
+  agenda_range: "rolling",
 };
 export const backupSchema = z
   .object({
@@ -118,6 +122,12 @@ export const shiftMonth = (s: string, n: number) =>
   dayKey(startOfMonth(addMonths(localDay(s), n)));
 export const weekDays = (s: string) =>
   Array.from({ length: 7 }, (_, i) => shiftDay(s, i));
+export const agendaDays = (selected: string, range: AgendaRange) =>
+  weekDays(
+    range === "week"
+      ? dayKey(startOfWeek(localDay(selected), { weekStartsOn: 1 }))
+      : selected,
+  );
 export function monthDays(s: string) {
   const first = startOfWeek(startOfMonth(localDay(s)), { weekStartsOn: 1 });
   const last = endOfWeek(endOfMonth(localDay(s)), { weekStartsOn: 1 });

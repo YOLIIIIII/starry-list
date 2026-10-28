@@ -1,5 +1,67 @@
 # V1.0 验证记录
 
+## 2026-10-28：SL-007 接下来七天 / 本周范围
+
+本轮仅实施 SL-007，基于 main `07ab098`。SL-006-A 结论 C 已由用户确认，暂停正式实现，SL-006 保持 Research；原型和研究报告不改动。SL-007 完成后 **In Review**，等待用户安装验收，不代表正式发布。
+
+### 规则与数据保护
+
+- 默认 rolling：从选中日开始连续七个自然日。week：包含选中日的周一至周日，包括过去或未来日期；前后均对选中日增减 7 天，保留星期位置。回到今天保留模式，重启保留模式并按原逻辑回到当天。
+- 标题内原生选择框「日程范围」，Tab/方向键可操作；用完整年份的真实首尾范围替代装饰句，不增加独立工具栏。「本周」标明“选中日期所在周”，避免误解为总是今天所在周。
+- 只有设置 JSON 新增 `agenda_range: rolling | week`；前端 Zod 与 Rust Serde 缺字段默认 rolling，两端拒绝非法值；备份版本仍为 1，任务表和迁移不变。读取旧 JSON 不回写；选择预览、真实保存、错误回滚与重试分别验证。
+- 范围切换直接复用 guard → QuickAdd.save / InlineTitleEditor.save → store 队列；非空草稿先保存到原日期，失败不导航，多个保存来源共享原 Promise。只打开下拉但不改选项也保留既有外部失焦保存，不为选择框豁免普通失焦行为。任务已保存、随后仅设置失败时，任务保留，范围回退。
+
+### 实际验证
+
+- TypeScript、ESLint、**155 项前端测试**和生产前端构建通过。新增覆盖跨月/跨年、闰年、周日/周一、非今天锚点与前后周、草稿先保存/等待/重复操作/失败重试、IME 组合保护、行内编辑失败阻止切换、仅打开选择也保存、设置预览/失败回滚/重载、旧设置和旧备份。
+- Rust fmt、**15 项 Rust/SQLite 测试**、Clippy `-D warnings` 通过。新增旧 JSON/备份兼容、读取不回写、2 范围 × 3 材质 × 3 字号 × 2 顶部共 36 组设置/导出/替换导入、非法值拒绝、真实设置 UPDATE 失败/重试；任务全部字段保持，user_version=1。
+- **8 组 SL-007 原生桌面检查通过（含下述布局矩阵）**，使用真实 Windows WebView2 → Tauri → 独立 SQLite：五组边界日期及自然周导航；纯范围切换前后任务/分类/个人标记全部字段和 Schema 版本一致；打开但不改选项仍保存；真实 INSERT 拒绝保留草稿/阻止切换、移除触发器后保存到原日期且只一次；真实设置 UPDATE 拒绝回滚与重试；本周 Enter 连续新增三条及焦点返回、行内修改和删除撤销；真实 OS 前台转到独立 Edge 后保存到原日期、不抢焦点并可撤销；旧 JSON 不回写、选择框键盘与进程重启保留。
+- **180 个原生布局状态通过**：3 材质 × 3 字号 × 2 顶部 × 2 范围 × 5 尺寸（980×680、980×480、760×620、500×480、380×480）。范围/按钮边界、横向溢出、操作重叠和七个实际日期均检查；纯偏好/尺寸变化前后任务、分类、标记与 Schema 版本不变。相同配置下两种范围标题高度相同：小 78–83px、标准 79.5–84.5px、大 81–86px，差异来自宽窄内边距；不是旧版本安装包的高度对照。截图为隔离合成任务的 WebView 内容，不含私人桌面背景。
+- **25 组既有 Windows 桌面回归通过**：连续 Enter/焦点返回、应用内和真实跨软件失焦保存、SQLite INSERT/UPDATE/DELETE 失败重试、行内编辑、草稿/正常关闭保护、删除/新增撤销与通知计时、长计划/抽屉、JSON 事务导入、三材质/字号/两顶部偏好重启、置顶/透明度/窗口几何/最小化等均保留。此轮没有调整这些业务逻辑来迁就测试。
+
+| 连续七天 · 经典顶部 | 本周 · 380×480 · 大字号 · 紧凑顶部 |
+| --- | --- |
+| ![连续七天](screenshots/sl007/rolling-overview.png) | ![本周窄窗](screenshots/sl007/week-380-large-compact.png) |
+
+### 复现、失败尝试与边界
+
+前端检查初次存在错误的测试按钮名称/选项，以及与 Rust 并行编译时的材质测试 hook 超时，修正测试查询并单独完整重跑通过，没有放宽超时或跳过断言。原生测试曾因 CDP 输入焦点与系统前台不一致而中止；现紧邻 Enter 验证 DOM/原生两种焦点。独立 Edge 最初被其他窗口遮挡、原生激活观察过早，均未计通过；夹具仅对精确测试 profile 的窗口临时提升，保留 PID/命中保护，观察真实前台进程后恢复原置顶状态。正式窗口/材质/失焦保存逻辑未为测试修改。
+
+```powershell
+# Node 24 / Rust 1.90 MSVC；根目录，先完成 npm ci
+npm run check
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
+# 按历史章节创建独立 debug 配置，identifier 改为 app.starrylist.desktop.sl007-test，
+# 仅测试 capability 加 core:window:allow-set-focus；不要用于正式打包。
+npm run tauri build -- --debug --no-bundle --config .cache/sl007-desktop.conf.json
+npm run test:agenda
+$env:STARRY_LIST_SCREENSHOT_DIR = '.cache/sl007-regression-images'
+npm run test:desktop
+```
+
+`test:agenda` 会在写入测试任务前校验精确的 SL-007 测试标识及 SQLite 文件头；使用唯一 `.cache/sl007-desktop-*`，任务/窗口状态和 WebView/Edge profile 全部隔离。范围测试不读取或改写正式用户数据库，不结束用户实例。截图、触发器与原始 results.json 只在忽略的缓存；原型目录、生产 capability、App ID、版本号和迁移均无改动。
+
+本轮实际输入由 CDP 在真实 WebView2 中执行；IME 组合由前端事件模拟，**未认证真实中文候选窗/物理键盘、独立 Windows 10、多显示器/混合 DPI 或其他 GPU**。三材质下验证布局与原有操作，没有重新认证原生毛玻璃的所有像素/电源策略。没有运行安装器、升级/卸载或正式用户数据的 release-smoke；安装包构建与用户验收分开记录。
+
+### 体验安装包与验收
+
+默认透明 Windows x64 NSIS 构建成功，正式标识仍为 `app.starrylist.desktop`、版本仍为 1.0.0；核对生成的 NSIS 脚本以及 release exe，不含 `sl007-test` 应用标识或测试 capability 标记。构建使用已通过检查的内置前端资源，无安装器执行、Tag 或 Release。
+
+| 本地文件（artifacts/） | 字节 | SHA256 |
+| --- | ---: | --- |
+| `Starry-List_1.0.0_x64-sl007-preview-20261028-setup.exe` | 5,259,459 | `f04d5a69263000b2748d2d28720aba72427c9b7786f6d235b032179baebdc64d` |
+
+校验文件为 `SL007-PREVIEW-20261028-SHA256SUMS.txt`。旧 UX3.2 透明/不透明两个独立安装包均保留，构建前后 SHA256 一致；本轮没有重建新的原生不透明安装包。产物/校验文件和原始缓存不提交 GitHub，公开两张图片仅含测试数据。
+
+用户安装前导出 JSON、正常退出旧版，按 [手册](USER_GUIDE.md#安装-sl-007-体验版) 同版本覆盖，不卸载或清空数据。重点体验：非今天日期的本周范围与前后周、输入草稿后直接切换范围并回原日期检查、真实中文 IME、三字号/三材质/两顶部的窄矮布局、正常重启保留模式。等待确认期间 SL-007 保持 In Review，发布版本字段不填。
+
+### Git 与交付边界
+
+源码与测试已提交并 Push 至 main：[`203cd42`](https://github.com/YOLIIIIII/starry-list/commit/203cd424213c09f4eda17084a3ad64b06564bdf4)，对应 [GitHub CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40669099985)。文档、截图与引用为后续独立提交，最终 CI 按交付消息的最新 SHA 查询，不能用先前提交通过代替。远程 CI 检查前端与 Rust；本页真实桌面数据来自本机，不把 CI 当作原生交互认证。
+
+每次提交前检查实际 Git 作者/提交者与仓库本地 GitHub noreply 配置一致，未改全局或本地身份。暂存文件经范围、差异、敏感信息检查；未提交缓存数据库、个人备份、安装器、完整邮箱或本机绝对路径。生产窗口配置/capability、任务迁移、依赖 lockfile、SL-006 原型及研究报告差异为空；无强制推送、历史改写、Tag 或 Release。
+
 ## 2026-10-26：SL-006-A 隔离研究与 UX3.2 用户确认
 
 用户已安装 UX3.2 并确认「功能都还不错，已经可以了，我们接下来看下一项任务」。核对下方历史测试及 UX3.2 对比，SL-005-A / SL-001-A **Done**；父项和历史子项逐项核对见 [研究报告](research/SL-006-WINDOWS-DESKTOP-RESIDENCY.md#ux32-验收复核)，不以此次反馈批量关闭。以下 UX3.2 章节“待体验”保留为交付当时状态，不代表仍未收到本次确认；未正式发布。

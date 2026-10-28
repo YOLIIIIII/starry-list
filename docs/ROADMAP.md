@@ -1,6 +1,6 @@
 # Starry List 开发路线图
 
-维护者：yoli。更新日期：2026-10-26（Asia/Shanghai）。[需求池](PRODUCT_BACKLOG.md) 是详细需求与状态的唯一权威来源；本文件展示方向与推荐顺序，不是交付日期或开发授权。
+维护者：yoli。更新日期：2026-10-28（Asia/Shanghai）。[需求池](PRODUCT_BACKLOG.md) 是详细需求与状态的唯一权威来源；本文件展示方向与推荐顺序，不是交付日期或开发授权。
 
 ## 产品愿景
 
@@ -8,11 +8,17 @@
 
 Windows 是当前主要平台，未来考虑 macOS。桌面驻留是待验证的产品方向，不能把普通窗口关闭置顶当作已经实现。
 
-## SL-006-A 当前研究（2026-10-26）
+## SL-007 当前体验（2026-10-28）
+
+用户正式授权接下来七天 / 本周范围切换：连续七天沿用选中日开始与 ±7 天；本周为包含选中日的周一至周日，前后移动一周。复用现有草稿保存保护与设置 JSON，保留 UX3.2 两顶部、三字号、三材质和固定新增。当前 **In Review**：155 项前端、15 项 Rust、25 组既有桌面回归、8 组专项检查（含 180 个布局状态）通过；等待安装验收，不创建正式 Release。规则、截图、体验包和边界见 [验证记录](VALIDATION.md)。
+
+实现与测试 [`203cd42`](https://github.com/YOLIIIIII/starry-list/commit/203cd424213c09f4eda17084a3ad64b06564bdf4) 已 Push 至 main，[对应 CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40669099985)。独立命名的 2026-10-28 Windows x64 体验包已生成；旧 UX3.2 包与正式版本 1.0.0 保留。
+
+## SL-006-A 研究收尾（2026-10-26）
 
 用户已安装 UX3.2 并确认「功能都还不错，已经可以了，我们接下来看下一项任务」。核对既有证据后，SL-005-A / SL-001-A **Done**；SL-001 / SL-003 / SL-004 / SL-005 父项与其余历史子项分别保留原验收边界，不批量关闭；详见 [研究中的验收复核](research/SL-006-WINDOWS-DESKTOP-RESIDENCY.md#ux32-验收复核)。没有正式发布。
 
-SL-006 **Backlog → Research**；本次明确授权仅 A 技术研究和隔离原型。Tauri 内置 bottom 在本机能持续靠后，但 Win+D 实际最小化原型；单次 HWND_BOTTOM 激活后会上浮。当前完整目标的结论为 **C：暂不推荐实现**，不进入 SL-006-B。候选比较、真实 Windows 11 测试、未验证矩阵与回退见 [研究报告](research/SL-006-WINDOWS-DESKTOP-RESIDENCY.md)。无正式窗口/数据/权限变更，无 Tag / Release / 安装包；等待用户确认技术限制后再决定下一步。
+SL-006 **Backlog → Research**；本次明确授权仅 A 技术研究和隔离原型。Tauri 内置 bottom 在本机能持续靠后，但 Win+D 实际最小化原型；单次 HWND_BOTTOM 激活后会上浮。当前完整目标的结论为 **C：暂不推荐实现**，不进入 SL-006-B。候选比较、真实 Windows 11 测试、未验证矩阵与回退见 [研究报告](research/SL-006-WINDOWS-DESKTOP-RESIDENCY.md)。无正式窗口/数据/权限变更，无 Tag / Release / 安装包；用户已确认结论 C，暂停正式实现；保留 Research，本轮不修改或集成研究原型。
 
 研究源码与证据已提交并 Push：[`0065d1a`](https://github.com/YOLIIIIII/starry-list/commit/0065d1abd144c159fb89568a93c903bd94a9bb5c)，[对应 CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40324170432)；本机测试和远程 CI 的范围分列于报告。
 
@@ -54,8 +60,9 @@ SL-004 / SL-005 完成实现后 **In Review**，待 UX3.1 安装体验。SL-004-
 | SL-002 七天日程空状态     | UX2.3：保留可靠失焦新增，Enter 成功后返回原日期加号                                                                     | 100 项前端、11 项 Rust 通过                                                              | 22 组 Windows 11 测试通过，含真实 Edge 失焦、INSERT 失败重试                           | Done，2026-10-19 用户确认                       | 未发布                 |
 | SL-003 透明视觉层级       | UX3.0.4：清单共用布局、宽矮月历完整数量/圆点；UX3.1 保留材质                                                            | 136 项前端、13 项 Rust 通过                                                              | 23 组桌面、12 组失焦、两配置各 99 日历 / 72 清单 / 18 缩放及真实鼠标检查，详见验证记录 | A/B/C Done；D/E 与父项 In Review，待针对性确认  | 未发布                 |
 | SL-005-A / SL-001-A       | UX3.2 顶部双模式 / 固定新增；实现 4586f33 | 既有 141 项前端、14 项 Rust 等证据 | UX3.2 矩阵与桌面证据见上方 | Done，2026-10-26 用户安装确认；父项单独保留缺口 | 未发布 |
-| SL-006                   | A 独立研究原型；B 未开发，Research | 原型 build / fmt / Clippy / JS Lint；具体见报告 | Win11 bottom / 单次置底 / Win+D 等；未测项详列 | 等待用户评审技术限制，非功能验收 | 未发布 |
-| SL-007 至 SL-018          | 待安排或想法，不因登记而实现                                                                                            | 未验证                                                                                   | 未验证                                                                                 | 未验收                                          | 未发布                 |
+| SL-006                   | A 独立研究原型；B 未开发，Research | 原型 build / fmt / Clippy / JS Lint；具体见报告 | Win11 bottom / 单次置底 / Win+D 等；未测项详列 | 用户确认 C，暂停正式实现，保留 Research | 未发布 |
+| SL-007                   | 连续七天 / 选中日期自然周，偏好保存；In Review | 155 前端、15 Rust、格式/Clippy/构建通过 | 25 组回归、8 组专项（含 180 状态） | 待安装验收 | 未发布 |
+| SL-008 至 SL-018          | 待安排或想法，不因登记而实现                                                                                            | 未验证                                                                                   | 未验证                                                                                 | 未验收                                          | 未发布                 |
 | SL-019 快捷删除入口       | UX2.3：顶部居中单行撤销通知，约 5 秒、独立计时及暂停                                                                    | 100 项前端回归通过                                                                       | 真实 DELETE 失败、重试、撤销与菜单定位通过                                             | Done，2026-10-19 用户确认                       | 未发布                 |
 | SL-004-A 局部字号         | UX2.1：新增文字、占位符和任务标题统一为 14px                                                                            | 前端检查通过                                                                             | 980 / 760 / 500 / 380px 无水平溢出，菜单命中及字号检查通过                             | In Review，父需求 SL-004 保持未完成             | 未发布                 |
 | SL-004-B 编辑抽屉局部字号 | UX3.0.3：输入/计划 14px，标签/操作 12px，辅助 11px                                                                      | 126 项前端及构建通过                                                                     | 宽窄抽屉、固定保存栏及长文本回归通过                                                   | In Review，仍待用户确认                         | 未发布                 |
@@ -77,7 +84,7 @@ UX2.1 实现提交：[`6d7c64e`](https://github.com/YOLIIIIII/starry-list/commit
 | A 补充：小型 UX 修复 | SL-002 空输入取消与自动收起；[SL-019](PRODUCT_BACKLOG.md#sl-019) 单条任务菜单与删除；[SL-004-A](PRODUCT_BACKLOG.md#sl-004) 快速新增输入字号协调              | SL-002 / SL-019 已验收 Done；SL-004-A 仍 In Review，父需求未完成               | 草稿不丢失、删除及撤销一致、字号协调且无溢出，经用户体验确认       |
 | B：视觉与舒适度      | [SL-003](PRODUCT_BACKLOG.md#sl-003) 透明视觉层级；[SL-004](PRODUCT_BACKLOG.md#sl-004) 默认字号和字号设置；[SL-005](PRODUCT_BACKLOG.md#sl-005) 顶部非主体空间 | SL-003 A/B/C Done，D/E/父项 In Review；SL-004 / SL-005 UX3.1 已实现，In Review | 复杂壁纸、宽窄窗口、字号档位及不透明回退均可读，经过用户体验       |
 | C：Windows 桌面驻留  | [SL-006](PRODUCT_BACKLOG.md#sl-006) 先研究与原型，再确认是否正式实现                                                                                         | Research；A 报告结论 C，暂不推荐 B；保留实际验证缺口 | 报告与隔离原型已形成，用户确认限制后决定继续研究或停止，不自动开发 |
-| D：日程规划与流畅度  | [SL-007](PRODUCT_BACKLOG.md#sl-007) 接下来七天 / 本周；[SL-008](PRODUCT_BACKLOG.md#sl-008) 日期切换分析与轻量过渡                                            | Backlog，先定义周语义与性能基线                                                | 日期及任务正确、偏好保存、切换流畅且不延迟操作、支持减少动态效果   |
+| D：日程规划与流畅度  | [SL-007](PRODUCT_BACKLOG.md#sl-007) 接下来七天 / 本周；[SL-008](PRODUCT_BACKLOG.md#sl-008) 日期切换分析与轻量过渡                                            | SL-007 In Review 待验收；SL-008 Backlog 未开发                                                | 日期及任务正确、偏好保存、切换流畅且不延迟操作、支持减少动态效果   |
 | 后续探索             | [SL-009](PRODUCT_BACKLOG.md#sl-009) 位置锁定，以及 SL-010 至 SL-018                                                                                          | 依赖待确认或 Idea，不承诺 V1.1 / V2.0 范围与日期                               | 每项独立评估和授权，逐项验收                                       |
 
 [SL-020](PRODUCT_BACKLOG.md#sl-020) 同日拖动排序为 P2 / Backlog，仅登记；与 SL-018 跨日期拖动独立。建议 UX2.1 验收、任务行稳定且完成跨完成组规则评审后，再与 SL-007 / SL-008 一起评估投入顺序；不强制依赖高风险驻留或跨日期拖动，本次不开工。

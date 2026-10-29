@@ -10,6 +10,7 @@ import {
   backupSchema,
   dayKey,
   type Backup,
+  type WaterEntry,
   type DayMark,
   type Settings,
   type Snapshot,
@@ -17,6 +18,8 @@ import {
 } from "./domain";
 import { visibleBounds } from "./window-bounds";
 export interface Repository {
+  saveWater(entry: WaterEntry): Promise<void>;
+  deleteWater(id: string): Promise<void>;
   load(): Promise<Snapshot>;
   saveTask(task: Task): Promise<void>;
   deleteTask(id: string): Promise<void>;
@@ -28,6 +31,8 @@ export interface Repository {
   importBackup(backup: Backup, replace: boolean): Promise<void>;
 }
 export const repository: Repository = {
+  saveWater: (entry) => invoke("save_water", { entry }),
+  deleteWater: (id) => invoke("delete_water", { id }),
   load: () => {
     if (!isTauri())
       return Promise.reject(

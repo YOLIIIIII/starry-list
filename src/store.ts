@@ -7,6 +7,7 @@ import {
   type Settings,
   type DayMark,
   type Backup,
+  type WaterEntry,
 } from "./domain";
 import { repository, type Repository } from "./platform";
 export interface State {
@@ -107,6 +108,29 @@ export class AppStore {
       () => ({
         ...this.state.data,
         tasks: this.state.data.tasks.filter((t) => t.id !== id),
+      }),
+    );
+  addWater = (entry: WaterEntry) =>
+    this.write(
+      () => this.repo.saveWater(entry),
+      () => ({
+        ...this.state.data,
+        water_entries: [
+          ...(this.state.data.water_entries ?? []).filter(
+            (e) => e.id !== entry.id,
+          ),
+          entry,
+        ],
+      }),
+    );
+  deleteWater = (id: string) =>
+    this.write(
+      () => this.repo.deleteWater(id),
+      () => ({
+        ...this.state.data,
+        water_entries: (this.state.data.water_entries ?? []).filter(
+          (e) => e.id !== id,
+        ),
       }),
     );
   restore = (task: Task) => this.add(task);

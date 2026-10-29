@@ -4,8 +4,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { defaults, dayKey } from "../src/domain.ts";
+import { defaults as appDefaults, dayKey } from "../src/domain.ts";
 import { makeTask } from "../src/test-fixtures.ts";
+const defaults = {
+  ...appDefaults,
+  water_enabled: process.argv.includes("--water"),
+};
 const root = resolve(`.cache/sl020-${Date.now()}`);
 await mkdir(root, { recursive: true });
 let child, browser, page;
@@ -56,6 +60,25 @@ async function order() {
 async function drag(from, to, after = false, cancel = false, edge = false) {
   await invoke("plugin:window|set_focus", { label: "main" });
   await wait();
+  // Keep both rows away from the auto-scroll edge before computing OS coordinates.
+  if (defaults.water_enabled) {
+    await page.evaluate(
+      ({ from, to }) => {
+        const scroll = document.querySelector(".focus-scroll");
+        const top = Math.min(
+          ...[from, to].map(
+            (id) =>
+              document
+                .querySelector(`#task-${id} .task-row`)
+                .getBoundingClientRect().top,
+          ),
+        );
+        scroll.scrollTop += top - scroll.getBoundingClientRect().top - 45;
+      },
+      { from, to },
+    );
+    await wait(100);
+  }
   const a = await page.locator(`#task-${from} .task-drag-handle`).boundingBox(),
     b = await page.locator(`#task-${to} .task-row`).boundingBox();
   const pos = await invoke("plugin:window|outer_position", { label: "main" }),

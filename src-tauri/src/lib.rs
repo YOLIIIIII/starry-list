@@ -104,6 +104,14 @@ fn delete_task(state: State<Database>, id: String) -> Result<(), String> {
     Ok(())
 }
 #[tauri::command]
+fn save_water(state: State<Database>, entry: db::WaterEntry) -> Result<(), String> {
+    db::save_water(&*lock(&state)?, &entry)
+}
+#[tauri::command]
+fn delete_water(state: State<Database>, id: String) -> Result<(), String> {
+    db::delete_water(&*lock(&state)?, &id)
+}
+#[tauri::command]
 fn save_settings(state: State<Database>, settings: Settings) -> Result<(), String> {
     db::save_settings(&*lock(&state)?, &settings)
 }
@@ -204,7 +212,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            native_transparency, native_frost_supported, native_frost, native_frost_active, load_snapshot, save_task, delete_task, save_settings,
+            native_transparency, native_frost_supported, native_frost, native_frost_active, load_snapshot, save_water, delete_water, save_task, delete_task, save_settings,
             save_mark, reorder_tasks, export_backup, read_backup, import_backup
         ])
         .run(tauri::generate_context!())

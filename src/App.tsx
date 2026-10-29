@@ -1,3 +1,4 @@
+import { WaterCard, WaterSettings } from "./water";
 import { useTaskDrag } from "./use-task-drag";
 import { orderSignature } from "./task-order";
 import {
@@ -854,6 +855,9 @@ export default function App() {
               </span>
             </div>
             <div className="agenda-scroll">
+              {settings.water_enabled && (
+                <WaterCard key={selected} date={selected} />
+              )}
               {seven.map((date) => {
                 const list = displayTasks(byDate.get(date) ?? []);
                 return (
@@ -988,6 +992,9 @@ export default function App() {
             <Progress tasks={focusTasks} />
           </div>
           <div className="focus-scroll">
+            {settings.water_enabled && (
+              <WaterCard key={selected} date={selected} />
+            )}
             {focusTasks.length === 0 && <Empty />}
             {focusTasks.map((task, index) => (
               <div
@@ -1253,6 +1260,7 @@ export default function App() {
                 {headerSaving ? "正在保存顶部布局…" : ""}
               </p>
             </fieldset>
+            <WaterSettings key={settings.water_goal} />
             <fieldset
               className="text-size-setting"
               disabled={textSaving || pending > 0}
@@ -1419,6 +1427,10 @@ export default function App() {
             ))}
             <div className="backup-section">
               <h3>数据备份</h3>
+              <p>
+                JSON
+                包含喝水开关与目标，不含饮水明细；导入（含覆盖）保留本机饮水明细。
+              </p>
               <p>一份属于你的 JSON。导入默认合并，不覆盖已有任务。</p>
               <div className="backup-buttons">
                 <button

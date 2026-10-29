@@ -12,6 +12,8 @@ function fixture() {
     settings: defaults,
   };
   const repo: Repository = {
+    saveWater: vi.fn(async () => {}),
+    deleteWater: vi.fn(async () => {}),
     load: vi.fn(async () => structuredClone(persisted)),
     saveTask: vi.fn(async (t) => {
       await new Promise((r) => setTimeout(r, 5));

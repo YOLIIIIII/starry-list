@@ -1,5 +1,55 @@
 # V1.0 验证记录
 
+## SL-024-A
+
+2026-10-29：喝水模块 MVP；用户授权开发/构建/Push main，无 Tag / Release。SL-024 / A **In Review**，待用户体验；SL-020 没有新增针对性验收确认，继续 In Review。开发、自动测试、真实桌面、用户验收和发布分开。
+
+| 检查 | 结果与实际范围 |
+| --- | --- |
+| TypeScript / ESLint / Vite | 通过；沿用本地 Node24；没有新增在线依赖或资源 |
+| 前端 | 174/174（原170 + 新4）；快记/自定义/本地偏移时间、历史日期、未来限制、删除恢复、达标/超额、旧设置默认、目标/开关和失败保留；既有73项App交互回归通过 |
+| Rust | 18/18（原16 + 新2）；真实文件v1→v2、重复迁移、任务保留、记录幂等/非法容量日期拒绝、设置及记录重开、导出排除明细、覆盖导入保留明细、删除与任务隔离 |
+| Rust格式 / Clippy | cargo fmt --check、cargo clippy --locked -- -D warnings 通过 |
+| Windows饮水专项 | 真实 Tauri/WebView2→IPC→Rust→SQLite，设置UI开关/1750目标、三快捷+自定义、时间明细、删除/恢复/星标、2300超额、昨天补录/未来禁用、隐藏保留、进程退出重启保留 |
+| 视觉布局 | 两视图×三材质×三字号×两顶部×380/980宽，480高，共72状态，无页面/卡片横向溢出，专注新增在窗内；长计划滚动前后新增框纵坐标不变。另查看380×680的大字紧凑真实截图，杯子/按钮/达标标志清晰 |
+| 开启喝水的拖动回归 | 10组真实OS鼠标检查+72布局：组内/跨组、箭头、Escape、长计划、45任务边缘滚动、真实SQLite失败/重试、重启顺序 |
+| 既有桌面回归 | 25组通过：任务新增/真实失焦、行内编辑、抽屉固定保存、失败保留、删除撤销、备份、窗口状态及重启等。此套默认关闭喝水，与开启专项分开 |
+
+证据（均为隔离合成数据，缓存不提交）：饮水 `.cache/sl024-1793266933340/results.json` / `focus-380.png`；开启喝水拖动 `.cache/sl020-1793266840750/results.json`；原回归 `.cache/desktop-smoke-1793266660667`。截图是WebView内容，不是用户桌面/个人数据。所有脚本只关闭自己创建的测试进程。
+
+初次测试修正：三个旧Rust测试的数据库版本断言随独立迁移更新为2，旧设置读取不改写的断言保留；未来按钮的jsdom断言改为检查fieldset继承禁用。原生checkbox等待持久化完成再断言。一次并发测试被OS遮挡检查阻止，改串行；拖动坐标初次受新增卡片/边缘滚动影响，夹具先将源/目标滚入安全区域后再采集OS坐标，最终完整10组通过，未改业务拖动逻辑。
+
+复现：先按下方 SL-020 隔离配置构建debug（同一测试identifier、不同目录/profile）；不要并发运行桌面脚本：
+
+```powershell
+npm run check
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
+npm run tauri build -- --debug --no-bundle --config .cache/sl020-test.conf.json
+node scripts/water-smoke.mjs
+node scripts/drag-smoke.mjs --water
+$env:STARRY_LIST_SCREENSHOT_DIR = '.cache/sl024-regression'
+node scripts/desktop-smoke.mjs
+```
+
+边界：本机Windows11/WebView2、200%缩放；CDP点击/输入/尺寸及真实OS拖动分别记录。未执行安装器安装/升级/卸载、全新设备、Win10/其他GPU/混合DPI/触控板/读屏/真实IME候选窗、长年海量饮水性能、跨时区/系统时钟跳变或午夜长时间挂机的物理体验。当前记录跟随选中日，跨午夜请点「今天」；目标改变按新目标重算历史，不是历史目标快照。无正式用户数据库读写、不关闭用户应用。
+
+JSON备份版本1只含开关/目标，**不含饮水明细**，合并与覆盖都保留本机明细。完整历史备份需正常退出后复制数据目录。数据库迁移v2与旧体验版不兼容，不直接降级，安装前备份完整目录。
+
+### SL-024-A 安装包与交付
+
+默认透明 Windows x64 NSIS 构建成功，正式 identifier `app.starrylist.desktop`、版本1.0.0不变；打包配置只跳过已通过的前端重复构建，不含测试identifier/额外测试权限。安装器未执行。
+
+| artifacts/ 文件 | 字节 | SHA256 |
+| --- | ---: | --- |
+| `Starry-List_1.0.0_x64-sl024-a-preview-20261029-setup.exe` | 5281288 | `7537d2b99ec7caa8a1f9a9a3111594fec2033d81672a91ebd6f5fcec6f95aefd` |
+
+校验文件 `SL024-A-PREVIEW-20261029-SHA256SUMS.txt`。旧 SL-020 仍5258119字节，SHA256 `f933bb7933df5bc0d649824a9f8563dc9f4056bb738ada555e772cc7577db605`，复核未覆盖。安装器/缓存不提交Git，无Tag/Release，不自动关闭用户应用或删除正式数据库。升级前正常退出并备份完整目录，安装与人工体验尚未执行。
+
+源码、测试与六份文档随 `feat: add SL-024-A optional water widget` 提交；Push与远端CI结果以本节后续交付记录为准。
+
+
 ## 2026-10-29：SL-020 同日组内拖动 / SL-007 验收 / SL-024 登记
 
 基于最新 main `086811e` 开发，起始工作区干净。SL-007 用户已安装并确认「两种日期模式、前后导航与跨月、正在输入时切换范围、字号和布局、重启偏好」均体验良好。逐项核对原验收标准、实现 [`203cd42`](https://github.com/YOLIIIIII/starry-list/commit/203cd424213c09f4eda17084a3ad64b06564bdf4) 及下方 155 前端 / 15 Rust / 25 桌面回归 / 8 专项与 180 布局证据，无明确未满足条件，记录 **2026-10-29 Done**。下方 SL-007 的 In Review 是历史交付状态，现已收到确认；未进行的环境认证仍保留，Done 不代表正式发布。

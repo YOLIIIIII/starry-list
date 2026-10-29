@@ -37,6 +37,10 @@ pub struct DayMark {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default)]
+    pub water_enabled: bool,
+    #[serde(default = "default_water_goal")]
+    pub water_goal: u32,
     pub active_view: String,
     pub background_opacity: f64,
     pub always_on_top: bool,
@@ -53,6 +57,9 @@ pub struct Settings {
     #[serde(default = "default_agenda_range")]
     pub agenda_range: String,
 }
+fn default_water_goal() -> u32 {
+    2000
+}
 fn default_agenda_range() -> String {
     "rolling".into()
 }
@@ -68,6 +75,8 @@ fn default_appearance() -> String {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            water_enabled: false,
+            water_goal: default_water_goal(),
             active_view: "overview".into(),
             background_opacity: 0.85,
             always_on_top: false,
@@ -84,6 +93,7 @@ impl Default for Settings {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Snapshot {
+    pub water_entries: Vec<WaterEntry>,
     pub tasks: Vec<Task>,
     pub categories: Vec<Category>,
     pub day_marks: Vec<DayMark>,
@@ -128,7 +138,8 @@ pub fn validate_task(t: &Task) -> Result<()> {
     Ok(())
 }
 pub fn validate_settings(s: &Settings) -> Result<()> {
-    if !["overview", "focus"].contains(&s.active_view.as_str())
+    if !(1..=20000).contains(&s.water_goal)
+        || !["overview", "focus"].contains(&s.active_view.as_str())
         || !["reading", "glass", "frosted"].contains(&s.appearance_mode.as_str())
         || !["small", "standard", "large"].contains(&s.text_size.as_str())
         || !["classic", "compact"].contains(&s.header_layout.as_str())
@@ -154,7 +165,7 @@ pub fn migrate(conn: &mut Connection) -> Result<()> {
     let version: i64 = conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .map_err(error)?;
-    if version > 1 {
+    if version > 2 {
         return Err("数据库来自更新版本，请升级应用".into());
     }
     if version == 0 {
@@ -169,6 +180,36 @@ pub fn migrate(conn: &mut Connection) -> Result<()> {
         tx.execute_batch("PRAGMA user_version=1").map_err(error)?;
         tx.commit().map_err(error)?;
     }
+    if version < 2 {
+        let tx = conn.transaction().map_err(error)?;
+        tx.execute_batch(include_str!("../migrations/002_water.sql"))
+            .map_err(error)?;
+        tx.commit().map_err(error)?;
+    }
+    Ok(())
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WaterEntry {
+    pub id: String,
+    pub date: String,
+    pub amount: u32,
+    pub recorded_at: String,
+}
+pub fn save_water(conn: &Connection, entry: &WaterEntry) -> Result<()> {
+    if entry.id.is_empty()
+        || entry.id.len() > 128
+        || !valid_date(&entry.date)
+        || !(1..=10000).contains(&entry.amount)
+        || chrono::DateTime::parse_from_rfc3339(&entry.recorded_at).is_err()
+    {
+        return Err("饮水记录无效".into());
+    }
+    conn.execute("INSERT INTO water_entries(id,date,amount,recorded_at) VALUES(?1,?2,?3,?4) ON CONFLICT(id) DO NOTHING", params![entry.id,entry.date,entry.amount,entry.recorded_at]).map_err(error)?;
+    Ok(())
+}
+pub fn delete_water(conn: &Connection, id: &str) -> Result<()> {
+    conn.execute("DELETE FROM water_entries WHERE id=?1", [id])
+        .map_err(error)?;
     Ok(())
 }
 pub fn snapshot(conn: &Connection) -> Result<Snapshot> {
@@ -229,7 +270,23 @@ pub fn snapshot(conn: &Connection) -> Result<Snapshot> {
         .map_err(error)?;
     let settings: Settings = serde_json::from_str(&raw).map_err(error)?;
     validate_settings(&settings)?;
+    let mut stmt = conn
+        .prepare("SELECT id,date,amount,recorded_at FROM water_entries ORDER BY recorded_at,id")
+        .map_err(error)?;
+    let water_entries = stmt
+        .query_map([], |r| {
+            Ok(WaterEntry {
+                id: r.get(0)?,
+                date: r.get(1)?,
+                amount: r.get(2)?,
+                recorded_at: r.get(3)?,
+            })
+        })
+        .map_err(error)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(error)?;
     Ok(Snapshot {
+        water_entries,
         tasks,
         categories,
         day_marks,
@@ -466,7 +523,7 @@ mod tests {
         assert_eq!(
             c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
-            1
+            2
         );
         let mut b = serde_json::to_value(export(&c).unwrap()).unwrap();
         b["settings"]
@@ -558,7 +615,7 @@ mod tests {
         assert_eq!(
             c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
-            1
+            2
         );
     }
     #[test]
@@ -624,7 +681,7 @@ mod tests {
         assert_eq!(
             c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
-            1
+            2
         );
     }
     #[test]
@@ -761,5 +818,79 @@ mod tests {
         assert!(import(&mut c, b, true).is_err());
         assert_eq!(snapshot(&c).unwrap().tasks[0].title, "研究计划");
         assert_eq!(snapshot(&c).unwrap().categories.len(), 6);
+    }
+    #[test]
+    fn water_migration_persistence_and_backup_isolation() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("water.db");
+        {
+            let mut c = Connection::open(&path).unwrap();
+            // Model an existing v1 database, without changing its original migration.
+            c.execute_batch(include_str!("../migrations/001_initial.sql"))
+                .unwrap();
+            c.execute(
+                "INSERT INTO app_settings VALUES(1,?1)",
+                [serde_json::to_string(&Settings::default()).unwrap()],
+            )
+            .unwrap();
+            c.execute_batch("PRAGMA user_version=1").unwrap();
+            save_task(&c, &task()).unwrap();
+            migrate(&mut c).unwrap();
+            migrate(&mut c).unwrap();
+            let entry = WaterEntry {
+                id: "water-one".into(),
+                date: "2026-10-28".into(),
+                amount: 500,
+                recorded_at: "2026-10-29T00:01:02+08:00".into(),
+            };
+            save_water(&c, &entry).unwrap();
+            save_water(&c, &entry).unwrap();
+            assert_eq!(snapshot(&c).unwrap().water_entries.len(), 1);
+            let mut bad = entry.clone();
+            bad.amount = 0;
+            assert!(save_water(&c, &bad).is_err());
+            bad.amount = 10001;
+            assert!(save_water(&c, &bad).is_err());
+            bad.amount = 250;
+            bad.date = "2026-02-30".into();
+            assert!(save_water(&c, &bad).is_err());
+            let settings = Settings {
+                water_enabled: true,
+                water_goal: 1750,
+                ..Settings::default()
+            };
+            save_settings(&c, &settings).unwrap();
+            let backup = export(&c).unwrap();
+            assert!(serde_json::to_value(&backup)
+                .unwrap()
+                .get("water_entries")
+                .is_none());
+            import(&mut c, backup, true).unwrap();
+            assert_eq!(snapshot(&c).unwrap().water_entries.len(), 1);
+            assert_eq!(snapshot(&c).unwrap().tasks.len(), 1);
+        }
+        let mut c = Connection::open(&path).unwrap();
+        migrate(&mut c).unwrap();
+        let s = snapshot(&c).unwrap();
+        assert_eq!(s.water_entries[0].amount, 500);
+        assert_eq!(s.water_entries[0].recorded_at, "2026-10-29T00:01:02+08:00");
+        assert!(s.settings.water_enabled);
+        assert_eq!(s.settings.water_goal, 1750);
+        delete_water(&c, "water-one").unwrap();
+        assert!(snapshot(&c).unwrap().water_entries.is_empty());
+        assert_eq!(snapshot(&c).unwrap().tasks.len(), 1);
+    }
+    #[test]
+    fn old_water_settings_default_and_goal_validation() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("water_goal");
+        value.as_object_mut().unwrap().remove("water_enabled");
+        let mut s: Settings = serde_json::from_value(value).unwrap();
+        assert_eq!(s.water_goal, 2000);
+        assert!(!s.water_enabled);
+        s.water_goal = 0;
+        assert!(validate_settings(&s).is_err());
+        s.water_goal = 20001;
+        assert!(validate_settings(&s).is_err());
     }
 }

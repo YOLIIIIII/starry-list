@@ -58,6 +58,13 @@ export const headerLayoutSchema = z.enum(["classic", "compact"]);
 export type HeaderLayout = z.infer<typeof headerLayoutSchema>;
 export const agendaRangeSchema = z.enum(["rolling", "week"]);
 export type AgendaRange = z.infer<typeof agendaRangeSchema>;
+export const waterEntrySchema = z.object({
+  id: z.string().min(1).max(128),
+  date: dateSchema,
+  amount: z.number().int().min(1).max(10000),
+  recorded_at: z.string().datetime({ offset: true }),
+});
+export type WaterEntry = z.infer<typeof waterEntrySchema>;
 export const settingsSchema = z.object({
   active_view: z.enum(["overview", "focus"]),
   background_opacity: z.number().min(0.4).max(1),
@@ -70,6 +77,8 @@ export const settingsSchema = z.object({
   text_size: textSizeSchema.default("standard"),
   header_layout: headerLayoutSchema.default("classic"),
   agenda_range: agendaRangeSchema.default("rolling"),
+  water_enabled: z.boolean().default(false),
+  water_goal: z.number().int().min(1).max(20000).default(2000),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 export const defaults: Settings = {
@@ -84,6 +93,8 @@ export const defaults: Settings = {
   text_size: "standard",
   header_layout: "classic",
   agenda_range: "rolling",
+  water_enabled: false,
+  water_goal: 2000,
 };
 export const backupSchema = z
   .object({
@@ -109,6 +120,7 @@ export const backupSchema = z
   });
 export type Backup = z.infer<typeof backupSchema>;
 export interface Snapshot {
+  water_entries?: WaterEntry[];
   tasks: Task[];
   categories: Category[];
   day_marks: DayMark[];

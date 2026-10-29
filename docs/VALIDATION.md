@@ -1,5 +1,78 @@
 # V1.0 验证记录
 
+## 2026-10-29：SL-020 同日组内拖动 / SL-007 验收 / SL-024 登记
+
+基于最新 main `086811e` 开发，起始工作区干净。SL-007 用户已安装并确认「两种日期模式、前后导航与跨月、正在输入时切换范围、字号和布局、重启偏好」均体验良好。逐项核对原验收标准、实现 [`203cd42`](https://github.com/YOLIIIIII/starry-list/commit/203cd424213c09f4eda17084a3ad64b06564bdf4) 及下方 155 前端 / 15 Rust / 25 桌面回归 / 8 专项与 180 布局证据，无明确未满足条件，记录 **2026-10-29 Done**。下方 SL-007 的 In Review 是历史交付状态，现已收到确认；未进行的环境认证仍保留，Done 不代表正式发布。
+
+SL-020 **In Review**，等待用户安装体验；SL-024 查重后按下一编号登记为 P2 / Backlog，仅产品设想和未决问题，无功能/Schema/公式/最终资产。SL-006 保持 Research、结论 C、暂停正式实现，研究原型未修改。其他需求状态不变。
+
+### 实现与数据保护
+
+仅专注清单任务最左侧把手启用 HTML5 拖放；标题、完成、删除与上下箭头保留各自入口。插入线标明行前/后，展开长计划只生成标题紧凑拖影，清单边缘自动滚动。Escape、拖到非目标区域或列表签名/日期/视图/忙碌状态改变均取消，不保存取消结果。减少动态效果遵守系统偏好。键盘通过原箭头 Tab / Enter 排序，把手可访问名称明确，点击把手显示备用操作说明。
+
+未完成在前、已完成在后；只允许同日同完成组内移动，跨组禁止光标/无落点，不改变 completed。编辑抽屉或非空新增草稿存在时阻止开始拖动，先处理已有草稿，未增加第二套新增保存逻辑。拖动与箭头共用 App → store.reorder → repository → Rust SQLite；store 队列真正执行时重新验证完整、无重复 ID 与任务签名。保存中只接受一个排序，非乐观更新，事务成功才更新界面；失败提示并保留原序，可重试。
+
+Rust 在同一事务内读取、验证日期成员和完成分组、更新 sort_order/既有 updated_at，任一步失败整体回滚。任务的日期、标题、长计划、优先级、分类和完成状态不因排序改动；无 Schema/迁移/排序表、备份结构或第三方依赖变化。Windows 必须设置 `dragDropEnabled=false`，关闭 Tauri 原生文件拖入接管才能使用 HTML5 拖放；原 JSON 文件选择导入保留，不影响标题拖窗/边缘缩放的实现。依据见 DEC-018。
+
+### 已执行检查与实际边界
+
+| 检查 | 实际结果 | 证据与边界 |
+| --- | --- | --- |
+| TypeScript、Lint、前端构建 | 通过 | `npm run check`，170 项前端测试；包含原 SL-007、草稿、Enter、失焦、IME 事件、抽屉、删除撤销回归 |
+| 新排序自动化 | 通过 | 首末/中间/空/单项/100 项；同组/跨组跨日、完整成员/重复/遗漏；Escape；删除/完成/日期/视图/重载/忙碌失效；保存失败保留字段、队列旧签名拒绝、重复提交与后续重试 |
+| Rust / SQLite | 通过 | 16 项测试，fmt 与 Clippy `-D warnings`；真实触发器在事务中途拒绝，验证全部任务字段回滚，移除后重试；原备份/导入等继续通过 |
+| Windows 11 真实鼠标拖放 | 通过 | 10 组专项记录：未完成末到首、首到末、已完成组、跨组拒绝、真实 SQLite UPDATE 失败后重试、拖后箭头、真实 OS Escape、展开 150 行长计划且拖影高度 <80px、45 项清单边缘滚动后取消、正常进程退出重启保持 |
+| Windows WebView2 布局 | 通过 | 3 材质 × 3 字号 × 2 顶部 × 380/500/760/980px，共 72 状态，高480px；检查横向溢出与把手边界；不冒充每一状态都做了真实鼠标拖动或毛玻璃像素认证 |
+| 原生既有回归 | 通过 | 25 组 `desktop-smoke`：新增 Enter、应用内/独立 Edge 失焦、真实 SQLite 失败重试、编辑/撤销/导入、设置与重启等；当前原生 HTML5 配置下执行 |
+| 任务变更时拖动失效、草稿/抽屉阻止 | 前端自动化与源码核对通过 | 不冒充真实 OS 同时删除/换日/切视图/候选窗输入的全部组合 |
+| 窄窗操作与键盘/减少动态效果 | 补充 WebView2 检查通过，部分原生输入未认证 | 380×480、大字号、紧凑顶部、长中文/最高优先级任务：首行6个操作按钮在窗内且两两无重叠；CDP 聚焦箭头并 Enter 后真实 SQLite 排序正确；模拟 reduced-motion 后拖动行 transition=0s。未认证读屏器、物理键盘/触控板与所有窗口八边缩放 |
+| Win10、多显示器/混合 DPI、其他 GPU、触屏 | 未验证 | 本机 Windows 11 build 26200、scale=2、WebView2；无额外设备认证 |
+| 安装/升级/卸载、真实 IME 候选窗 | 未验证 | 仅构建安装器，不执行；正式数据库不读写，未运行会访问正式数据的 release-smoke |
+
+专项 `scripts/drag-smoke.mjs` 在真实 Tauri WebView2 中通过 CDP 设置合成数据和检查 UI；拖动和 Escape 使用 `scripts/drag-input.ps1` 发出真实 OS 输入，并校验测试 PID、窗口及起点命中，防止向用户窗口输入。不是纯 jsdom 或 fireEvent 拖放。辅助脚本的 10 条 records、72 条 layouts、截图保存在忽略的 `.cache/sl020-*`；本轮成功记录为 `.cache/sl020-1793259269343/results.json`。旧回归记录 `.cache/desktop-smoke-1793258728511`。截图仅测试 WebView 内容，原始数据库、个人桌面截图均不上传。
+
+补充窄窗证据在 `.cache/sl020-narrow-1793259885300/results.json` 与 `focus-380.png`，已查看真实渲染。复现时在相同隔离 debug 实例设置380×480、紧凑顶部/大字号，种入3条长中文和最高优先级任务，检查按钮边界与横向溢出；Tab/Enter 使用箭头后核对重载排序；DevTools 模拟 reduced-motion 并核对行 transition。CDP 键盘/媒体模拟与真实 OS 鼠标输入分别记录。
+
+初次原生尝试发现 Tauri 默认接管导致 HTML5 拖放不生效，修正官方要求的窗口配置后重测。另一尝试中目标行被滚动区域裁切，未计成功；夹具改为860px高窗口完成基础拖动，矮窗另测滚动和布局。前端检查曾与 Rust 编译竞争导致材质 hook 超时，单独完整重跑通过，没有放宽超时或跳过断言。
+
+### 隔离复现
+
+先完成 npm ci 和前端构建。建立忽略的 `.cache/sl020-test.conf.json`：
+
+```json
+{"identifier":"app.starrylist.desktop.sl020-test","build":{"beforeBuildCommand":null},"app":{"security":{"capabilities":["main-capability",{"identifier":"sl020-focus-test","windows":["main"],"permissions":["core:window:allow-set-focus"]}]}}}
+```
+
+```powershell
+npm run check
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
+npm run tauri build -- --debug --no-bundle --config .cache/sl020-test.conf.json
+node scripts/drag-smoke.mjs
+# 原回归脚本，使用同一个隔离 debug 二进制；截图只存缓存
+$env:STARRY_LIST_SCREENSHOT_DIR = '.cache/sl020-regression'
+npm run test:desktop
+```
+
+Node 24、Rust 1.90 MSVC；测试专用 identifier、独立 `.cache/sl020-*` SQLite / window-state / WebView2 profile，脚本在种入数据前核验精确测试 identifier。不能把正式构建用于此测试；不自动安装、关闭或卸载用户实例，不触及正式数据。正式 capability、标识、默认窗口模式、SL-006 原型均未改变；只有窗口 HTML5 拖放必要配置变化。
+
+### Windows x64 体验包
+
+默认透明 NSIS 构建成功，正式 identifier `app.starrylist.desktop`、版本1.0.0保留；NSIS 脚本与 release exe 已检查，不含 SL-020 测试 identifier / capability。使用已通过检查的 dist，打包配置仅跳过重复前端构建。安装器没有执行，无 Tag / Release。
+
+| 本地文件（artifacts/） | 字节 | SHA256 |
+| --- | ---: | --- |
+| `Starry-List_1.0.0_x64-sl020-preview-20261029-setup.exe` | 5,258,119 | `f933bb7933df5bc0d649824a9f8563dc9f4056bb738ada555e772cc7577db605` |
+
+校验文件 `SL020-PREVIEW-20261029-SHA256SUMS.txt`。旧 SL-007 包仍为5,259,459字节、SHA256 `f04d5a69263000b2748d2d28720aba72427c9b7786f6d235b032179baebdc64d`，已复核未覆盖；UX3.2 等旧包保留。安装包、校验文件与缓存不提交 GitHub。安装前导出 JSON、正常退出旧版本，按同版本覆盖流程操作；五分钟验收见 [手册](USER_GUIDE.md#五分钟验收)。等待安装体验期间 SL-020 保持 In Review，发布版本字段不填。
+
+### Git 与交付
+
+源码与测试已提交并 Push 到 main：[`f486262`](https://github.com/YOLIIIIII/starry-list/commit/f486262f0d0112114b8f781360454624b8db8002)，[对应源码 CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40837152412)。文档为后续独立提交，最终 CI 按交付时最新 SHA 再核对，不能用早先提交的结果代替。
+
+每次提交前核实实际作者/提交者匹配本仓库原有 GitHub noreply 身份，不修改配置；明确暂存范围并检查差异与敏感信息，不提交数据库/私人备份/安装器/本机绝对路径。源码、测试与文档按实际提交分别记录，Push main 后按精确 SHA 查询 CI；CI 不替代本机原生交互。无强制推送、历史改写、Tag 或正式 Release。
+
 ## 2026-10-28：SL-007 接下来七天 / 本周范围
 
 本轮仅实施 SL-007，基于 main `07ab098`。SL-006-A 结论 C 已由用户确认，暂停正式实现，SL-006 保持 Research；原型和研究报告不改动。SL-007 完成后 **In Review**，等待用户安装验收，不代表正式发布。

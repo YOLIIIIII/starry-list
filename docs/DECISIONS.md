@@ -164,3 +164,10 @@
 - 数据：新增设置 JSON 字段 agenda_range，前端 Zod / Rust Serde 缺省 rolling，两端白名单一致；保留备份版本 1，无任务表/迁移变化。选择立即预览，保存失败恢复旧范围，成功后才视为持久化。
 - 保存：范围切换只走现有 guard / QuickAdd.save / store 队列，非空草稿先保存原日期，失败不切换；IME 组合不导航、共享保存 Promise 防重复、失焦与撤销逻辑保留。任务保存与范围设置保存分开报告结果，不因后者失败删除已保存任务。
 - 边界：仅 SL-007；SL-006 正式实现暂停，动画、拖动、每日星星与成长页面不开发。原生测试、模拟输入、用户验收和正式发布分别记录。
+
+
+### DEC-018
+
+2026-10-29，SL-020：采用 WebView2 原生 HTML5 拖放，仅专用把手启用，键盘继续使用既有箭头，不加第三方依赖。紧凑标题预览、插入线和边缘滚动；React 列表签名变化取消拖动。采用非乐观更新，复用 store 串行写入与 Rust 同一事务内成员/完成分组校验；失败保持旧序。编辑抽屉/新增草稿阻止开始拖动，不绕过保护。
+
+依据 [Tauri 官方配置](https://v2.tauri.app/reference/config/#windowconfig)，Windows 前端 HTML5 拖放需要 dragDropEnabled=false，主窗关闭原生文件拖入拦截，JSON 导入仍走原文件对话框；与窗口标题拖动/缩放独立。参考 [原生拖放](https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API)、[紧凑拖影](https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer/setDragImage)。原生方案成本低，但触控板、系统组合和无障碍体验仍须真实验收，不以接口存在代替测试。

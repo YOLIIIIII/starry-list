@@ -267,8 +267,19 @@ pub fn save_mark(conn: &Connection, date: &str, mark: Option<&DayMark>) -> Resul
     Ok(())
 }
 pub fn reorder(conn: &mut Connection, date: &str, ids: &[String]) -> Result<()> {
-    let current = snapshot(conn)?
-        .tasks
+    let tx = conn.transaction().map_err(error)?;
+    let tasks = snapshot(&tx)?.tasks;
+    let mut done = false;
+    for id in ids {
+        if let Some(task) = tasks.iter().find(|t| t.id == *id && t.date == date) {
+            if task.completed {
+                done = true;
+            } else if done {
+                return Err("不能跨完成状态排序".into());
+            }
+        }
+    }
+    let current = tasks
         .into_iter()
         .filter(|t| t.date == date)
         .map(|t| t.id)
@@ -279,7 +290,6 @@ pub fn reorder(conn: &mut Connection, date: &str, ids: &[String]) -> Result<()> 
     {
         return Err("排序列表已变更，请重试".into());
     }
-    let tx = conn.transaction().map_err(error)?;
     for (index, id) in ids.iter().enumerate() {
         tx.execute(
             "UPDATE tasks SET sort_order=?1,updated_at=?2 WHERE id=?3",
@@ -684,6 +694,42 @@ mod tests {
         t.title = "'; DROP TABLE tasks; --".into();
         save_task(&c, &t).unwrap();
         assert_eq!(snapshot(&c).unwrap().tasks[0].title, t.title);
+    }
+    #[test]
+    fn reorder_groups_and_rollback() {
+        let mut c = connection();
+        let mut a = task();
+        a.id = "a".into();
+        let mut b = a.clone();
+        b.id = "b".into();
+        b.sort_order = 1;
+        let mut d = a.clone();
+        d.id = "d".into();
+        d.completed = true;
+        d.sort_order = 2;
+        for t in [&a, &b, &d] {
+            save_task(&c, t).unwrap();
+        }
+        let before = serde_json::to_value(snapshot(&c).unwrap().tasks).unwrap();
+        assert!(reorder(&mut c, &a.date, &["d".into(), "a".into(), "b".into()]).is_err());
+        c.execute_batch("CREATE TRIGGER sort_fail BEFORE UPDATE OF sort_order ON tasks WHEN NEW.id='a' BEGIN SELECT RAISE(ABORT,'sort failure'); END;").unwrap();
+        assert!(reorder(&mut c, &a.date, &["b".into(), "a".into(), "d".into()]).is_err());
+        assert_eq!(
+            serde_json::to_value(snapshot(&c).unwrap().tasks).unwrap(),
+            before
+        );
+        c.execute_batch("DROP TRIGGER sort_fail;").unwrap();
+        reorder(&mut c, &a.date, &["b".into(), "a".into(), "d".into()]).unwrap();
+        assert_eq!(
+            snapshot(&c)
+                .unwrap()
+                .tasks
+                .iter()
+                .find(|t| t.id == "b")
+                .unwrap()
+                .sort_order,
+            0
+        );
     }
     #[test]
     fn reorder_validates_membership() {

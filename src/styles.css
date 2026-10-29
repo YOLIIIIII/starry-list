@@ -2669,3 +2669,70 @@ legend {
     padding-top: 28px;
   }
 }
+
+/* SL-020: handles only in focus rows, without changing material geometry. */
+.task-drag-handle {
+  flex: 0 0 18px;
+  width: 18px;
+  min-height: 24px;
+  align-self: center;
+  color: #927ca4;
+  cursor: grab;
+  padding: 0;
+}
+.task-drag-handle:active {
+  cursor: grabbing;
+}
+.task-dragging > .task-row {
+  opacity: 0.65;
+  box-shadow: 0 3px 10px #8565b833;
+}
+.focus-scroll > div {
+  position: relative;
+}
+.drop-before::before,
+.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  background: #9875c3;
+  z-index: 2;
+  pointer-events: none;
+}
+.drop-before::before {
+  top: 0;
+}
+.drop-after::after {
+  bottom: 0;
+}
+.task-drag-preview {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  pointer-events: none;
+  max-width: 280px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 8px 12px;
+  border: 1px solid #bba5d4;
+  border-radius: 8px;
+  background: #fff8ef;
+  color: #49365d;
+  box-shadow: 0 3px 10px #8565b833;
+}
+@media (max-width: 619px) {
+  .focus-scroll .task-row {
+    gap: 4px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-dragging > .task-row {
+    transition: none;
+  }
+}

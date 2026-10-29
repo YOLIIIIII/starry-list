@@ -1609,3 +1609,110 @@ describe("SL-007 日程范围切换", () => {
     );
   });
 });
+
+describe("SL-020 drag lifecycle", () => {
+  const transfer = () => ({
+    setData: vi.fn(),
+    setDragImage: vi.fn(),
+    effectAllowed: "",
+    dropEffect: "",
+  });
+  it("handle drop saves full order, Escape cancels, titles still read", async () => {
+    const user = await startFocus();
+    const { repository } = await import("./platform");
+    vi.mocked(repository.reorder).mockClear();
+    let dt = transfer();
+    fireEvent.dragStart(
+      screen.getByRole("button", { name: "拖动排序 第二件小事" }),
+      { dataTransfer: dt },
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.drop(document.getElementById("task-a")!, { dataTransfer: dt });
+    expect(repository.reorder).not.toHaveBeenCalled();
+    dt = transfer();
+    fireEvent.dragStart(
+      screen.getByRole("button", { name: "拖动排序 第二件小事" }),
+      { dataTransfer: dt },
+    );
+    fireEvent.drop(document.getElementById("task-a")!, { dataTransfer: dt });
+    await waitFor(() =>
+      expect(repository.reorder).toHaveBeenCalledWith("2026-10-14", ["b", "a"]),
+    );
+    await user.click(screen.getByRole("button", { name: "调研计划" }));
+    expect(screen.getByRole("region", { name: "任务详情阅读" })).toBeTruthy();
+  });
+  it("save failure retains old order; draft blocks start", async () => {
+    await startFocus();
+    const { repository } = await import("./platform");
+    vi.mocked(repository.reorder).mockRejectedValueOnce(
+      new Error("排序写入失败"),
+    );
+    const before = [...document.querySelectorAll(".focus-scroll > div")].map(
+      (el) => el.id,
+    );
+    fireEvent.dragStart(
+      screen.getByRole("button", { name: "拖动排序 第二件小事" }),
+      { dataTransfer: transfer() },
+    );
+    fireEvent.drop(document.getElementById("task-a")!, {
+      dataTransfer: transfer(),
+    });
+    await screen.findByText("排序写入失败");
+    expect(
+      [...document.querySelectorAll(".focus-scroll > div")].map((el) => el.id),
+    ).toEqual(before);
+    const input = document.querySelector(".focus-composer input")!;
+    fireEvent.change(input, { target: { value: "未保存草稿" } });
+    const dt = transfer();
+    fireEvent.dragStart(
+      screen.getByRole("button", { name: "拖动排序 第二件小事" }),
+      { dataTransfer: dt },
+    );
+    expect(dt.setData).not.toHaveBeenCalled();
+  });
+});
+
+it("SL-020 pending sort blocks duplicate drags and serial retry uses the current order", async () => {
+  await startFocus();
+  const { repository } = await import("./platform");
+  let release!: () => void;
+  vi.mocked(repository.reorder)
+    .mockClear()
+    .mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+  const dt = () => ({ setData: vi.fn(), setDragImage: vi.fn() });
+  fireEvent.dragStart(
+    screen.getByRole("button", { name: "拖动排序 第二件小事" }),
+    { dataTransfer: dt() },
+  );
+  fireEvent.drop(document.getElementById("task-a")!, { dataTransfer: dt() });
+  await waitFor(() => expect(repository.reorder).toHaveBeenCalledTimes(1));
+  const second = dt();
+  fireEvent.dragStart(
+    screen.getByRole("button", { name: "拖动排序 调研计划" }),
+    { dataTransfer: second },
+  );
+  expect(second.setData).not.toHaveBeenCalled();
+  release();
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("button", { name: "拖动排序 调研计划" })
+        .getAttribute("draggable"),
+    ).toBe("true"),
+  );
+  fireEvent.dragStart(
+    screen.getByRole("button", { name: "拖动排序 调研计划" }),
+    { dataTransfer: dt() },
+  );
+  fireEvent.drop(document.getElementById("task-b")!, { dataTransfer: dt() });
+  await waitFor(() => expect(repository.reorder).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(repository.reorder).mock.calls.map((c) => c[1])).toEqual([
+    ["b", "a"],
+    ["a", "b"],
+  ]);
+});

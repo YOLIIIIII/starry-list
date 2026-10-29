@@ -1,3 +1,5 @@
+import { useTaskDrag } from "./use-task-drag";
+import { orderSignature } from "./task-order";
 import {
   InlineTitleEditor,
   NotificationRail,
@@ -22,6 +24,7 @@ import {
   X,
   Pin,
   Grip,
+  GripVertical,
   Download,
   Upload,
   ShieldCheck,
@@ -409,23 +412,42 @@ export default function App() {
       }
     } else await store.saveSettings(patch);
   }
-  async function moveTask(task: Task, delta: number) {
-    const list = displayTasks(
-      store.getSnapshot().data.tasks.filter((t) => t.date === selected),
-    );
-    const index = list.findIndex((t) => t.id === task.id);
-    const next = index + delta;
-    if (
-      next < 0 ||
-      next >= list.length ||
-      list[next].completed !== task.completed
-    )
-      return;
-    [list[index], list[next]] = [list[next], list[index]];
-    await store.reorder(
-      selected,
-      list.map((t) => t.id),
-    );
+  const sorting = useRef(false);
+  const [sortSaving, setSortSaving] = useState(false);
+  async function persistOrder(ids: string[], signature: string) {
+    if (sorting.current) return;
+    sorting.current = true;
+    setSortSaving(true);
+    try {
+      await store.reorder(selected, ids, signature);
+    } catch (e) {
+      store.reportError(e);
+    } finally {
+      sorting.current = false;
+      setSortSaving(false);
+    }
+  }
+  function moveTask(task: Task, delta: number) {
+    void guard(async () => {
+      const list = displayTasks(
+        store.getSnapshot().data.tasks.filter((t) => t.date === selected),
+      );
+      const index = list.findIndex((t) => t.id === task.id),
+        next = index + delta;
+      if (
+        index < 0 ||
+        next < 0 ||
+        next >= list.length ||
+        list[next].completed !== task.completed
+      )
+        return;
+      const signature = orderSignature(list);
+      [list[index], list[next]] = [list[next], list[index]];
+      await persistOrder(
+        list.map((t) => t.id),
+        signature,
+      );
+    });
   }
   const style = surfaceAlphas(
     opacity ?? settings.background_opacity,
@@ -434,6 +456,16 @@ export default function App() {
     frostState === "applied",
   ) as CSSProperties;
   const focusTasks = displayTasks(byDate.get(selected) ?? []);
+  const drag = useTaskDrag(
+    focusTasks,
+    selected,
+    settings.active_view,
+    Boolean(
+      editing || quickDraft?.title.trim() || pending || loading || sortSaving,
+    ),
+    persistOrder,
+    setNotice,
+  );
   const agendaRange = agendaPreview ?? settings.agenda_range;
   const seven = agendaDays(selected, agendaRange);
   const monthGrid = monthDays(month);
@@ -961,7 +993,9 @@ export default function App() {
               <div
                 key={task.id}
                 id={`task-${task.id}`}
-                className={expanded === task.id ? "expanded-task" : ""}
+                className={`${expanded === task.id ? "expanded-task" : ""} ${drag.source === task.id ? "task-dragging" : ""} ${drag.over?.id === task.id ? (drag.over.after ? "drop-after" : "drop-before") : ""}`}
+                onDragOver={(e) => drag.overTask(e, task)}
+                onDrop={(e) => drag.drop(e, task)}
               >
                 <TaskRow
                   task={task}
@@ -979,7 +1013,25 @@ export default function App() {
                       index === focusTasks.length - 1 ||
                       focusTasks[index + 1].completed !== task.completed,
                   }}
-                  onMove={(delta) => void safe(() => moveTask(task, delta))}
+                  dragHandle={
+                    <button
+                      type="button"
+                      className="task-drag-handle"
+                      draggable={!sortSaving}
+                      aria-label={`拖动排序 ${task.title}`}
+                      title="拖动到同一完成状态组内；也可使用上下箭头"
+                      onDragStart={(e) => drag.start(e, task)}
+                      onDragEnd={drag.cancel}
+                      onClick={() =>
+                        setNotice(
+                          "拖动把手可排序；键盘请使用任务旁的上移、下移按钮。",
+                        )
+                      }
+                    >
+                      <GripVertical size={14} />
+                    </button>
+                  }
+                  onMove={(delta) => moveTask(task, delta)}
                   actionMode="delete"
                   onEdit={() => editTask(task)}
                   onDelete={() => requestDelete(task.id)}

@@ -1,3 +1,4 @@
+import { validOrder, orderSignature } from "./task-order";
 import { useSyncExternalStore } from "react";
 import {
   defaults,
@@ -130,9 +131,17 @@ export class AppStore {
         ],
       }),
     );
-  reorder(date: string, ids: string[]) {
+  reorder(date: string, ids: string[], expected?: string) {
     return this.write(
-      () => this.repo.reorder(date, ids),
+      () => {
+        const tasks = this.state.data.tasks.filter((t) => t.date === date);
+        if (
+          !validOrder(tasks, ids) ||
+          (expected !== undefined && orderSignature(tasks) !== expected)
+        )
+          throw new Error("排序列表已变更，请重试");
+        return this.repo.reorder(date, ids);
+      },
       () => ({
         ...this.state.data,
         tasks: this.state.data.tasks.map((t) =>

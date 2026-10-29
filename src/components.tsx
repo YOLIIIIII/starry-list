@@ -357,6 +357,7 @@ export function TaskRow({
   actionMode = "menu",
   onQuickEdit,
   inlineEditor,
+  dragHandle,
 }: {
   task: Task;
   categories: Category[];
@@ -368,11 +369,13 @@ export function TaskRow({
   actionMode?: "menu" | "delete";
   onQuickEdit?: () => void;
   inlineEditor?: ReactNode;
+  dragHandle?: ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
   const category = categories.find((c) => c.id === task.category_id);
   return (
     <div className={`task-row ${task.completed ? "completed" : ""}`}>
+      {dragHandle}
       <button
         className="check-button"
         aria-label={

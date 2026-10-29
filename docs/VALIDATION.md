@@ -47,7 +47,7 @@ JSON备份版本1只含开关/目标，**不含饮水明细**，合并与覆盖�
 
 校验文件 `SL024-A-PREVIEW-20261029-SHA256SUMS.txt`。旧 SL-020 仍5258119字节，SHA256 `f933bb7933df5bc0d649824a9f8563dc9f4056bb738ada555e772cc7577db605`，复核未覆盖。安装器/缓存不提交Git，无Tag/Release，不自动关闭用户应用或删除正式数据库。升级前正常退出并备份完整目录，安装与人工体验尚未执行。
 
-源码、测试与六份文档随 `feat: add SL-024-A optional water widget` 提交；Push与远端CI结果以本节后续交付记录为准。
+源码、测试与六份文档实现提交 [`0275420`](https://github.com/YOLIIIIII/starry-list/commit/02754201875a2257f9bd7b4793fb290d504b084e)，已 Push main；[对应 CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40852270628) 已触发，交付记录提交时运行中，最终结果以该运行及 main 最新提交的 Actions 为准。没有 Tag / Release；工作树检查无敏感文件，作者/提交者均核实为维护者现有 GitHub noreply 本地身份。
 
 
 ## 2026-10-29：SL-020 同日组内拖动 / SL-007 验收 / SL-024 登记

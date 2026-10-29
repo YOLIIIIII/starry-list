@@ -10,6 +10,8 @@ SL-024-A 已获正式授权并实现可选喝水卡片，SL-024 / A 为 **In Rev
 
 SL-020 源码与测试 [`f486262`](https://github.com/YOLIIIIII/starry-list/commit/f486262f0d0112114b8f781360454624b8db8002) 已 Push main，[对应 CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40837152412)。独立命名体验包与 SHA256 见验证记录，旧 SL-007 包保留，无 Tag / Release。
 
+SL-024-A 源码/测试/文档 [`0275420`](https://github.com/YOLIIIIII/starry-list/commit/02754201875a2257f9bd7b4793fb290d504b084e) 已 Push main；[CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40852270628) 已触发，状态以运行页为准。独立体验包 5281288 字节及 SHA256 见验证记录，旧 SL-020 包哈希不变，无 Tag / Release。
+
 ## 产品愿景
 
 **美观、舒适、方便；让记录计划轻松，让完成计划有成就感。** Starry List 希望成为一款能长期留在 Windows 桌面、帮助用户轻松安排生活与工作的日历清单。它强调轻量、易用、精致的视觉体验和低认知负担，本地优先、保护隐私、不干扰正常工作，并为长期维护与扩展留下空间。

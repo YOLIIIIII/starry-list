@@ -161,3 +161,28 @@ it("large target renders at most six cups and target 1 remains legible", async (
   view.rerender(<WaterCard date={today} />);
   expect(document.querySelectorAll("svg.water-cup")).toHaveLength(1);
 });
+
+it("record panel keeps quick actions open, updates total, and retains focus isolation", async () => {
+  const u = userEvent.setup();
+  render(
+    <div>
+      <button>背景按钮</button>
+      <WaterCard date={today} />
+    </div>,
+  );
+  const background = screen.getByRole("button", { name: "背景按钮" });
+  const trigger = screen.getByRole("button", { name: "时间记录 · 0 次" });
+  await u.click(trigger);
+  expect(screen.getByRole("dialog", { name: "补水记录" })).toBeTruthy();
+  background.focus();
+  expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(
+    true,
+  );
+  await u.click(screen.getByRole("button", { name: "记录 500 mL" }));
+  expect(screen.getByRole("dialog")).toBeTruthy();
+  expect(backend.data!.water_entries![0].amount).toBe(500);
+  await u.click(screen.getByRole("button", { name: "自定义容量" }));
+  expect(screen.getByLabelText("自定义饮水容量")).toBeTruthy();
+  await u.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});

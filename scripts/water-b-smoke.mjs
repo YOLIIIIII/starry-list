@@ -222,11 +222,11 @@ try {
   await page.keyboard.press("Escape");
   assert.equal(await page.getByRole("dialog").count(), 0);
   await click("展开补水");
-  await click("记录其他容量");
+  await click("自定义容量");
   await page.getByLabel("自定义饮水容量").fill("1");
   await page.keyboard.press("Enter");
   await click("展开补水");
-  await click("记录其他容量");
+  await click("自定义容量");
   await page.getByLabel("自定义饮水容量").fill("10000");
   await click("记录这杯");
   await size(980, 680);

@@ -951,14 +951,43 @@ export function Dialog({
   onClose,
   error,
   className = "",
+  isolateBackground = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   error?: string | null;
   className?: string;
+  isolateBackground?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!isolateBackground || !ref.current) return;
+    const el = ref.current;
+    const saved: [HTMLElement, boolean][] = [];
+    let branch: HTMLElement = el.parentElement!;
+    while (branch.parentElement) {
+      for (const sibling of branch.parentElement.children) {
+        if (sibling !== branch && sibling instanceof HTMLElement) {
+          saved.push([sibling, sibling.inert]);
+          sibling.inert = true;
+        }
+      }
+      branch = branch.parentElement;
+      if (branch === document.body) break;
+    }
+    const contain = (event: FocusEvent) => {
+      if (event.target instanceof Node && !el.contains(event.target))
+        el.querySelector<HTMLElement>("button,input")?.focus();
+    };
+    document.addEventListener("focusin", contain);
+    return () => {
+      document.removeEventListener("focusin", contain);
+      saved.forEach(([node, value]) => {
+        node.inert = value;
+      });
+    };
+  }, [isolateBackground]);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {

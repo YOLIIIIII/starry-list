@@ -3365,3 +3365,230 @@ svg.water-cup {
     grid-row: 2;
   }
 }
+/* SL-024-C: focus-only layout, shared alignment, and compact record panel. */
+.focus {
+  --focus-inline-gap: 8px;
+}
+.focus-week {
+  margin-inline: var(--focus-inline-gap);
+}
+.focus > .water-compact {
+  margin-inline: var(--focus-inline-gap);
+}
+.water-layout {
+  display: contents;
+}
+.water-card {
+  --cup-width: 50px;
+  --cup-height: 44px;
+}
+.app-shell[data-text-size="small"] .water-card {
+  --cup-width: 45px;
+  --cup-height: 40px;
+}
+.app-shell[data-text-size="large"] .water-card {
+  --cup-width: 60px;
+  --cup-height: 53px;
+}
+.water-cups > span {
+  width: var(--cup-width);
+  flex: none;
+}
+.water-cups svg.water-cup {
+  height: var(--cup-height);
+}
+.water-compact {
+  display: block;
+  container-type: inline-size;
+  padding: 10px 12px;
+}
+.water-compact .water-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "heading progress details" "cups actions actions";
+  align-items: center;
+  gap: 8px 12px;
+}
+.water-compact .water-heading {
+  grid-area: heading;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.water-compact .water-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+}
+.water-compact .water-icon svg {
+  width: 1.4em;
+  height: 1.4em;
+}
+.water-compact .water-progress {
+  grid-area: progress;
+}
+.water-compact .water-progress strong {
+  font-size: var(--text-heading);
+  white-space: nowrap;
+}
+.water-compact .water-progress > small {
+  display: none;
+}
+.water-compact .water-cups {
+  grid-area: cups;
+  display: flex;
+  max-width: none;
+  gap: 2px;
+}
+.water-compact .water-actions {
+  grid-area: actions;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(5.5em, 1fr));
+  gap: 7px;
+}
+.water-compact .water-actions button {
+  min-height: 34px;
+  padding: 7px 8px;
+}
+.water-compact .water-details-button {
+  grid-area: details;
+  display: block;
+  padding: 6px 0;
+}
+.water-compact .water-expand {
+  display: none;
+}
+.water-compact .water-achieved {
+  font-size: var(--text-help);
+  margin-left: 0;
+  padding: 3px 5px;
+}
+.water-compact .water-restore,
+.water-compact [role="alert"] {
+  grid-column: 1/-1;
+}
+.app-shell[data-text-size="large"] .water-compact .water-layout {
+  grid-template-areas: "heading progress details" "cups cups cups" "actions actions actions";
+}
+.app-shell[data-text-size="large"] .water-compact .water-actions button {
+  min-height: 38px;
+}
+@container (max-width: 620px) {
+  .water-compact .water-layout {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "heading details" "progress progress" "cups cups" "actions actions";
+  }
+  .app-shell[data-text-size="large"] .water-compact .water-layout {
+    grid-template-areas: "heading details" "progress progress" "cups cups" "actions actions";
+  }
+  .water-compact .water-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@container (max-width: 390px) {
+  .water-compact .water-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.app-shell .water-compact[data-water-summary="true"] .water-layout {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "heading expand" "progress expand";
+  gap: 3px 7px;
+}
+.water-compact[data-water-summary="true"] .water-cups,
+.water-compact[data-water-summary="true"] .water-actions,
+.water-compact[data-water-summary="true"] .water-details-button {
+  display: none;
+}
+.water-compact[data-water-summary="true"] .water-icon {
+  display: none;
+}
+.water-compact[data-water-summary="true"] .water-expand {
+  display: block;
+  grid-area: expand;
+  padding: 8px;
+  font-size: var(--text-ui);
+}
+.water-compact[data-water-summary="true"] .water-progress strong {
+  font-size: var(--text-ui);
+}
+.dialog.water-dialog {
+  width: min(100%, 420px);
+  padding: 18px;
+  overscroll-behavior: contain;
+}
+.water-dialog > .dialog-heading {
+  margin-bottom: 7px;
+  flex: none;
+}
+.water-dialog .water-date {
+  margin: 0 0 8px;
+}
+.water-dialog .water-detail-total {
+  margin: 0 0 7px;
+  font-variant-numeric: tabular-nums;
+}
+.water-meter {
+  height: 5px;
+  border-radius: 5px;
+  background: #e7def0;
+  overflow: hidden;
+  margin-bottom: 12px;
+  flex: none;
+}
+.water-meter > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #b8b0e0, #b9d5eb);
+  border-radius: inherit;
+}
+.water-dialog .water-dialog-quick {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 10px;
+}
+.water-dialog-quick button {
+  min-height: 34px;
+}
+.water-dialog .water-custom {
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.water-dialog .water-input-hint {
+  margin: 6px 0 8px;
+}
+.water-dialog .water-history {
+  margin-top: 4px;
+  min-height: 0;
+}
+.water-dialog .water-history h4 {
+  margin: 8px 0;
+}
+.water-dialog .water-history ul {
+  max-height: min(240px, 30vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border-radius: 10px;
+  background: #f6f1f9;
+}
+.water-dialog .water-history li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 30px;
+  min-height: 36px;
+  gap: 10px;
+  padding: 5px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.water-dialog .water-history li button {
+  margin: 0;
+  padding: 6px;
+  background: transparent;
+}
+.water-dialog .water-restore {
+  padding-top: 8px;
+}
+@media (max-width: 420px) {
+  .water-dialog .water-dialog-quick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

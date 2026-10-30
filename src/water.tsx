@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { format } from "date-fns";
 import { Droplets, Star, Trash2, Undo2 } from "lucide-react";
 import { dayKey, waterEntrySchema, type WaterEntry } from "./domain";
@@ -73,12 +73,12 @@ export function WaterCup({
   target?: number;
 }) {
   const id = useId().replace(/:/g, "");
-  const top = 43 - fill * 32;
+  const top = 46 - fill * 32;
   return (
     <svg className="water-cup" viewBox="0 0 64 56" aria-hidden="true">
       <defs>
         <clipPath id={`cup-${id}`}>
-          <path d="M11 10 Q30 6 47 10 L44 39 Q43 49 29 49 Q15 49 14 39 Z" />
+          <path d="M10 13 C10 7 47 7 47 13 C48 23 47 36 43 42 C38 51 18 51 13 42 C9 35 9 22 10 13Z" />
         </clipPath>
         <linearGradient id={`water-${id}`} x2="0" y2="1">
           <stop stopColor="#c7def3" />
@@ -86,13 +86,13 @@ export function WaterCup({
         </linearGradient>
       </defs>
       <path
-        d="M47 17 C65 13 63 37 46 35"
+        d="M47 18 C64 12 65 39 46 37"
         fill="none"
         stroke="#b29dcc"
         strokeWidth="3"
       />
       <path
-        d="M11 10 Q30 6 47 10 L44 39 Q43 49 29 49 Q15 49 14 39 Z"
+        d="M10 13 C10 7 47 7 47 13 C48 23 47 36 43 42 C38 51 18 51 13 42 C9 35 9 22 10 13Z"
         fill="#fffcf6"
         stroke="#b9a4cf"
         strokeWidth="2"
@@ -106,7 +106,7 @@ export function WaterCup({
           />
         )}
         <path
-          d="M18 18 L20 35"
+          d="M16 22 Q15 30 18 35"
           stroke="white"
           strokeOpacity=".8"
           strokeWidth="3"
@@ -114,7 +114,7 @@ export function WaterCup({
         />
         {target < 500 && (
           <path
-            d={`M13 ${43 - (target / 500) * 32} H46`}
+            d={`M13 ${46 - (target / 500) * 32} H46`}
             stroke="#8d75b1"
             strokeDasharray="2 3"
             strokeWidth="1.5"
@@ -122,14 +122,14 @@ export function WaterCup({
         )}
       </g>
       <path
-        d="M12 10 Q29 14 46 10"
+        d="M10 13 C14 19 43 19 47 13 M10 13 C14 7 43 7 47 13"
         fill="none"
         stroke="#b9a4cf"
         strokeWidth="1.4"
       />
       {fill >= 1 && (
         <path
-          d="M53 3 L54 7 L58 8 L54 9 L53 13 L52 9 L48 8 L52 7Z"
+          d="M54 2 L55.2 6.8 L60 8 L55.2 9.2 L54 14 L52.8 9.2 L48 8 L52.8 6.8Z"
           fill="#e4bd5e"
         />
       )}
@@ -152,6 +152,41 @@ export function WaterCard({
   const [error, setError] = useState("");
   const [removed, setRemoved] = useState<WaterEntry | null>(null);
   const lock = useRef(false);
+  const card = useRef<HTMLElement>(null);
+  const [summary, setSummary] = useState(false);
+  useEffect(() => {
+    const el = card.current;
+    const focus = el?.closest<HTMLElement>(".focus");
+    if (!compact || !el || !focus || typeof ResizeObserver === "undefined")
+      return;
+    const parts = [
+      ".focus-heading",
+      ".focus-week",
+      ".focus-list-heading",
+      ".focus-composer",
+    ]
+      .map((s) => focus.querySelector<HTMLElement>(s))
+      .filter((e): e is HTMLElement => Boolean(e));
+    const measure = () => {
+      const occupied = parts.reduce((sum, part) => {
+        const css = getComputedStyle(part);
+        return (
+          sum +
+          part.getBoundingClientRect().height +
+          parseFloat(css.marginTop) +
+          parseFloat(css.marginBottom)
+        );
+      }, 0);
+      const large = data.settings.text_size === "large";
+      const narrow = el.clientWidth < 580;
+      const full = narrow ? (large ? 218 : 195) : large ? 164 : 126;
+      setSummary(focus.clientHeight - occupied - 12 < full + 70);
+    };
+    const observer = new ResizeObserver(measure);
+    [focus, el, ...parts].forEach((part) => observer.observe(part));
+    measure();
+    return () => observer.disconnect();
+  }, [compact, data.settings.text_size, data.settings.water_goal]);
   const entries = (data.water_entries ?? [])
     .filter((e) => e.date === date)
     .sort(
@@ -173,7 +208,7 @@ export function WaterCard({
       lock.current = false;
     }
   }
-  function add(value: number) {
+  function add(value: number, keepOpen = false) {
     const result = waterEntrySchema.safeParse({
       id: crypto.randomUUID(),
       date,
@@ -189,7 +224,7 @@ export function WaterCard({
       await store.addWater(result.data);
       setAmount("");
       setCustom(false);
-      setDetail(false);
+      setDetail(keepOpen);
     });
   }
   const levels = cupLevels(total, goal);
@@ -206,113 +241,149 @@ export function WaterCard({
   return (
     <>
       <section
+        ref={card}
+        data-water-summary={compact && summary}
         className={`water-card ${compact ? "water-compact" : ""}`}
         aria-label="喝水记录"
       >
-        <div className="water-heading">
-          <span className="water-icon">
-            <Droplets size={18} />
-          </span>
-          <div>
-            <h3>今日补水</h3>
+        <div className="water-layout">
+          <div className="water-heading">
+            <span className="water-icon">
+              <Droplets size={18} />
+            </span>
+            <div>
+              <h3>今日补水</h3>
+              <small>
+                {date} ·{" "}
+                {future
+                  ? "未来日期仅查看"
+                  : date === dayKey(new Date())
+                    ? "记录到今天"
+                    : "可补录这一天"}
+              </small>
+            </div>
+            {total >= goal && (
+              <span className="water-achieved" role="status">
+                <Star size={12} fill="currentColor" /> 补水达标
+              </span>
+            )}
+          </div>
+          <div className="water-progress" aria-live="polite">
+            <strong>
+              {total.toLocaleString()} <span>/ {goal.toLocaleString()} mL</span>
+            </strong>
             <small>
+              {total > goal ? `多记录了 ${total - goal} mL` : "每杯 500 mL"}
+            </small>
+          </div>
+          <div
+            className="water-cups"
+            role="img"
+            aria-label={`饮水 ${total} / ${goal} mL，每杯 500 mL`}
+          >
+            {visible.map((cup, i) => (
+              <span
+                key={i}
+                title={`第 ${levels.length > 6 && i === 5 ? levels.length : i + 1} 杯 · 目标 ${cup.target} mL`}
+              >
+                <WaterCup {...cup} />
+              </span>
+            ))}
+            {levels.length > 6 && (
+              <small>中间省略 {levels.length - 6} 杯</small>
+            )}
+          </div>
+          <fieldset className="water-actions" disabled={pending > 0 || future}>
+            {[150, 250, 500].map((value) => (
+              <button
+                key={value}
+                className={value === 500 ? "water-favorite" : ""}
+                onClick={() => add(value)}
+              >
+                +{value}
+                <small> mL</small>
+              </button>
+            ))}
+            <button
+              ref={customTrigger}
+              aria-expanded={detail && custom}
+              onClick={() => {
+                setError("");
+                setCustom(true);
+                setDetail(true);
+              }}
+            >
+              自定义
+            </button>
+          </fieldset>
+          <button
+            className="water-details-button"
+            onClick={() => {
+              setCustom(false);
+              setDetail(true);
+            }}
+          >
+            时间记录 · {entries.length} 次
+          </button>
+          <button
+            className="water-expand"
+            onClick={() => {
+              setCustom(false);
+              setDetail(true);
+            }}
+          >
+            展开补水
+          </button>
+          {error && !detail && <p role="alert">{error}</p>}
+          {removed && !detail && (
+            <button
+              className="water-restore"
+              disabled={pending > 0}
+              onClick={() =>
+                void act(async () => {
+                  await store.addWater(removed);
+                  setRemoved(null);
+                })
+              }
+            >
+              <Undo2 size={13} /> 恢复刚删除的 {removed.amount} mL
+            </button>
+          )}
+        </div>
+      </section>
+      {detail && (
+        <Dialog
+          title="补水记录"
+          className="water-dialog"
+          isolateBackground
+          onClose={closeDetail}
+        >
+          <div className="water-detail-content">
+            <p className="water-date">
               {date} ·{" "}
               {future
                 ? "未来日期仅查看"
                 : date === dayKey(new Date())
                   ? "记录到今天"
-                  : "可补录这一天"}
-            </small>
-          </div>
-          {total >= goal && (
-            <span className="water-achieved" role="status">
-              <Star size={12} fill="currentColor" /> 补水达标
-            </span>
-          )}
-        </div>
-        <div className="water-progress" aria-live="polite">
-          <strong>
-            {total.toLocaleString()} <span>/ {goal.toLocaleString()} mL</span>
-          </strong>
-          <small>
-            {total > goal ? `多记录了 ${total - goal} mL` : "每杯 500 mL"}
-          </small>
-        </div>
-        <div
-          className="water-cups"
-          role="img"
-          aria-label={`饮水 ${total} / ${goal} mL，每杯 500 mL`}
-        >
-          {visible.map((cup, i) => (
-            <span
-              key={i}
-              title={`第 ${levels.length > 6 && i === 5 ? levels.length : i + 1} 杯 · 目标 ${cup.target} mL`}
+                  : "补录到这一天，保存实际操作时间"}
+            </p>
+            <p className="water-detail-total" aria-live="polite">
+              {total.toLocaleString()} / {goal.toLocaleString()} mL{" "}
+              {total >= goal && (
+                <span className="water-achieved">
+                  <Star size={12} /> 补水达标
+                </span>
+              )}
+            </p>
+            <div
+              className="water-meter"
+              role="img"
+              aria-label={`饮水进度 ${total} / ${goal} mL`}
             >
-              <WaterCup {...cup} />
-            </span>
-          ))}
-          {levels.length > 6 && <small>中间省略 {levels.length - 6} 杯</small>}
-        </div>
-        <fieldset className="water-actions" disabled={pending > 0 || future}>
-          {[150, 250, 500].map((value) => (
-            <button
-              key={value}
-              className={value === 500 ? "water-favorite" : ""}
-              onClick={() => add(value)}
-            >
-              +{value}
-              <small> mL</small>
-            </button>
-          ))}
-          <button
-            ref={customTrigger}
-            aria-expanded={detail && custom}
-            onClick={() => {
-              setError("");
-              setCustom(true);
-              setDetail(true);
-            }}
-          >
-            自定义
-          </button>
-        </fieldset>
-        <button
-          className="water-details-button"
-          onClick={() => {
-            setCustom(false);
-            setDetail(true);
-          }}
-        >
-          时间记录 · {entries.length} 次
-        </button>
-        <button
-          className="water-expand"
-          onClick={() => {
-            setCustom(false);
-            setDetail(true);
-          }}
-        >
-          展开补水
-        </button>
-        {error && !detail && <p role="alert">{error}</p>}
-        {removed && !detail && (
-          <button
-            className="water-restore"
-            disabled={pending > 0}
-            onClick={() =>
-              void act(async () => {
-                await store.addWater(removed);
-                setRemoved(null);
-              })
-            }
-          >
-            <Undo2 size={13} /> 恢复刚删除的 {removed.amount} mL
-          </button>
-        )}
-      </section>
-      {detail && (
-        <Dialog title="今日补水" className="water-dialog" onClose={closeDetail}>
-          <div className="water-detail-content">
+              <span
+                style={{ width: `${Math.min(100, (total / goal) * 100)}%` }}
+              />
+            </div>
             <fieldset
               className="water-actions water-dialog-quick"
               disabled={pending > 0 || future}
@@ -322,40 +393,21 @@ export function WaterCard({
                   key={value}
                   className={value === 500 ? "water-favorite" : ""}
                   aria-label={`记录 ${value} mL`}
-                  onClick={() => add(value)}
+                  onClick={() => add(value, true)}
                 >
                   +{value} mL
                 </button>
               ))}
-            </fieldset>
-            <p className="water-date">
-              {date} ·{" "}
-              {future
-                ? "未来日期仅查看"
-                : date === dayKey(new Date())
-                  ? "记录到今天"
-                  : "补录到这一天，保存实际操作时间"}
-            </p>
-            <p className="water-detail-total">
-              {total.toLocaleString()} / {goal.toLocaleString()} mL{" "}
-              {total >= goal && (
-                <span className="water-achieved">
-                  <Star size={12} /> 补水达标
-                </span>
-              )}
-            </p>
-            {!custom && !future && (
               <button
-                className="water-other"
+                aria-label="自定义容量"
                 onClick={() => {
-                  setAmount("");
                   setError("");
                   setCustom(true);
                 }}
               >
-                记录其他容量
+                自定义
               </button>
-            )}
+            </fieldset>
             {custom && !future && (
               <form
                 className="water-custom"
@@ -428,7 +480,7 @@ export function WaterCard({
             <div className="water-history">
               <h4>时间记录 · {entries.length} 次</h4>
               <ul>
-                {entries.length === 0 && <li>还没有记录，按自己的节奏来。</li>}
+                {entries.length === 0 && <li>还没有饮水记录</li>}
                 {entries.map((entry) => (
                   <li key={entry.id}>
                     <time

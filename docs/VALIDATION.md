@@ -37,6 +37,8 @@
 
 校验文件 `SL024-D-PREVIEW-20261030-SHA256SUMS.txt`。C包保留且SHA256仍为 `a4de00fa16121c626b2cb0fdccafdf9a52c4ccbd699a57b2b8c4076f27ffdf33`；A/B/SL-020旧包未覆盖。安装前自行正常退出、导出当前JSON、复制完整本地数据目录，首次升级前旧V1没有饮水，不能替代目录备份。安装后新版V2才能完整导出饮水，不删应用数据、不直接降级数据库v1软件。无Tag/正式Release，安装器和校验文件只留本地忽略的artifacts。
 
+实现/测试/文档/合成截图提交 [`b7c488a`](https://github.com/YOLIIIIII/starry-list/commit/b7c488a518ea993f83dc33edde92c6ab29939f3d) 已普通Push main；[代码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41020764638)记录时运行中，最终状态以运行页及交付报告为准。每次Commit前实际作者/提交者均核实为维护者既有GitHub noreply配置，未改全局/本地身份；暂存31文件不含数据库、个人备份、安装器、私人壁纸/照片。Git只在命令级使用系统本机代理，无force push/历史重写/Tag/Release。
+
 ## SL-024-C
 
 2026-10-30，初始main与origin/main一致、工作区干净；用户已认可B设置/总览/自定义基本流程，只做专注/大字号/杯子/明细精修。SL-024/A/B/C保持In Review，待安装；SL-020 Done、SL-006 Research不变，不新增健康功能。

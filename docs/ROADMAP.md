@@ -8,6 +8,8 @@
 
 下方为各阶段历史交付，涉及旧 JSON 不含饮水的说明仅适用于当时版本，当前以 D / [用户手册第11节](USER_GUIDE.md#11-导出与导入-json-备份) 为准。
 
+D 实现与证据 [`b7c488a`](https://github.com/YOLIIIIII/starry-list/commit/b7c488a518ea993f83dc33edde92c6ab29939f3d) 已普通Push main；[对应CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41020764638)已触发，最终状态以Actions/交付报告为准。独立体验包5344513字节及SHA256见验证记录，旧C保留，不Tag/Release。
+
 ## SL-024-C 历史交付
 
 SL-024-C正式授权：保护已认可的四分类设置、总览独立结构和自定义流程；重点精修专注对齐/大字号，兼顾时间记录面板与原创水杯。数据库v2、迁移、备份协议/版本/标识不变。父项/A/B继续In Review（局部正面反馈不等于完整验收），C完成后同样待安装确认；SL-020 Done、SL-006 Research不变。见 [C视觉报告](SL_024_C_VISUAL_REVIEW.md)。

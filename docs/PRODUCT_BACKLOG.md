@@ -425,6 +425,7 @@ UX3.1 历史状态（2026-10-23）：用户已安装 UX3.0.4，确认三种外�
 - 不变边界：SQLite user_version=2、001/002和所有表结构、应用ID/正式版本/日常记水store与IPC不升级；正式数据库和个人备份不用于测试。
 - 状态：**In Review**；最初登记In Progress，现实现和证据见 [D备份报告](SL_024_D_BACKUP_REVIEW.md) / [验证记录](VALIDATION.md#sl-024-d)。待用户导出恢复体验，父项继续In Review；SL-020 Done / SL-006 Research不变，无Tag/Release。B的设置/总览/自定义、C的专注大字/水杯/明细结构已获确认；B/C仅因空态待D安装复核，仍In Review。
 - 验收复核：A的原手动记水/日期/目标/撤销等标准由A/C测试与本次整体正面确认覆盖，**A可Done（未发布，V1备份限制由D另行增强）**。B的设置/总览/自定义和独立布局获明确确认，但通用空态仍随C/D复核，保留In Review。C视觉主体已获确认，空态显示缺口由D修复并等待确认，仍In Review。历史交付记录保留，不把D测试或CI当用户恢复验收。
+- 实现Commit：[`b7c488a`](https://github.com/YOLIIIIII/starry-list/commit/b7c488a518ea993f83dc33edde92c6ab29939f3d)，已普通Push main；[代码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41020764638)已触发，记录时运行中，最终结果以Actions及交付报告为准。196前端/27Rust/原生文件异库往返和回归、安装包与SHA256详见验证记录；无PR/Issue/Tag/Release。
 
 ## 后续想法（未安排版本或发布日期）
 

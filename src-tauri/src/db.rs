@@ -100,7 +100,10 @@ pub struct Snapshot {
     pub settings: Settings,
 }
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(try_from = "serde_json::Value")]
 pub struct Backup {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub water_entries: Option<Vec<WaterEntry>>,
     pub format: String,
     pub version: u32,
     pub exported_at: String,
@@ -109,6 +112,50 @@ pub struct Backup {
     pub day_marks: Vec<DayMark>,
     pub settings: Settings,
 }
+impl TryFrom<serde_json::Value> for Backup {
+    type Error = String;
+    fn try_from(value: serde_json::Value) -> Result<Self> {
+        let version = value
+            .get("version")
+            .and_then(|v| v.as_u64())
+            .ok_or("备份版本无效")?;
+        match version {
+            1 if value.get("water_entries").is_some() => {
+                return Err("V1备份不能包含饮水字段".into())
+            }
+            2 if !value.get("water_entries").is_some_and(|v| v.is_array()) => {
+                return Err("V2备份必须包含饮水记录数组".into())
+            }
+            1 | 2 => {}
+            _ => return Err("不支持的备份版本，请使用支持该格式的应用".into()),
+        }
+        #[derive(Deserialize)]
+        struct Wire {
+            format: String,
+            version: u32,
+            exported_at: String,
+            tasks: Vec<Task>,
+            categories: Vec<Category>,
+            day_marks: Vec<DayMark>,
+            settings: Settings,
+            #[serde(default)]
+            water_entries: Option<Vec<WaterEntry>>,
+        }
+        let w: Wire = serde_json::from_value(value).map_err(error)?;
+        Ok(Self {
+            format: w.format,
+            version: w.version,
+            exported_at: w.exported_at,
+            tasks: w.tasks,
+            categories: w.categories,
+            day_marks: w.day_marks,
+            settings: w.settings,
+            water_entries: w.water_entries,
+        })
+    }
+}
+pub const MAX_WATER_ENTRIES: usize = 100000;
+pub const MAX_BACKUP_BYTES: usize = 32 * 1024 * 1024;
 pub fn valid_date(s: &str) -> bool {
     s.len() == 10
         && NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok_and(|d| {
@@ -188,22 +235,53 @@ pub fn migrate(conn: &mut Connection) -> Result<()> {
     }
     Ok(())
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WaterEntry {
     pub id: String,
     pub date: String,
     pub amount: u32,
     pub recorded_at: String,
 }
-pub fn save_water(conn: &Connection, entry: &WaterEntry) -> Result<()> {
+fn valid_water_timestamp(s: &str) -> bool {
+    if !s.is_ascii()
+        || s.len() < 20
+        || s.as_bytes()[10] != b'T'
+        || s.as_bytes()[13] != b':'
+        || s.as_bytes()[16] != b':'
+        || !s[..4].bytes().all(|b| b.is_ascii_digit())
+        || s[17..19].parse::<u8>().map_or(true, |v| v > 59)
+        || chrono::DateTime::parse_from_rfc3339(s).is_err()
+    {
+        return false;
+    }
+    let end = if s.ends_with('Z') {
+        s.len() - 1
+    } else {
+        let zone = &s[s.len() - 6..];
+        if !matches!(zone.as_bytes()[0], b'+' | b'-') || zone.as_bytes()[3] != b':' {
+            return false;
+        }
+        s.len() - 6
+    };
+    let fraction = &s[19..end];
+    fraction.is_empty()
+        || (fraction.starts_with('.')
+            && fraction.len() > 1
+            && fraction[1..].bytes().all(|b| b.is_ascii_digit()))
+}
+pub fn validate_water(entry: &WaterEntry) -> Result<()> {
     if entry.id.is_empty()
         || entry.id.len() > 128
         || !valid_date(&entry.date)
         || !(1..=10000).contains(&entry.amount)
-        || chrono::DateTime::parse_from_rfc3339(&entry.recorded_at).is_err()
+        || !valid_water_timestamp(&entry.recorded_at)
     {
         return Err("饮水记录无效".into());
     }
+    Ok(())
+}
+pub fn save_water(conn: &Connection, entry: &WaterEntry) -> Result<()> {
+    validate_water(entry)?;
     conn.execute("INSERT INTO water_entries(id,date,amount,recorded_at) VALUES(?1,?2,?3,?4) ON CONFLICT(id) DO NOTHING", params![entry.id,entry.date,entry.amount,entry.recorded_at]).map_err(error)?;
     Ok(())
 }
@@ -357,26 +435,64 @@ pub fn reorder(conn: &mut Connection, date: &str, ids: &[String]) -> Result<()> 
     tx.commit().map_err(error)
 }
 pub fn export(conn: &Connection) -> Result<Backup> {
-    let s = snapshot(conn)?;
-    Ok(Backup {
+    let tx = conn.unchecked_transaction().map_err(error)?;
+    for (table, limit) in [
+        ("tasks", 50000),
+        ("categories", 1000),
+        ("day_marks", 50000),
+        ("water_entries", MAX_WATER_ENTRIES),
+    ] {
+        let count: usize = tx
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))
+            .map_err(error)?;
+        if count > limit {
+            return Err("完整数据超过备份记录数量上限，未导出；请保留完整数据目录备份".into());
+        }
+    }
+    // Bound the source text before allocating a complete snapshot. Serialization
+    // applies a second byte bound for JSON escaping/formatting overhead.
+    let bytes: usize = tx.query_row("SELECT (SELECT COALESCE(SUM(length(CAST(id||date||title||COALESCE(short_label,'')||COALESCE(description,'')||COALESCE(category_id,'')||created_at||updated_at AS BLOB))),0) FROM tasks) + (SELECT COALESCE(SUM(length(CAST(id||name||color AS BLOB))),0) FROM categories) + (SELECT COALESCE(SUM(length(CAST(date||kind||COALESCE(note,'') AS BLOB))),0) FROM day_marks) + (SELECT COALESCE(SUM(length(CAST(id||date||recorded_at AS BLOB))),0) FROM water_entries) + (SELECT length(CAST(value AS BLOB)) FROM app_settings WHERE id=1)", [], |r|r.get(0)).map_err(error)?;
+    if bytes > MAX_BACKUP_BYTES {
+        return Err("完整备份超过32 MB，未导出；请保留完整数据目录备份".into());
+    }
+    let s = snapshot(&tx)?;
+    tx.commit().map_err(error)?;
+    let b = Backup {
         format: "starry-list".into(),
-        version: 1,
+        version: 2,
+        water_entries: Some(s.water_entries),
         exported_at: Utc::now().to_rfc3339(),
         tasks: s.tasks,
         categories: s.categories,
         day_marks: s.day_marks,
         settings: s.settings,
-    })
+    };
+    validate_backup(&b)?;
+    Ok(b)
 }
 pub fn validate_backup(b: &Backup) -> Result<()> {
     if b.format != "starry-list"
-        || b.version != 1
+        || ![1, 2].contains(&b.version)
+        || (b.version == 1 && b.water_entries.is_some())
+        || (b.version == 2 && b.water_entries.is_none())
         || b.tasks.len() > 50000
         || b.categories.len() > 1000
         || b.day_marks.len() > 50000
         || chrono::DateTime::parse_from_rfc3339(&b.exported_at).is_err()
     {
         return Err("不支持的备份版本或结构".into());
+    }
+    let mut water_ids = HashSet::new();
+    if let Some(entries) = &b.water_entries {
+        if entries.len() > MAX_WATER_ENTRIES {
+            return Err("饮水记录超过100000条上限".into());
+        }
+        for entry in entries {
+            validate_water(entry)?;
+            if !water_ids.insert(&entry.id) {
+                return Err("饮水记录ID重复".into());
+            }
+        }
     }
     validate_settings(&b.settings)?;
     let mut cats = HashSet::new();
@@ -410,13 +526,29 @@ pub fn validate_backup(b: &Backup) -> Result<()> {
     }
     Ok(())
 }
-pub fn import(conn: &mut Connection, b: Backup, replace: bool) -> Result<()> {
+pub fn import(conn: &mut Connection, b: Backup, replace: bool) -> Result<Snapshot> {
     validate_backup(&b)?;
-    let old = snapshot(conn)?;
-    let tx = conn.transaction().map_err(error)?;
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(error)?;
+    let old = snapshot(&tx)?;
+    if !replace {
+        let existing: HashMap<_, _> = old.water_entries.iter().map(|e| (&e.id, e)).collect();
+        for entry in b.water_entries.iter().flatten() {
+            if existing.get(&entry.id).is_some_and(|e| **e != *entry) {
+                return Err("饮水记录ID冲突，整个导入已取消；本机数据未改变".into());
+            }
+        }
+    }
     if replace {
         tx.execute_batch("DELETE FROM tasks; DELETE FROM day_marks; DELETE FROM categories;")
             .map_err(error)?;
+    }
+    if replace && b.version == 2 {
+        tx.execute("DELETE FROM water_entries", []).map_err(error)?;
+    }
+    for entry in b.water_entries.iter().flatten() {
+        save_water(&tx, entry)?;
     }
     let mut cat_map = HashMap::new();
     for c in b.categories {
@@ -469,7 +601,9 @@ pub fn import(conn: &mut Connection, b: Backup, replace: bool) -> Result<()> {
     if replace {
         save_settings(&tx, &b.settings)?;
     }
-    tx.commit().map_err(error)
+    let restored = snapshot(&tx)?;
+    tx.commit().map_err(error)?;
+    Ok(restored)
 }
 
 #[cfg(test)]
@@ -860,7 +994,9 @@ mod tests {
                 ..Settings::default()
             };
             save_settings(&c, &settings).unwrap();
-            let backup = export(&c).unwrap();
+            let mut backup = export(&c).unwrap();
+            backup.version = 1;
+            backup.water_entries = None;
             assert!(serde_json::to_value(&backup)
                 .unwrap()
                 .get("water_entries")

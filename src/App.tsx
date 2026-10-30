@@ -93,6 +93,8 @@ export default function App() {
   const [month, setMonth] = useState(today);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const importLock = useRef(false);
+  const [restoreRevision, setRestoreRevision] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [textPreview, setTextPreview] = useState<TextSize | null>(null);
   const [textSaving, setTextSaving] = useState(false);
@@ -791,7 +793,10 @@ export default function App() {
           </section>
           <div className="overview-right">
             {settings.water_enabled && (
-              <WaterCard key={selected} date={selected} />
+              <WaterCard
+                key={`${selected}:${restoreRevision}`}
+                date={selected}
+              />
             )}
             <section className="agenda-panel" aria-label="七天日程">
               <div className="agenda-heading">
@@ -992,7 +997,11 @@ export default function App() {
             ))}
           </nav>
           {settings.water_enabled && (
-            <WaterCard key={selected} date={selected} compact />
+            <WaterCard
+              key={`${selected}:${restoreRevision}`}
+              date={selected}
+              compact
+            />
           )}
           <div className="focus-list-heading">
             <h2>
@@ -1520,11 +1529,12 @@ export default function App() {
                   <div className="backup-section">
                     <h3>数据备份</h3>
                     <p>
-                      JSON
-                      包含喝水开关与目标，不含饮水明细；导入（含覆盖）保留本机饮水明细。
+                      包含任务、分类、日期标记、设置及饮水历史。导出为 JSON V2。
                     </p>
                     <p>
-                      导入默认合并；完整饮水历史请在正常退出后备份整个应用数据目录。
+                      导入默认合并。V1
+                      不含饮水历史，导入不会删除本机饮水记录；V2
+                      覆盖将替换饮水历史。
                     </p>
                     <p className="backup-location">
                       数据位置：%APPDATA%\app.starrylist.desktop
@@ -1600,6 +1610,8 @@ export default function App() {
             已校验 V{backup.version} 备份：{backup.tasks.length} 项任务，
             {backup.categories.length} 个分类，{backup.day_marks.length}{" "}
             个个人标记。
+            {backup.version === 2 &&
+              ` ${backup.water_entries.length} 条饮水记录。`}
           </p>
           <label className="import-choice">
             <input
@@ -1608,12 +1620,22 @@ export default function App() {
               disabled={importing}
               onChange={(e) => setReplace(e.target.checked)}
             />
-            覆盖现有全部数据与设置
+            覆盖任务、分类、标记与设置
+            {backup.version === 2 ? "及饮水历史" : "（保留本机饮水历史）"}
           </label>
           <p className="dialog-copy">
             {replace
               ? "覆盖会删除当前任务、分类及日期标记，请先导出备份。"
               : "合并保留已有记录。相同任务 ID 将生成新 ID；相同日期的个人标记保留现有值。设置不变。"}
+          </p>
+          <p className="dialog-copy" role="note">
+            {backup.version === 1
+              ? "此备份不含饮水历史，导入不会删除本机饮水记录。"
+              : replace
+                ? backup.water_entries.length === 0
+                  ? "警告：备份饮水列表为空，覆盖将清空本机饮水明细。"
+                  : "本机饮水记录将被备份中的记录替换。"
+                : "保留本机饮水记录，相同记录不会重复导入；同ID内容冲突将取消整个导入。"}
           </p>
           {replace && (
             <label className="field">
@@ -1634,19 +1656,27 @@ export default function App() {
               disabled={importing || (replace && replaceWord !== "覆盖")}
               onClick={() =>
                 void safe(async () => {
+                  if (importLock.current) return;
+                  importLock.current = true;
                   setImporting(true);
-                  setEditing(null);
-                  setExpanded(null);
-                  setUndos([]);
                   try {
                     await store.importBackup(backup, replace);
-                    await setTop(
-                      store.getSnapshot().data.settings.always_on_top,
+                    setRestoreRevision((n) => n + 1);
+                    setOpacity(null);
+                    setTextPreview(null);
+                    setHeaderPreview(null);
+                    setAgendaPreview(null);
+                    setEditing(null);
+                    setExpanded(null);
+                    setUndos([]);
+                    void safe(() =>
+                      setTop(store.getSnapshot().data.settings.always_on_top),
                     );
                     setBackup(null);
                     setNotice("备份已完整导入");
                   } finally {
                     setImporting(false);
+                    importLock.current = false;
                   }
                 })
               }

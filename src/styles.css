@@ -3592,3 +3592,10 @@ svg.water-cup {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Empty state is a full-width message, separate from the three-column records. */
+.water-dialog .water-history li.water-history-empty {
+  display: block;
+  padding: 12px;
+  white-space: nowrap;
+}

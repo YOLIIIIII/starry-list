@@ -28,7 +28,7 @@ function fixture() {
     reorder: vi.fn(async () => {}),
     exportBackup: vi.fn(async () => true),
     readBackup: vi.fn(async () => null),
-    importBackup: vi.fn(async () => {}),
+    importBackup: vi.fn(async () => structuredClone(persisted)),
   };
   return { repo, store: new AppStore(repo), persisted: () => persisted };
 }

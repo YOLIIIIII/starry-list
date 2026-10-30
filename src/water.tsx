@@ -480,7 +480,9 @@ export function WaterCard({
             <div className="water-history">
               <h4>时间记录 · {entries.length} 次</h4>
               <ul>
-                {entries.length === 0 && <li>还没有饮水记录</li>}
+                {entries.length === 0 && (
+                  <li className="water-history-empty">还没有饮水记录</li>
+                )}
                 {entries.map((entry) => (
                   <li key={entry.id}>
                     <time

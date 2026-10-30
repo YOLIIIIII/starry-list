@@ -1,5 +1,42 @@
 # V1.0 验证记录
 
+## SL-024-D
+
+2026-10-30。起始main=`4771198`，工作区干净，与最新origin/main一致；收尾再次fetch仍相同。用户安装C确认整体良好，空记录换行是剩余缺口；本轮正式授权JSON完整备份及恢复。A原MVP标准结合历史测试及最新安装确认Done；B/C空态、父项/D恢复继续In Review。SL-020 Done、SL-006 Research保持，无正式发布。
+
+| 验证 | 最终结果与范围 |
+| --- | --- |
+| TypeScript / ESLint / Vite | 默认 `npm run check` 通过，生产静态构建；只有既有Zod PURE注释提示 |
+| 全部前端 | **196/196**、13文件（原180+16）；75个App回归含版本/范围/空数组/确认词/取消/待写防重复/完整Snapshot即时更新；饮水/旧任务/设置/草稿/失焦不变 |
+| Rust / fmt / Clippy | **27/27**（原18+9），fmt --check、Clippy --locked -- -D warnings通过 |
+| 真实文件与SQLite单元 | 独立A/B文件数据库→实际JSON→B→重开五类完整一致；原始ID/日期/毫秒/+08:00与-05:00/未来记录不改写；V1两模式、V2重复/冲突/空替换及最后一步SQL失败全回滚 |
+| 文件错误/资源限制 | 100000/100001记录、32MiB+1真实文件、JSON转义超限、无效目标/缺目录、旧文件成功替换与失败保留；OS错误112模拟部分写入磁盘满，不截断 |
+| D Windows专项 | 原生Save/Open对话框与真实文件A→B导入、完整Snapshot相等、两视图即时更新、正常进程重启；V1两模式、V2空覆盖警告、冲突/SQL故障/损坏JSON/取消全部通过。最终 `.cache/sl024d-1793345385950/results.json`，含按钮遮挡保护；此前一轮亦完整通过 |
+| 空记录真实WebView2 | 380×480/500×620/980×680 × 三字号 × 阅读/轻玻璃 × 无/有恢复，**36状态**；Range行数1、无水平溢出；最后一条删除/恢复入口正常 |
+| 原补水C专项 | **360布局**（两视图×开关×三材质×三字号×两顶部×五尺寸），水位/目标/历史未来/失败重试/100条列表/设置键盘/重启通过。`.cache/sl024c-1793344841963/results.json` |
+| 真实OS拖动 | **10组、72布局**，开启补水，跨组阻止/原箭头/长详情/45任务边缘滚动/真实SQL失败及重启通过。`.cache/sl020-1793345015661/results.json` |
+| desktop-smoke | **25/25**，连续新增、真实Edge失焦、草稿/抽屉固定保存、删除撤销、实际导出合并/坏版本拒绝、字号/两顶部/设置及重启通过。`.cache/desktop-smoke-1793345102363/results.json` |
+
+证据层次：前端模拟、CDP点击/键盘/布局测量、真实Windows原生文件对话框/Win32键鼠与文件I/O、真实隔离SQLite、用户安装验收分别记录；上述自动化不等于用户亲自安装恢复确认。所有桌面进程使用独立test App ID、数据目录和profile，运行中的正式安装版不关闭，不读取正式库/私人备份。
+
+初测默认前端193项有1个旧5秒用例超时，其余192通过；修正测试资源/等待后默认195全通过，补充分钟精度非法时间案例后最终**196默认全通过**，未修改5000ms门槛。C专项初测删除后立即数徽标遇异步IPC竞态，加入等待实际消失后原断言及完整360矩阵通过。原生文件脚本初测WM_SETTEXT未通知Shell文件名缓存，出现超时；改为键盘编辑提交并回读核对隔离路径后完整链路成功，失败不计通过。
+
+安全边界：SQLite user_version保持2、001/002和表结构、应用标识/软件1.0.0不变；仅JSON格式升2。导入IMMEDIATE事务内五类恢复并取得完整Snapshot后提交，UI成功才替换；同目录临时写入/sync_all/persist原子导出。JSON上限32MiB、任务50000/分类1000/标记50000/饮水100000，超限明确拒绝，不截断。规则见 [DEC-022](DECISIONS.md#dec-022) / [D备份报告](SL_024_D_BACKUP_REVIEW.md)。
+
+未验证：Windows10、其他GPU/混合DPI/触屏/读屏、真实IME候选窗、网络/云目录/可移动介质、真实只读ACL/物理满盘/断电；安装器未执行安装/升级/卸载。磁盘满为故障注入，不能当物理环境认证。JSON未加密，超过限制时先退出后备份完整目录。首次升级前旧V1不含饮水，必须退出后完整目录备份；不删除数据、不直接降级v1。历史章节中旧JSON限制仅对应当时阶段，现行V2以D为准。
+
+复现：`npm run check`；Rust原test/fmt/Clippy命令；按B/C隔离debug配置构建后串行执行 `node scripts/backup-smoke.mjs`、`node scripts/water-c-smoke.mjs`、`node scripts/drag-smoke.mjs --water`、`node scripts/desktop-smoke.mjs`。C/desktop的 `STARRY_LIST_SCREENSHOT_DIR` 指向缓存，避免重写历史截图；D合成图见 `docs/screenshots/sl024d/`，无私人图片/数据库。安装器/哈希和提交/CI在下方补录。
+
+### D 预览安装包
+
+默认透明Windows x64 NSIS构建通过，生成脚本BUNDLEID=`app.starrylist.desktop`、版本1.0.0，无测试标识/额外focus权限。仅构建，未执行安装器，不关闭已运行的正式版。
+
+| artifacts/ 文件 | 字节 | SHA256 |
+| --- | ---: | --- |
+| `Starry-List_1.0.0_x64-sl024-d-preview-20261030-setup.exe` | 5344513 | `89c093ce907dc141f8e8fff4aef2bd93b52fa33859d64103109ce22b1e22f870` |
+
+校验文件 `SL024-D-PREVIEW-20261030-SHA256SUMS.txt`。C包保留且SHA256仍为 `a4de00fa16121c626b2cb0fdccafdf9a52c4ccbd699a57b2b8c4076f27ffdf33`；A/B/SL-020旧包未覆盖。安装前自行正常退出、导出当前JSON、复制完整本地数据目录，首次升级前旧V1没有饮水，不能替代目录备份。安装后新版V2才能完整导出饮水，不删应用数据、不直接降级数据库v1软件。无Tag/正式Release，安装器和校验文件只留本地忽略的artifacts。
+
 ## SL-024-C
 
 2026-10-30，初始main与origin/main一致、工作区干净；用户已认可B设置/总览/自定义基本流程，只做专注/大字号/杯子/明细精修。SL-024/A/B/C保持In Review，待安装；SL-020 Done、SL-006 Research不变，不新增健康功能。

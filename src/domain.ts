@@ -59,10 +59,20 @@ export type HeaderLayout = z.infer<typeof headerLayoutSchema>;
 export const agendaRangeSchema = z.enum(["rolling", "week"]);
 export type AgendaRange = z.infer<typeof agendaRangeSchema>;
 export const waterEntrySchema = z.object({
-  id: z.string().min(1).max(128),
+  id: z
+    .string()
+    .min(1)
+    .max(128)
+    .refine((v) => new TextEncoder().encode(v).length <= 128, "记录ID过长"),
   date: dateSchema,
   amount: z.number().int().min(1).max(10000),
-  recorded_at: z.string().datetime({ offset: true }),
+  recorded_at: z
+    .string()
+    .datetime({ offset: true })
+    .regex(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/,
+    )
+    .refine((v) => Number.isFinite(Date.parse(v)), "记录时间无效"),
 });
 export type WaterEntry = z.infer<typeof waterEntrySchema>;
 export const settingsSchema = z.object({
@@ -96,21 +106,37 @@ export const defaults: Settings = {
   water_enabled: false,
   water_goal: 2000,
 };
+export const MAX_WATER_ENTRIES = 100000;
+const backupFields = {
+  format: z.literal("starry-list"),
+  exported_at: z.string().datetime({ offset: true }),
+  tasks: z.array(taskSchema).max(50000),
+  categories: z.array(categorySchema).max(1000),
+  day_marks: z.array(markSchema).max(50000),
+  settings: settingsSchema,
+};
 export const backupSchema = z
-  .object({
-    format: z.literal("starry-list"),
-    version: z.literal(1),
-    exported_at: z.string().datetime({ offset: true }),
-    tasks: z.array(taskSchema).max(50000),
-    categories: z.array(categorySchema).max(1000),
-    day_marks: z.array(markSchema).max(50000),
-    settings: settingsSchema,
-  })
+  .discriminatedUnion("version", [
+    z.object({
+      ...backupFields,
+      version: z.literal(1),
+      water_entries: z.never().optional(),
+    }),
+    z.object({
+      ...backupFields,
+      version: z.literal(2),
+      water_entries: z.array(waterEntrySchema).max(MAX_WATER_ENTRIES),
+    }),
+  ])
   .superRefine((data, ctx) => {
     for (const [key, values] of [
       ["tasks", data.tasks.map((t) => t.id)],
       ["categories", data.categories.map((c) => c.id)],
       ["day_marks", data.day_marks.map((m) => m.date)],
+      [
+        "water_entries",
+        data.version === 2 ? data.water_entries.map((e) => e.id) : [],
+      ],
     ] as const)
       if (new Set(values).size !== values.length)
         ctx.addIssue({ code: "custom", message: `${key} 存在重复记录` });

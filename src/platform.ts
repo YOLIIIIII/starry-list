@@ -28,7 +28,7 @@ export interface Repository {
   reorder(date: string, ids: string[]): Promise<void>;
   exportBackup(): Promise<boolean>;
   readBackup(): Promise<Backup | null>;
-  importBackup(backup: Backup, replace: boolean): Promise<void>;
+  importBackup(backup: Backup, replace: boolean): Promise<Snapshot>;
 }
 export const repository: Repository = {
   saveWater: (entry) => invoke("save_water", { entry }),

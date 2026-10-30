@@ -9,7 +9,7 @@ import {
   act,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { defaults, type Snapshot, type Task } from "./domain";
+import { backupSchema, defaults, type Snapshot, type Task } from "./domain";
 import { makeTask } from "./test-fixtures";
 const backend = vi.hoisted(() => ({
   data: null as Snapshot | null,
@@ -1715,4 +1715,96 @@ it("SL-020 pending sort blocks duplicate drags and serial retry uses the current
     ["b", "a"],
     ["a", "b"],
   ]);
+});
+
+describe("SL-024-D versioned import confirmation", () => {
+  async function openBackup(version: 1 | 2, water = false) {
+    const { repository } = await import("./platform");
+    const b = backupSchema.parse({
+      format: "starry-list",
+      version,
+      exported_at: "2026-10-30T09:00:00+08:00",
+      tasks: [],
+      categories: [],
+      day_marks: [],
+      settings: { ...defaults, water_enabled: true },
+      ...(version === 2
+        ? {
+            water_entries: water
+              ? [
+                  {
+                    id: "restored",
+                    date: "2026-10-14",
+                    amount: 500,
+                    recorded_at: "2026-10-30T09:49:00+08:00",
+                  },
+                ]
+              : [],
+          }
+        : {}),
+    });
+    vi.mocked(repository.readBackup).mockResolvedValueOnce(b);
+    vi.mocked(repository.importBackup).mockClear();
+    const u = userEvent.setup();
+    render(<App />);
+    await u.click(await screen.findByRole("button", { name: "设置" }));
+    await u.click(screen.getByRole("tab", { name: "数据与关于" }));
+    await u.click(screen.getByRole("button", { name: "导入 JSON" }));
+    await screen.findByRole("dialog", { name: "确认导入备份" });
+    return { u, b, repository };
+  }
+  it("V1 cancel preserves state; V2 empty replace warns and requires exact word", async () => {
+    let { u, repository } = await openBackup(1);
+    expect(screen.getByRole("note").textContent).toContain(
+      "不会删除本机饮水记录",
+    );
+    await u.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("note").textContent).toContain("不会删除");
+    await u.click(screen.getByRole("button", { name: "取消" }));
+    expect(repository.importBackup).not.toHaveBeenCalled();
+    cleanup();
+    ({ u, repository } = await openBackup(2));
+    expect(screen.getByRole("note").textContent).toContain("不会重复");
+    await u.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("note").textContent).toContain("清空本机饮水明细");
+    expect(
+      (screen.getByRole("button", { name: "确认覆盖" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    await u.type(screen.getByLabelText("输入“覆盖”确认"), "覆盖");
+    expect(
+      (screen.getByRole("button", { name: "确认覆盖" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+  it("V2 imports once while pending and reloads water immediately", async () => {
+    const { u, b, repository } = await openBackup(2, true);
+    let release!: () => void;
+    const wait = new Promise<void>((r) => {
+      release = r;
+    });
+    vi.mocked(repository.importBackup).mockImplementationOnce(async () => {
+      await wait;
+      backend.data = {
+        ...backend.data!,
+        settings: b.settings,
+        water_entries: b.version === 2 ? b.water_entries : [],
+      };
+      return structuredClone(backend.data);
+    });
+    const button = screen.getByRole("button", { name: "合并导入" });
+    await u.click(button);
+    fireEvent.click(button);
+    expect(repository.importBackup).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      release();
+      await wait;
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "确认导入备份" })).toBeNull(),
+    );
+    expect(
+      screen.getByRole("img", { name: "饮水 500 / 2000 mL，每杯 500 mL" }),
+    ).toBeTruthy();
+  });
 });

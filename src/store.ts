@@ -178,8 +178,7 @@ export class AppStore {
     let data: Snapshot;
     return this.write(
       async () => {
-        await this.repo.importBackup(backup, replace);
-        data = await this.repo.load();
+        data = await this.repo.importBackup(backup, replace);
       },
       () => data,
     );

@@ -1,3 +1,6 @@
+mod backup_io;
+#[cfg(test)]
+mod backup_tests;
 mod db;
 #[cfg(target_os = "windows")]
 mod material;
@@ -124,37 +127,36 @@ fn reorder_tasks(state: State<Database>, date: String, ids: Vec<String>) -> Resu
     db::reorder(&mut *lock(&state)?, &date, &ids)
 }
 #[tauri::command]
-fn export_backup(state: State<Database>, path: String) -> Result<(), String> {
-    let backup = db::export(&*lock(&state)?)?;
-    let dest = std::path::Path::new(&path);
-    let parent = dest.parent().ok_or("导出路径无效")?;
-    let mut temp = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
-    use std::io::Write;
-    temp.write_all(
-        serde_json::to_string_pretty(&backup)
-            .map_err(|e| e.to_string())?
-            .as_bytes(),
-    )
-    .map_err(|e| e.to_string())?;
-    temp.as_file().sync_all().map_err(|e| e.to_string())?;
-    temp.persist(dest).map_err(|e| e.to_string())?;
-    Ok(())
+async fn export_backup(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<Database>();
+        let backup = db::export(&*lock(&state)?)?;
+        backup_io::write(std::path::Path::new(&path), &backup)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 #[tauri::command]
-fn read_backup(path: String) -> Result<Backup, String> {
-    let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
-    if metadata.len() > 32 * 1024 * 1024 {
-        return Err("备份文件不能超过 32 MB".into());
-    }
-    let data = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let b: Backup = serde_json::from_str(&data).map_err(|e| format!("备份格式错误：{e}"))?;
-    db::validate_backup(&b)?;
-    Ok(b)
+async fn read_backup(path: String) -> Result<Backup, String> {
+    tauri::async_runtime::spawn_blocking(move || backup_io::read(std::path::Path::new(&path)))
+        .await
+        .map_err(|e| e.to_string())?
 }
 #[tauri::command]
-fn import_backup(state: State<Database>, backup: Backup, replace: bool) -> Result<(), String> {
-    db::import(&mut *lock(&state)?, backup, replace)
+async fn import_backup(
+    app: tauri::AppHandle,
+    backup: Backup,
+    replace: bool,
+) -> Result<Snapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<Database>();
+        let mut connection = lock(&state)?;
+        db::import(&mut connection, backup, replace)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
+
 pub fn run() {
     let test_dir = if cfg!(debug_assertions) {
         std::env::var_os("STARRY_LIST_TEST_DATA_DIR").map(std::path::PathBuf::from)

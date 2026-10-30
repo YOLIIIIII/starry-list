@@ -60,14 +60,14 @@ try {
       const close=await dialog.getByRole('button',{name:'关闭对话框'}).boundingBox();assert.ok(close.y>=0&&close.y+close.height<=height);
       await page.locator('.water-history ul').evaluate(el=>el.scrollTop=el.scrollHeight);
       assert.ok(await page.locator('.water-history ul').evaluate(el=>el.scrollTop>0));
-      await page.screenshot({path:resolve('docs/screenshots/sl024c',`records-100-${width}x${height}.png`)});
+      await page.screenshot({path:resolve(process.env.STARRY_LIST_SCREENSHOT_DIR ?? 'docs/screenshots/sl024c',`records-100-${width}x${height}.png`)});
       await page.keyboard.press('Tab');assert.equal(await dialog.evaluate(el=>el.contains(document.activeElement)),true);
       await page.keyboard.press('Escape');assert.equal(await page.getByRole('dialog').count(),0);
       records.push(`100 records at ${width}x${height}: bounded scroll, close, focus and no horizontal overflow`);
     }
     await writeFile(resolve(root,'panel-results.json'),JSON.stringify({records},null,2));console.log(JSON.stringify({root,records}));
   } else {
-  const shots = resolve("docs/screenshots/sl024c");
+  const shots = resolve(process.env.STARRY_LIST_SCREENSHOT_DIR ?? "docs/screenshots/sl024c");
   await mkdir(shots, { recursive: true });
   const size = async (width, height) => {
     await invoke("plugin:window|set_size", {
@@ -107,6 +107,7 @@ try {
   await page.getByText("补水达标", { exact: true }).waitFor();
   await click("时间记录 · 4 次");
   await page.getByRole("button", { name: /删除 .* 的 1400/ }).click();
+  await page.waitForFunction(() => !document.querySelector(".water-achieved"));
   assert.equal(await page.getByText("补水达标", { exact: true }).count(), 0);
   await click("恢复刚删除的 1400 mL");
   await click("关闭对话框");

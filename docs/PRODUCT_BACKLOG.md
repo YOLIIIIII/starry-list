@@ -401,7 +401,7 @@ UX3.1 历史状态（2026-10-23）：用户已安装 UX3.0.4，确认三种外�
 - 目标/实现：四分类设置中心（外观与布局、日历与使用、喝水小组件、数据与关于），保留全部旧入口及即时预览/失败回滚；总览独立右栏，专注横向小卡片，窄矮窗口摘要与现有Dialog操作区；原创圆润水杯与尾杯刻度，高目标限制可见杯数；标题「今日补水」，达标「补水达标」；自定义小面板提供取消/记录这杯、Enter/Escape/IME及失败重试。
 - 验收：全部旧设置可达，分类键盘/焦点与草稿保留；五尺寸×三材质×三字号×两顶部×开关×两视图；长计划/固定新增/拖动/抽屉/撤销兼容；空半满/非整杯/极端目标/错误输入/历史未来/失败重试/重启；真实Windows与自动模拟分列。待安装视觉确认后才能Done。
 - 数据边界：禁止迁移，002不变、user_version=2、字段/标识/正式版本/备份协议不变；不访问正式SQLite。SL-006继续Research，不开发驻留。
-- 状态：In Review（2026-10-30）；实现完成，等待安装后的视觉与交互确认。测试、截图与独立预览包见 [视觉报告](SL_024_B_VISUAL_REVIEW.md) / [验证记录](VALIDATION.md#sl-024-b)。实现Commit通过Git历史 `feat: refine SL-024-B settings center and water widget` 定位；Push/CI按实际交付报告，无Tag/Release。
+- 状态：In Review（2026-10-30）；实现完成，等待安装后的视觉与交互确认。测试、截图与独立预览包见 [视觉报告](SL_024_B_VISUAL_REVIEW.md) / [验证记录](VALIDATION.md#sl-024-b)。实现Commit [`5a290b3`](https://github.com/YOLIIIIII/starry-list/commit/5a290b3968328d0e6578c07767f42e54b063d054) 已普通Push main；[代码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40985706607) 已触发，结果以Actions和交付报告为准，无Tag/Release。
 
 ## 后续想法（未安排版本或发布日期）
 

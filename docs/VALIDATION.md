@@ -47,6 +47,8 @@ Windows x64 默认透明 NSIS构建成功，正式标识 `app.starrylist.desktop
 校验文件 `SL024-B-PREVIEW-20261030-SHA256SUMS.txt`。旧A包SHA256仍 `7537d2b99ec7caa8a1f9a9a3111594fec2033d81672a91ebd6f5fcec6f95aefd`；旧SL-020仍 `f933bb7933df5bc0d649824a9f8563dc9f4056bb738ada555e772cc7577db605`，均复核未覆盖。安装前退出、导出JSON任务备份、复制完整数据目录；升级后不直接降级v1、不删除应用数据，保留旧库完整备份。源码与六份管理文档及视觉报告一并交付，无Tag/Release；Push/最终CI以交付报告与Actions实际状态为准。
 
 
+B实现 [`5a290b3`](https://github.com/YOLIIIIII/starry-list/commit/5a290b3968328d0e6578c07767f42e54b063d054) 已普通Push main，[对应CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40985706607) 在交付记录时运行中，最终状态以Actions和交付报告为准。直连GitHub连续连接失败后，仅本次命令复用系统已启用的本机代理成功推送，无全局/仓库Git配置变更，无force push。作者和提交者均已核对为维护者既有GitHub noreply身份，暂存审查未含数据库、安装器或个人资料。
+
 ## SL-024-A
 
 2026-10-29：喝水模块 MVP；用户授权开发/构建/Push main，无 Tag / Release。SL-024 / A **In Review**，待用户体验；SL-020 没有新增针对性验收确认，继续 In Review。开发、自动测试、真实桌面、用户验收和发布分开。

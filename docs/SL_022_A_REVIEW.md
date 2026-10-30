@@ -44,3 +44,5 @@ SQLite user_version=2、001/002、Task/WaterEntry和JSON V2、store/IPC写入排
 ![标准月历](screenshots/sl022a/calendar-980x680.png)
 
 ![380×480窄矮月历](screenshots/sl022a/calendar-380x480.png)
+
+实现 [`f25efd8`](https://github.com/YOLIIIIII/starry-list/commit/f25efd845138bc170a5da22939c641c65185d644) 已普通Push main，[代码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41055792132)全部成功。安装包5343359字节，SHA256 `409d4a08f23a20d34dd0904a63d0d8b2533364941761d0e36da00958a9af987b`。用户安装验收与正式发布尚未发生。

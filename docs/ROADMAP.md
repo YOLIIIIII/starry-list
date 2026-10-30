@@ -10,6 +10,8 @@
 
 SL-023 只完成 [星河设计初稿](research/SL-023-GALAXY-CONCEPT.md)，保留 Idea；不开发第三视图、永久奖励或星河数据库。下方保留历史交付记录，当前状态以需求池为准。
 
+实现 [`f25efd8`](https://github.com/YOLIIIIII/starry-list/commit/f25efd845138bc170a5da22939c641c65185d644) 已普通Push main，[对应代码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41055792132)全部成功；独立SL-022-A体验包及SHA256见验证记录，旧D包保留，无Tag/Release。
+
 ## SL-024-D 历史交付
 
 

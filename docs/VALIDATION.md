@@ -18,7 +18,9 @@
 - D原生备份回归通过，`.cache/sl024d-1793363306967/results.json`：实际Save/Open对话框和JSON文件异库完整覆盖往返、五类Snapshot相等、两视图即时刷新、重复合并饮水幂等、冲突/最后SQL失败整笔回滚、V1两模式保留饮水、36空态布局及正常重启。备份恢复自动化不等于用户亲自验收。
 - Markdown本地链接、格式与暂存差异检查通过；18文件明确暂存，仅新增两张合成界面截图，不包含数据库、私人JSON、安装器或私人壁纸。每次Commit前核对实际作者/提交者为原有GitHub noreply身份，不改本地/全局身份。
 
-Commit/Push和CI结果在交付前补录。自动化、真实原生交互、用户安装验收与正式发布分别记录；没有Tag/Release。
+实现/测试/文档与两张合成界面提交 [`f25efd8`](https://github.com/YOLIIIIII/starry-list/commit/f25efd845138bc170a5da22939c641c65185d644) 已普通Push main；[对应代码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41055792132) **全部成功**（按该SHA核实）。原始main `36f8d2f` 的D文档CI与D代码CI也均成功，未以CI代替用户验收。交付文档补录为后续独立提交，其CI以该提交对应运行和最终交付为准。没有PR/Issue/Tag/Release，安装器及校验文件仅在本地忽略的artifacts目录。
+
+安装前先从当前D版导出JSON V2，正常退出，再复制完整应用数据目录作为额外备份；不删除数据、不直接降级。旧D包保留，不自动关闭/卸载正式运行应用。自动化、真实原生交互、用户安装验收与正式发布分别记录；没有Tag/Release。
 
 
 ## SL-024-D

@@ -355,7 +355,7 @@ UX3.1 历史状态（2026-10-23）：用户已安装 UX3.0.4，确认三种外�
 - 状态：**In Review**；A 实现后等待安装验收，父项不能自动 Done。无正式发布。
 - 实现建议/规则：当前任务快照实时派生；无永久奖励，不引入实际完成时间。
 - 验收：见 A 的完整口径、布局、交互和历史重算标准；用户安装确认后再复核。
-- Commit / PR / Issue：本轮提交与 CI 见 [验证记录](VALIDATION.md#sl-022-a)，无 PR / Issue。
+- Commit / PR / Issue：实现 [`f25efd8`](https://github.com/YOLIIIIII/starry-list/commit/f25efd845138bc170a5da22939c641c65185d644) 已普通Push main，[代码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41055792132)成功；详见 [验证记录](VALIDATION.md#sl-022-a)，无 PR / Issue。
 
 #### SL-022-A
 
@@ -368,7 +368,7 @@ UX3.1 历史状态（2026-10-23）：用户已安装 UX3.0.4，确认三种外�
 - 可访问性：状态不是按钮、不增加 Tab；日期按钮 title 与 aria-description 包含解释；空心「当天有计划，尚未全部完成」，金星「当天计划已全部完成」。无任务不作失败提示。形状填充有差异、无动画；键盘、点击、滚动沿用。
 - 验收标准：全部三态及变更链路、跨月年/过去未来/V1/V2；4/5/6周×五指定尺寸×三字号×三材质×两顶部×补水开关；标记/重要任务叠加不遮挡；新增/失焦/草稿/删除撤销、排序/抽屉及原生回归。自动化与真实 Windows 分列，安装后用户验收。
 - 边界：SQLite v2、001/002、Task/WaterEntry、JSON V2、正式版本/标识、store 写入排序不变。
-- 状态：**In Review**，开发测试与交付见 [验证记录](VALIDATION.md#sl-022-a)；尚待用户体验，无正式发布。Commit / CI 在验证记录补录，无 PR / Issue。
+- 状态：**In Review**，开发测试与交付见 [验证记录](VALIDATION.md#sl-022-a)；尚待用户体验，无正式发布。实现 [`f25efd8`](https://github.com/YOLIIIIII/starry-list/commit/f25efd845138bc170a5da22939c641c65185d644)，代码CI成功，详细证据见验证记录；无 PR / Issue。
 
 ### SL-023
 

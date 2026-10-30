@@ -1,5 +1,26 @@
 # V1.0 验证记录
 
+## SL-022-A
+
+2026-10-30。详细规则、验收复核、自动化/Windows证据及限制见 [本轮报告](SL_022_A_REVIEW.md)。SL-022/A In Review，SL-024-B/C Done、D/父项完整恢复仍In Review；SL-023仅概念初稿仍Idea。
+
+- TypeScript、ESLint、Vite生产构建通过；默认前端 **208/208，14文件**；Rust **27/27**、fmt --check及Clippy --locked -- -D warnings通过。
+- 首次前端207通过、既有材质模块hook超时1项；完整默认重跑全部208通过，未修改超时。原生首轮旧dist未显示星星，重建前端资源与隔离debug后重跑；失败不算通过。
+- 本轮不改Rust/SQLite v2/001/002/Task/WaterEntry/JSON V2/store写入排序/应用标识或正式版本，未接触正式库、个人备份或旧安装包。
+
+- Windows每日星星专项 **540/540布局通过**，`.cache/sl022a-1793362835123/results.json`：4/5/6周×980×680、980×480、760×620、500×620、380×480×三字号×三材质×两顶部×补水开关；日期/徽标/星星无裁切与交叠、无水平溢出。真实WebView2→Tauri→SQLite完成/取消即时刷新、日期点击与方向键焦点通过。布局由CDP测量，不冒充物理鼠标测试。
+- Windows x64默认透明NSIS构建通过，正式标识 `app.starrylist.desktop`、版本1.0.0；独立包 `artifacts/Starry-List_1.0.0_x64-sl022-a-preview-20261030-setup.exe`，**5343359字节**，SHA256 `409d4a08f23a20d34dd0904a63d0d8b2533364941761d0e36da00958a9af987b`；校验文件 `artifacts/SL022-A-PREVIEW-20261030-SHA256SUMS.txt`。旧D包SHA256保持不变。
+
+- 原有桌面冒烟 **25/25**，`.cache/desktop-smoke-1793363120034/results.json`：连续新增、真实Edge失焦、SQLite故障保护/重试、草稿/抽屉/删除撤销、JSON、字号/两顶部与正常重启。
+- 补水C专项 **360布局**与记录/目标/历史未来/失败重试/100条列表/键盘/重启全部通过，`.cache/sl024c-1793363172364/results.json`。
+- 真实OS鼠标拖动 **10组、72布局**通过，`.cache/sl020-1793363260296/results.json`；跨组阻止、箭头、长详情、45任务边缘滚动、SQL失败/重试、Escape及重启通过。
+
+- D原生备份回归通过，`.cache/sl024d-1793363306967/results.json`：实际Save/Open对话框和JSON文件异库完整覆盖往返、五类Snapshot相等、两视图即时刷新、重复合并饮水幂等、冲突/最后SQL失败整笔回滚、V1两模式保留饮水、36空态布局及正常重启。备份恢复自动化不等于用户亲自验收。
+- Markdown本地链接、格式与暂存差异检查通过；18文件明确暂存，仅新增两张合成界面截图，不包含数据库、私人JSON、安装器或私人壁纸。每次Commit前核对实际作者/提交者为原有GitHub noreply身份，不改本地/全局身份。
+
+Commit/Push和CI结果在交付前补录。自动化、真实原生交互、用户安装验收与正式发布分别记录；没有Tag/Release。
+
+
 ## SL-024-D
 
 2026-10-30。起始main=`4771198`，工作区干净，与最新origin/main一致；收尾再次fetch仍相同。用户安装C确认整体良好，空记录换行是剩余缺口；本轮正式授权JSON完整备份及恢复。A原MVP标准结合历史测试及最新安装确认Done；B/C空态、父项/D恢复继续In Review。SL-020 Done、SL-006 Research保持，无正式发布。

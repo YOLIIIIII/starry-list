@@ -45,7 +45,9 @@ async function launch() {
 }
 try {
   await launch();
-  const shots = resolve("docs/screenshots/sl024d");
+  const shots = resolve(
+    process.env.STARRY_LIST_SCREENSHOT_DIR ?? "docs/screenshots/sl024d",
+  );
   await mkdir(shots, { recursive: true });
   const size = async (width, height) => {
     await invoke("plugin:window|set_size", {

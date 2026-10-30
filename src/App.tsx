@@ -13,6 +13,7 @@ import {
 import { useEnterReturn } from "./use-enter-return";
 import { surfaceAlphas } from "./surfaces";
 import { observeCalendar } from "./calendar-layout";
+import { DailyStar, dailyStarState, dailyStarDescription } from "./daily-star";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CalendarDays,
@@ -664,6 +665,7 @@ export default function App() {
             >
               {monthGrid.map((date) => {
                 const dayTasks = byDate.get(date) ?? [];
+                const star = dailyStarState(dayTasks);
                 const preview = previewTasks(dayTasks, previewLimit);
                 const info = dayInfo(date);
                 const outside = date.slice(0, 7) !== month.slice(0, 7);
@@ -675,7 +677,13 @@ export default function App() {
                     <button
                       className="date-select"
                       aria-label={`选择 ${date}`}
-                      aria-description={`${dayTasks.length} 项任务`}
+                      aria-description={[
+                        `${dayTasks.length} 项任务`,
+                        dailyStarDescription[star],
+                      ]
+                        .filter(Boolean)
+                        .join("，")}
+                      title={dailyStarDescription[star] || undefined}
                       aria-pressed={date === selected}
                       onClick={() => select(date)}
                       onKeyDown={(e) => {
@@ -703,8 +711,11 @@ export default function App() {
                         }
                       }}
                     >
-                      <span className="date-number">
-                        {Number(date.slice(-2))}
+                      <span className="date-identity">
+                        <span className="date-number">
+                          {Number(date.slice(-2))}
+                        </span>
+                        <DailyStar state={star} />
                       </span>
                       <span className="day-badges">
                         {dateBadges(date)}
@@ -758,6 +769,10 @@ export default function App() {
               选中日期
               <span className="legend-star" />
               <span>重要任务</span>
+              <DailyStar state="planned" />
+              <span>有计划</span>
+              <DailyStar state="completed" />
+              <span>全部完成</span>
             </div>
             {!monthKnown && settings.show_holidays && (
               <p className="year-notice">

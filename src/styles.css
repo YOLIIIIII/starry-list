@@ -648,6 +648,39 @@ h1 {
   justify-content: center;
   font-weight: 550;
 }
+.date-identity {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.daily-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  border: 1px solid #b8a0d04d;
+  border-radius: 50%;
+  background: #faf6ff;
+  color: #8870a6;
+}
+.daily-star svg {
+  fill: none;
+}
+.daily-star.completed {
+  color: #a67e2c;
+  border-color: #dec78a99;
+  background: #fff8e5;
+}
+.daily-star.completed svg {
+  fill: #f2d681;
+}
+.day-badges {
+  min-width: 0;
+}
 .today .date-number {
   border-radius: 8px;
   background: var(--purple);
@@ -783,6 +816,7 @@ h1 {
 }
 .calendar-bottom {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
   color: #8a7b97;

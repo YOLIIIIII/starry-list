@@ -106,8 +106,9 @@ export async function checkLayout({
           if (!contains(bounds, badge.getBoundingClientRect()))
             issues.push(key + ": badge clipped");
         if (
-          date.getAttribute("aria-description") !==
-          `${expected[key] ?? 0} 项任务`
+          !date
+            .getAttribute("aria-description")
+            .startsWith(`${expected[key] ?? 0} 项任务`)
         )
           issues.push(key + ": accessible count");
         const marker = cell.querySelector(".compact-tasks");

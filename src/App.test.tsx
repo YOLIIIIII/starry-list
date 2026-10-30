@@ -1808,3 +1808,82 @@ describe("SL-024-D versioned import confirmation", () => {
     ).toBeTruthy();
   });
 });
+
+describe("SL-022-A snapshot-derived calendar stars", () => {
+  it("refreshes completion, undo, add, delete, restore and date changes without remount", async () => {
+    backend.data!.tasks = [makeTask({ completed: true })];
+    const { store } = await import("./store");
+    render(<App />);
+    const date = await screen.findByRole("button", { name: "选择 2026-10-14" });
+    const state = () => date.querySelector(".daily-star")?.classList;
+    await waitFor(() => expect(state()?.contains("completed")).toBe(true));
+    await act(async () => {
+      await store.patchTask("a", { completed: false });
+    });
+    expect(state()?.contains("planned")).toBe(true);
+    expect(date.getAttribute("aria-description")).toContain(
+      "当天有计划，尚未全部完成",
+    );
+    await act(async () => {
+      await store.patchTask("a", { completed: true });
+    });
+    expect(state()?.contains("completed")).toBe(true);
+    await act(async () => {
+      await store.add(makeTask({ id: "new" }));
+    });
+    expect(state()?.contains("planned")).toBe(true);
+    await act(async () => {
+      await store.remove("new");
+    });
+    expect(state()?.contains("completed")).toBe(true);
+    await act(async () => {
+      await store.restore(makeTask({ id: "new" }));
+    });
+    expect(state()?.contains("planned")).toBe(true);
+    await act(async () => {
+      await store.patchTask("new", { date: "2026-10-15" });
+    });
+    expect(state()?.contains("completed")).toBe(true);
+    expect(
+      screen
+        .getByRole("button", { name: "选择 2026-10-15" })
+        .querySelector(".planned"),
+    ).toBeTruthy();
+    await act(async () => {
+      await store.remove("a");
+    });
+    expect(state()).toBeUndefined();
+    expect(date.getAttribute("aria-description")).toBe("0 项任务");
+  });
+  it.each([1, 2] as const)(
+    "refreshes after V%s import replaces snapshot",
+    async (version) => {
+      const { repository } = await import("./platform");
+      const { store } = await import("./store");
+      render(<App />);
+      const date = await screen.findByRole("button", {
+        name: "选择 2026-10-14",
+      });
+      await waitFor(() => expect(date.querySelector(".planned")).toBeTruthy());
+      const snapshot = {
+        ...backend.data!,
+        tasks: [makeTask({ completed: true })],
+      };
+      vi.mocked(repository.importBackup).mockResolvedValueOnce(snapshot);
+      const backup = backupSchema.parse({
+        ...snapshot,
+        format: "starry-list",
+        version,
+        exported_at: "2026-10-14T00:00:00Z",
+        ...(version === 2 ? { water_entries: [] } : {}),
+      });
+      await act(async () => {
+        await store.importBackup(backup, true);
+      });
+      expect(date.querySelector(".completed")).toBeTruthy();
+      expect(date.getAttribute("aria-description")).toContain(
+        "当天计划已全部完成",
+      );
+    },
+  );
+});

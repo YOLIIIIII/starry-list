@@ -1,5 +1,11 @@
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  cleanup,
+  waitFor,
+  fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   defaults,
@@ -64,14 +70,14 @@ it("quick amounts, custom, timestamps, reaching goal, delete and restore", async
   expect(backend.data!.water_entries![0].recorded_at).toMatch(/[+-]\d\d:\d\d$/);
   await u.click(screen.getByRole("button", { name: "自定义" }));
   await u.type(screen.getByLabelText("自定义饮水容量"), "1400");
-  await u.click(screen.getByRole("button", { name: "记录" }));
-  expect(screen.getByText("好好照顾了自己")).toBeTruthy();
+  await u.click(screen.getByRole("button", { name: "记录这杯" }));
+  expect(screen.getAllByText("补水达标").length).toBeGreaterThan(0);
   expect(screen.getByText("多记录了 300 mL")).toBeTruthy();
   await u.click(screen.getByText("时间记录 · 4 次"));
   await u.click(screen.getByRole("button", { name: /删除 .* 的 1400/ }));
-  expect(screen.queryByText("好好照顾了自己")).toBeNull();
+  expect(screen.queryByText("补水达标")).toBeNull();
   await u.click(screen.getByRole("button", { name: "恢复刚删除的 1400 mL" }));
-  expect(screen.getByText("好好照顾了自己")).toBeTruthy();
+  expect(screen.getAllByText("补水达标").length).toBeGreaterThan(0);
 });
 it("historical date belongs to viewed day; future writes disabled; failure keeps data", async () => {
   const u = userEvent.setup(),
@@ -104,4 +110,54 @@ it("settings persist visibility and shared goal without removing entries", async
   await waitFor(() => expect(backend.data!.settings.water_goal).toBe(1750));
   await store.load();
   expect(store.getSnapshot().data.settings.water_goal).toBe(1750);
+});
+
+it("custom validation, IME, Escape and failed-save retry preserve correct date", async () => {
+  const u = userEvent.setup();
+  render(<WaterCard date={shiftDay(today, -1)} />);
+  await u.click(screen.getByRole("button", { name: "自定义" }));
+  const input = screen.getByLabelText("自定义饮水容量");
+  await u.click(screen.getByRole("button", { name: "记录这杯" }));
+  expect(screen.getByRole("alert").textContent).toContain("1–10000");
+  await u.type(input, "abc");
+  await u.click(screen.getByRole("button", { name: "记录这杯" }));
+  expect(backend.data!.water_entries).toHaveLength(0);
+  await u.clear(input);
+  await u.type(input, "250");
+  fireEvent.compositionStart(input);
+  fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+  fireEvent.submit(input.closest("form")!);
+  expect(backend.data!.water_entries).toHaveLength(0);
+  fireEvent.compositionEnd(input);
+  backend.fail = true;
+  await u.click(screen.getByRole("button", { name: "记录这杯" }));
+  expect((input as HTMLInputElement).value).toBe("250");
+  expect(screen.getByRole("alert").textContent).toContain("请重试");
+  backend.fail = false;
+  await u.click(screen.getByRole("button", { name: "记录这杯" }));
+  expect(backend.data!.water_entries![0].date).toBe(shiftDay(today, -1));
+  await u.click(screen.getByRole("button", { name: "自定义" }));
+  await u.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+it.each([1, 10000])(
+  "custom boundary %i persists after successful Enter",
+  async (value) => {
+    const u = userEvent.setup();
+    render(<WaterCard date={today} />);
+    await u.click(screen.getByRole("button", { name: "自定义" }));
+    await u.type(screen.getByLabelText("自定义饮水容量"), String(value));
+    await u.keyboard("{Enter}");
+    expect(backend.data!.water_entries![0].amount).toBe(value);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
+it("large target renders at most six cups and target 1 remains legible", async () => {
+  await store.saveSettings({ water_goal: 20000 });
+  const view = render(<WaterCard date={today} />);
+  expect(document.querySelectorAll("svg.water-cup")).toHaveLength(6);
+  expect(screen.getByText("中间省略 34 杯")).toBeTruthy();
+  await store.saveSettings({ water_goal: 1 });
+  view.rerender(<WaterCard date={today} />);
+  expect(document.querySelectorAll("svg.water-cup")).toHaveLength(1);
 });

@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { format } from "date-fns";
 import { Droplets, Star, Trash2, Undo2 } from "lucide-react";
 import { dayKey, waterEntrySchema, type WaterEntry } from "./domain";
 import { store, useStore } from "./store";
+import { Dialog } from "./components";
 
 export function cupLevels(total: number, goal: number) {
   return Array.from({ length: Math.ceil(goal / 500) }, (_, i) => ({
@@ -22,6 +23,7 @@ export function WaterSettings() {
       <legend>喝水小组件</legend>
       <label>
         <input
+          className="toggle"
           type="checkbox"
           checked={settings.water_enabled}
           onChange={(e) => {
@@ -63,8 +65,88 @@ export function WaterSettings() {
     </fieldset>
   );
 }
-export function WaterCard({ date }: { date: string }) {
+export function WaterCup({
+  fill,
+  target = 500,
+}: {
+  fill: number;
+  target?: number;
+}) {
+  const id = useId().replace(/:/g, "");
+  const top = 43 - fill * 32;
+  return (
+    <svg className="water-cup" viewBox="0 0 64 56" aria-hidden="true">
+      <defs>
+        <clipPath id={`cup-${id}`}>
+          <path d="M11 10 Q30 6 47 10 L44 39 Q43 49 29 49 Q15 49 14 39 Z" />
+        </clipPath>
+        <linearGradient id={`water-${id}`} x2="0" y2="1">
+          <stop stopColor="#c7def3" />
+          <stop offset="1" stopColor="#b6ade1" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M47 17 C65 13 63 37 46 35"
+        fill="none"
+        stroke="#b29dcc"
+        strokeWidth="3"
+      />
+      <path
+        d="M11 10 Q30 6 47 10 L44 39 Q43 49 29 49 Q15 49 14 39 Z"
+        fill="#fffcf6"
+        stroke="#b9a4cf"
+        strokeWidth="2"
+      />
+      <g clipPath={`url(#cup-${id})`}>
+        {fill > 0 && (
+          <path
+            className="water-fill"
+            d={`M9 ${top} Q18 ${top - 3} 29 ${top} T49 ${top} V52 H9Z`}
+            fill={`url(#water-${id})`}
+          />
+        )}
+        <path
+          d="M18 18 L20 35"
+          stroke="white"
+          strokeOpacity=".8"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        {target < 500 && (
+          <path
+            d={`M13 ${43 - (target / 500) * 32} H46`}
+            stroke="#8d75b1"
+            strokeDasharray="2 3"
+            strokeWidth="1.5"
+          />
+        )}
+      </g>
+      <path
+        d="M12 10 Q29 14 46 10"
+        fill="none"
+        stroke="#b9a4cf"
+        strokeWidth="1.4"
+      />
+      {fill >= 1 && (
+        <path
+          d="M53 3 L54 7 L58 8 L54 9 L53 13 L52 9 L48 8 L52 7Z"
+          fill="#e4bd5e"
+        />
+      )}
+    </svg>
+  );
+}
+export function WaterCard({
+  date,
+  compact = false,
+}: {
+  date: string;
+  compact?: boolean;
+}) {
   const { data, pending } = useStore();
+  const [detail, setDetail] = useState(false);
+  const composing = useRef(false);
+  const customTrigger = useRef<HTMLButtonElement>(null);
   const [custom, setCustom] = useState(false);
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
@@ -107,147 +189,288 @@ export function WaterCard({ date }: { date: string }) {
       await store.addWater(result.data);
       setAmount("");
       setCustom(false);
+      setDetail(false);
     });
   }
+  const levels = cupLevels(total, goal);
+  const visible =
+    levels.length > 6
+      ? [...levels.slice(0, 5), levels[levels.length - 1]]
+      : levels;
+  function closeDetail() {
+    if (lock.current || composing.current) return;
+    setDetail(false);
+    setCustom(false);
+    setError("");
+  }
   return (
-    <section className="water-card" aria-label="喝水记录">
-      <div className="water-heading">
-        <span className="water-icon">
-          <Droplets size={19} />
-        </span>
-        <div>
-          <h3>喝口水，慢慢来</h3>
+    <>
+      <section
+        className={`water-card ${compact ? "water-compact" : ""}`}
+        aria-label="喝水记录"
+      >
+        <div className="water-heading">
+          <span className="water-icon">
+            <Droplets size={18} />
+          </span>
+          <div>
+            <h3>今日补水</h3>
+            <small>
+              {date} ·{" "}
+              {future
+                ? "未来日期仅查看"
+                : date === dayKey(new Date())
+                  ? "记录到今天"
+                  : "可补录这一天"}
+            </small>
+          </div>
+          {total >= goal && (
+            <span className="water-achieved" role="status">
+              <Star size={12} fill="currentColor" /> 补水达标
+            </span>
+          )}
+        </div>
+        <div className="water-progress" aria-live="polite">
+          <strong>
+            {total.toLocaleString()} <span>/ {goal.toLocaleString()} mL</span>
+          </strong>
           <small>
-            {date} ·{" "}
-            {future
-              ? "未来日期仅查看"
-              : date === dayKey(new Date())
-                ? "记录到今天"
-                : "可补录这一天"}
+            {total > goal ? `多记录了 ${total - goal} mL` : "每杯 500 mL"}
           </small>
         </div>
-        {total >= goal && (
-          <span className="water-achieved" role="status">
-            <Star size={14} fill="currentColor" /> 好好照顾了自己
-          </span>
-        )}
-      </div>
-      <div className="water-progress" aria-live="polite">
-        <strong>
-          {total.toLocaleString()} <span>/ {goal.toLocaleString()} mL</span>
-        </strong>
-        <small>
-          {total > goal ? `多记录了 ${total - goal} mL` : "每杯 500 mL"}
-        </small>
-      </div>
-      <div
-        className="water-cups"
-        role="img"
-        aria-label={`饮水 ${total} / ${goal} mL，每杯 500 mL`}
-      >
-        {cupLevels(total, goal).map((cup, i) => (
-          <span
-            className="water-cup"
-            key={i}
-            title={`第 ${i + 1} 杯 · 目标 ${cup.target} mL`}
-          >
+        <div
+          className="water-cups"
+          role="img"
+          aria-label={`饮水 ${total} / ${goal} mL，每杯 500 mL`}
+        >
+          {visible.map((cup, i) => (
             <span
-              className="water-fill"
-              style={{ height: `${cup.fill * 100}%` }}
-            />
-            <span className="water-shine" />
-            {cup.target < 500 && (
-              <span
-                className="water-target"
-                style={{ bottom: `${cup.target / 5}%` }}
-              />
-            )}
-          </span>
-        ))}
-      </div>
-      <fieldset className="water-actions" disabled={pending > 0 || future}>
-        {[150, 250, 500].map((value) => (
+              key={i}
+              title={`第 ${levels.length > 6 && i === 5 ? levels.length : i + 1} 杯 · 目标 ${cup.target} mL`}
+            >
+              <WaterCup {...cup} />
+            </span>
+          ))}
+          {levels.length > 6 && <small>中间省略 {levels.length - 6} 杯</small>}
+        </div>
+        <fieldset className="water-actions" disabled={pending > 0 || future}>
+          {[150, 250, 500].map((value) => (
+            <button
+              key={value}
+              className={value === 500 ? "water-favorite" : ""}
+              onClick={() => add(value)}
+            >
+              +{value}
+              <small> mL</small>
+            </button>
+          ))}
           <button
-            key={value}
-            className={value === 500 ? "water-favorite" : ""}
-            onClick={() => add(value)}
+            ref={customTrigger}
+            aria-expanded={detail && custom}
+            onClick={() => {
+              setError("");
+              setCustom(true);
+              setDetail(true);
+            }}
           >
-            +{value}
-            <small> mL</small>
+            自定义
           </button>
-        ))}
-        <button aria-expanded={custom} onClick={() => setCustom(!custom)}>
-          自定义
-        </button>
-      </fieldset>
-      {custom && !future && (
-        <form
-          className="water-custom"
-          onSubmit={(e) => {
-            e.preventDefault();
-            add(Number(amount));
+        </fieldset>
+        <button
+          className="water-details-button"
+          onClick={() => {
+            setCustom(false);
+            setDetail(true);
           }}
         >
-          <label>
-            容量（mL）
-            <input
-              autoFocus
-              aria-label="自定义饮水容量"
-              type="number"
-              min="1"
-              max="10000"
-              step="1"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </label>
-          <button disabled={pending > 0}>记录</button>
-        </form>
-      )}
-      {error && <p role="alert">{error}</p>}
-      <details className="water-history">
-        <summary>时间记录 · {entries.length} 次</summary>
-        <ul>
-          {entries.length === 0 && <li>还没有记录，按自己的节奏来。</li>}
-          {entries.map((entry) => (
-            <li key={entry.id}>
-              <time
-                dateTime={entry.recorded_at}
-                title={`实际记录于 ${entry.recorded_at}`}
-              >
-                {entry.recorded_at.slice(11, 16)}
-              </time>
-              <span>{entry.amount} mL</span>
+          时间记录 · {entries.length} 次
+        </button>
+        <button
+          className="water-expand"
+          onClick={() => {
+            setCustom(false);
+            setDetail(true);
+          }}
+        >
+          展开补水
+        </button>
+        {error && !detail && <p role="alert">{error}</p>}
+        {removed && !detail && (
+          <button
+            className="water-restore"
+            disabled={pending > 0}
+            onClick={() =>
+              void act(async () => {
+                await store.addWater(removed);
+                setRemoved(null);
+              })
+            }
+          >
+            <Undo2 size={13} /> 恢复刚删除的 {removed.amount} mL
+          </button>
+        )}
+      </section>
+      {detail && (
+        <Dialog title="今日补水" className="water-dialog" onClose={closeDetail}>
+          <div className="water-detail-content">
+            <fieldset
+              className="water-actions water-dialog-quick"
+              disabled={pending > 0 || future}
+            >
+              {[150, 250, 500].map((value) => (
+                <button
+                  key={value}
+                  className={value === 500 ? "water-favorite" : ""}
+                  aria-label={`记录 ${value} mL`}
+                  onClick={() => add(value)}
+                >
+                  +{value} mL
+                </button>
+              ))}
+            </fieldset>
+            <p className="water-date">
+              {date} ·{" "}
+              {future
+                ? "未来日期仅查看"
+                : date === dayKey(new Date())
+                  ? "记录到今天"
+                  : "补录到这一天，保存实际操作时间"}
+            </p>
+            <p className="water-detail-total">
+              {total.toLocaleString()} / {goal.toLocaleString()} mL{" "}
+              {total >= goal && (
+                <span className="water-achieved">
+                  <Star size={12} /> 补水达标
+                </span>
+              )}
+            </p>
+            {!custom && !future && (
               <button
-                aria-label={`删除 ${entry.recorded_at.slice(11, 16)} 的 ${entry.amount} mL 记录`}
+                className="water-other"
+                onClick={() => {
+                  setAmount("");
+                  setError("");
+                  setCustom(true);
+                }}
+              >
+                记录其他容量
+              </button>
+            )}
+            {custom && !future && (
+              <form
+                className="water-custom"
+                noValidate
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!composing.current) add(Number(amount));
+                }}
+              >
+                <h4>记录其他容量</h4>
+                <label className="water-amount">
+                  <input
+                    autoFocus
+                    aria-label="自定义饮水容量"
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? "water-input-error" : undefined}
+                    inputMode="numeric"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    onCompositionStart={() => {
+                      composing.current = true;
+                    }}
+                    onCompositionEnd={() => {
+                      composing.current = false;
+                    }}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        (composing.current ||
+                          e.nativeEvent.isComposing ||
+                          e.keyCode === 229)
+                      ) {
+                        e.preventDefault();
+                        return;
+                      }
+                      if (e.key === "Escape" && !composing.current) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        closeDetail();
+                        customTrigger.current?.focus();
+                      }
+                    }}
+                  />
+                  <span>mL</span>
+                </label>
+                <p className="water-input-hint">1–10000 mL · 记录到 {date}</p>
+                <div className="water-custom-actions">
+                  <button
+                    type="button"
+                    disabled={pending > 0}
+                    onClick={closeDetail}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="primary"
+                    disabled={pending > 0}
+                    type="submit"
+                  >
+                    {pending > 0 ? "正在记录…" : "记录这杯"}
+                  </button>
+                </div>
+              </form>
+            )}
+            {error && (
+              <p id="water-input-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="water-history">
+              <h4>时间记录 · {entries.length} 次</h4>
+              <ul>
+                {entries.length === 0 && <li>还没有记录，按自己的节奏来。</li>}
+                {entries.map((entry) => (
+                  <li key={entry.id}>
+                    <time
+                      dateTime={entry.recorded_at}
+                      title={`实际记录于 ${entry.recorded_at}`}
+                    >
+                      {entry.recorded_at.slice(11, 16)}
+                    </time>
+                    <span>{entry.amount} mL</span>
+                    <button
+                      aria-label={`删除 ${entry.recorded_at.slice(11, 16)} 的 ${entry.amount} mL 记录`}
+                      disabled={pending > 0}
+                      onClick={() =>
+                        void act(async () => {
+                          await store.deleteWater(entry.id);
+                          setRemoved(entry);
+                        })
+                      }
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {removed && (
+              <button
+                className="water-restore"
                 disabled={pending > 0}
                 onClick={() =>
                   void act(async () => {
-                    await store.deleteWater(entry.id);
-                    setRemoved(entry);
+                    await store.addWater(removed);
+                    setRemoved(null);
                   })
                 }
               >
-                <Trash2 size={14} />
+                <Undo2 size={13} /> 恢复刚删除的 {removed.amount} mL
               </button>
-            </li>
-          ))}
-        </ul>
-      </details>
-      {removed && (
-        <button
-          className="water-restore"
-          disabled={pending > 0}
-          onClick={() =>
-            void act(async () => {
-              await store.addWater(removed);
-              setRemoved(null);
-            })
-          }
-        >
-          <Undo2 size={13} /> 恢复刚删除的 {removed.amount} mL
-        </button>
+            )}
+          </div>
+        </Dialog>
       )}
-    </section>
+    </>
   );
 }

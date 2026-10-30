@@ -1,3 +1,4 @@
+import { SettingsCenter } from "./settings-center";
 import { WaterCard, WaterSettings } from "./water";
 import { useTaskDrag } from "./use-task-drag";
 import { orderSignature } from "./task-order";
@@ -788,156 +789,161 @@ export default function App() {
               </select>
             </div>
           </section>
-          <section className="agenda-panel" aria-label="七天日程">
-            <div className="agenda-heading">
-              <h2
-                aria-label={agendaRange === "week" ? "本周日程" : "接下来七天"}
-              >
-                <select
-                  className="agenda-range-select"
-                  aria-label="日程范围"
-                  aria-describedby="agenda-range-description"
-                  aria-busy={agendaSaving}
-                  value={agendaRange}
-                  disabled={agendaSaving}
-                  title="本周显示选中日期所在的周一至周日"
-                  onChange={(e) =>
-                    changeAgendaRange(e.target.value as AgendaRange)
+          <div className="overview-right">
+            {settings.water_enabled && (
+              <WaterCard key={selected} date={selected} />
+            )}
+            <section className="agenda-panel" aria-label="七天日程">
+              <div className="agenda-heading">
+                <h2
+                  aria-label={
+                    agendaRange === "week" ? "本周日程" : "接下来七天"
                   }
                 >
-                  <option value="rolling">接下来七天</option>
-                  <option value="week">本周</option>
-                </select>
-              </h2>
-              <div className="nav-buttons">
-                <button
-                  aria-label="上一周"
-                  title={agendaRange === "week" ? "上一自然周" : "向前七天"}
-                  onClick={() => select(shiftDay(selected, -7))}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  aria-label="七天日程回到今天"
-                  title="回到今天"
-                  onClick={goToday}
-                >
-                  <CalendarDays size={15} />
-                </button>
-                <button
-                  aria-label="下一周"
-                  title={agendaRange === "week" ? "下一自然周" : "向后七天"}
-                  onClick={() => select(shiftDay(selected, 7))}
-                >
-                  <ChevronRight size={16} />
-                </button>
-                <button
-                  className="agenda-add"
-                  data-quick-add-trigger
-                  aria-label="新增任务"
-                  title="为选中日期新增任务"
-                  onClick={() => startAdding(selected)}
-                >
-                  <Plus size={14} />
-                  <span>新增</span>
-                </button>
-              </div>
-              <span
-                id="agenda-range-description"
-                className="range-label agenda-range-description"
-                aria-live="polite"
-              >
-                {agendaRange === "week" ? "选中日期所在周 · " : ""}
-                {pretty(seven[0], "yyyy.M.d")} — {pretty(seven[6], "yyyy.M.d")}
-              </span>
-              <span className="visually-hidden" role="status">
-                {agendaSaving ? "正在保存日程范围…" : ""}
-              </span>
-            </div>
-            <div className="agenda-scroll">
-              {settings.water_enabled && (
-                <WaterCard key={selected} date={selected} />
-              )}
-              {seven.map((date) => {
-                const list = displayTasks(byDate.get(date) ?? []);
-                return (
-                  <div
-                    key={date}
-                    className={`agenda-day ${list.length === 0 && quickDraft?.date !== date ? "agenda-empty-day" : ""} ${date === today ? "agenda-today" : ""}`}
+                  <select
+                    className="agenda-range-select"
+                    aria-label="日程范围"
+                    aria-describedby="agenda-range-description"
+                    aria-busy={agendaSaving}
+                    value={agendaRange}
+                    disabled={agendaSaving}
+                    title="本周显示选中日期所在的周一至周日"
+                    onChange={(e) =>
+                      changeAgendaRange(e.target.value as AgendaRange)
+                    }
                   >
-                    <div className="agenda-date">
-                      <button onClick={() => select(date)}>
-                        <span>{pretty(date, "M 月 d 日")}</span>
-                        <small>
-                          {date === today ? "今天" : pretty(date, "EEEE")}
-                        </small>
-                      </button>
-                      <span className="day-badges">{dateBadges(date)}</span>
-                      <span className="task-count">
-                        {list.filter((t) => !t.completed).length}{" "}
-                        {list.length ? "项待办" : "项"}
-                      </span>
-                      <button
-                        className="agenda-day-add"
-                        ref={(button) => {
-                          if (button) dayAddButtons.current.set(date, button);
-                          else dayAddButtons.current.delete(date);
-                        }}
-                        data-quick-add-trigger
-                        aria-label={`为 ${date} 添加任务`}
-                        title="添加任务"
-                        aria-expanded={quickDraft?.date === date}
-                        aria-controls={`agenda-input-${date}`}
-                        onClick={() => startAdding(date)}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                    {list.map((task) => (
-                      <TaskRow
-                        key={task.id}
-                        task={task}
-                        categories={categories}
-                        onQuickEdit={() =>
-                          void guard(() => setInlineId(task.id))
-                        }
-                        inlineEditor={
-                          inlineId === task.id ? (
-                            <InlineTitleEditor
-                              ref={inline}
-                              task={task}
-                              onClose={() => setInlineId(null)}
-                            />
-                          ) : undefined
-                        }
-                        onOpen={() => openTask(task)}
-                        onEdit={() => editTask(task)}
-                        onDelete={() => requestDelete(task.id)}
-                      />
-                    ))}
-                    {quickDraft?.date === date && (
-                      <div id={`agenda-input-${date}`}>
-                        {quickInput(date, true)}
+                    <option value="rolling">接下来七天</option>
+                    <option value="week">本周</option>
+                  </select>
+                </h2>
+                <div className="nav-buttons">
+                  <button
+                    aria-label="上一周"
+                    title={agendaRange === "week" ? "上一自然周" : "向前七天"}
+                    onClick={() => select(shiftDay(selected, -7))}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    aria-label="七天日程回到今天"
+                    title="回到今天"
+                    onClick={goToday}
+                  >
+                    <CalendarDays size={15} />
+                  </button>
+                  <button
+                    aria-label="下一周"
+                    title={agendaRange === "week" ? "下一自然周" : "向后七天"}
+                    onClick={() => select(shiftDay(selected, 7))}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    className="agenda-add"
+                    data-quick-add-trigger
+                    aria-label="新增任务"
+                    title="为选中日期新增任务"
+                    onClick={() => startAdding(selected)}
+                  >
+                    <Plus size={14} />
+                    <span>新增</span>
+                  </button>
+                </div>
+                <span
+                  id="agenda-range-description"
+                  className="range-label agenda-range-description"
+                  aria-live="polite"
+                >
+                  {agendaRange === "week" ? "选中日期所在周 · " : ""}
+                  {pretty(seven[0], "yyyy.M.d")} —{" "}
+                  {pretty(seven[6], "yyyy.M.d")}
+                </span>
+                <span className="visually-hidden" role="status">
+                  {agendaSaving ? "正在保存日程范围…" : ""}
+                </span>
+              </div>
+              <div className="agenda-scroll">
+                {seven.map((date) => {
+                  const list = displayTasks(byDate.get(date) ?? []);
+                  return (
+                    <div
+                      key={date}
+                      className={`agenda-day ${list.length === 0 && quickDraft?.date !== date ? "agenda-empty-day" : ""} ${date === today ? "agenda-today" : ""}`}
+                    >
+                      <div className="agenda-date">
+                        <button onClick={() => select(date)}>
+                          <span>{pretty(date, "M 月 d 日")}</span>
+                          <small>
+                            {date === today ? "今天" : pretty(date, "EEEE")}
+                          </small>
+                        </button>
+                        <span className="day-badges">{dateBadges(date)}</span>
+                        <span className="task-count">
+                          {list.filter((t) => !t.completed).length}{" "}
+                          {list.length ? "项待办" : "项"}
+                        </span>
+                        <button
+                          className="agenda-day-add"
+                          ref={(button) => {
+                            if (button) dayAddButtons.current.set(date, button);
+                            else dayAddButtons.current.delete(date);
+                          }}
+                          data-quick-add-trigger
+                          aria-label={`为 ${date} 添加任务`}
+                          title="添加任务"
+                          aria-expanded={quickDraft?.date === date}
+                          aria-controls={`agenda-input-${date}`}
+                          onClick={() => startAdding(date)}
+                        >
+                          <Plus size={14} />
+                        </button>
                       </div>
-                    )}
-                    {list.length > 0 && <Progress tasks={list} />}
-                  </div>
-                );
-              })}
-              {seven.every((date) => !byDate.get(date)?.length) && (
-                <p className="agenda-empty-hint">
-                  {agendaRange === "week" ? "这一周" : "这七天"}
-                  还没有任务，点日期旁的加号开始安排。
-                </p>
-              )}
-            </div>
-            {settings.show_holidays &&
-              seven.some((date) => !dayInfo(date).known) && (
-                <p className="year-notice agenda-year-notice">
-                  部分日期尚未录入该年份官方节假日安排。
-                </p>
-              )}
-          </section>
+                      {list.map((task) => (
+                        <TaskRow
+                          key={task.id}
+                          task={task}
+                          categories={categories}
+                          onQuickEdit={() =>
+                            void guard(() => setInlineId(task.id))
+                          }
+                          inlineEditor={
+                            inlineId === task.id ? (
+                              <InlineTitleEditor
+                                ref={inline}
+                                task={task}
+                                onClose={() => setInlineId(null)}
+                              />
+                            ) : undefined
+                          }
+                          onOpen={() => openTask(task)}
+                          onEdit={() => editTask(task)}
+                          onDelete={() => requestDelete(task.id)}
+                        />
+                      ))}
+                      {quickDraft?.date === date && (
+                        <div id={`agenda-input-${date}`}>
+                          {quickInput(date, true)}
+                        </div>
+                      )}
+                      {list.length > 0 && <Progress tasks={list} />}
+                    </div>
+                  );
+                })}
+                {seven.every((date) => !byDate.get(date)?.length) && (
+                  <p className="agenda-empty-hint">
+                    {agendaRange === "week" ? "这一周" : "这七天"}
+                    还没有任务，点日期旁的加号开始安排。
+                  </p>
+                )}
+              </div>
+              {settings.show_holidays &&
+                seven.some((date) => !dayInfo(date).known) && (
+                  <p className="year-notice agenda-year-notice">
+                    部分日期尚未录入该年份官方节假日安排。
+                  </p>
+                )}
+            </section>
+          </div>
         </main>
       ) : (
         <main className="focus">
@@ -985,6 +991,9 @@ export default function App() {
               </button>
             ))}
           </nav>
+          {settings.water_enabled && (
+            <WaterCard key={selected} date={selected} compact />
+          )}
           <div className="focus-list-heading">
             <h2>
               当日清单 <span>{focusTasks.length}</span>
@@ -992,9 +1001,6 @@ export default function App() {
             <Progress tasks={focusTasks} />
           </div>
           <div className="focus-scroll">
-            {settings.water_enabled && (
-              <WaterCard key={selected} date={selected} />
-            )}
             {focusTasks.length === 0 && <Empty />}
             {focusTasks.map((task, index) => (
               <div
@@ -1193,7 +1199,8 @@ export default function App() {
       )}
       {settingsOpen && !backup && (
         <Dialog
-          title="让星轨更适合你"
+          title="星轨 · 设置中心"
+          className="settings-dialog"
           error={error}
           onClose={() => {
             if (fileBusy || importing) return;
@@ -1205,287 +1212,380 @@ export default function App() {
             }
           }}
         >
-          <div className="settings-content">
-            <fieldset
-              className="appearance-setting"
-              disabled={headerSaving || pending > 0}
-            >
-              <legend>顶部布局</legend>
-              <div className="appearance-options">
-                {(
-                  [
-                    [
-                      "classic",
-                      "经典顶部（默认）",
-                      "舒展双行，保留工作模式文字",
-                    ],
-                    [
-                      "compact",
-                      "紧凑顶部",
-                      "单行图标导航，为日历和任务留出空间",
-                    ],
-                  ] as const
-                ).map(([value, label, hint]) => (
-                  <label key={value}>
+          <SettingsCenter
+            sections={{
+              appearance: (
+                <>
+                  {" "}
+                  <fieldset
+                    className="appearance-setting"
+                    disabled={headerSaving || pending > 0}
+                  >
+                    <legend>顶部布局</legend>
+                    <div className="appearance-options">
+                      {(
+                        [
+                          [
+                            "classic",
+                            "经典顶部（默认）",
+                            "舒展双行，保留工作模式文字",
+                          ],
+                          [
+                            "compact",
+                            "紧凑顶部",
+                            "单行图标导航，为日历和任务留出空间",
+                          ],
+                        ] as const
+                      ).map(([value, label, hint]) => (
+                        <label key={value}>
+                          <input
+                            type="radio"
+                            name="header-layout"
+                            value={value}
+                            checked={
+                              (headerPreview ?? settings.header_layout) ===
+                              value
+                            }
+                            onChange={() => {
+                              if (headerSave.current) return;
+                              headerSave.current = true;
+                              setHeaderPreview(value);
+                              setHeaderSaving(true);
+                              void safe(() =>
+                                saveSetting({ header_layout: value }),
+                              ).finally(() => {
+                                setHeaderPreview(null);
+                                setHeaderSaving(false);
+                                headerSave.current = false;
+                              });
+                            }}
+                          />
+                          <span>
+                            {label}
+                            <small>{hint}</small>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <p
+                      className="text-size-status"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {headerSaving ? "正在保存顶部布局…" : ""}
+                    </p>
+                  </fieldset>
+                  <fieldset
+                    className="text-size-setting"
+                    disabled={textSaving || pending > 0}
+                  >
+                    <legend>文字大小</legend>
+                    <div className="text-size-options">
+                      {(
+                        [
+                          ["small", "小"],
+                          ["standard", "标准（默认）"],
+                          ["large", "大"],
+                        ] as const
+                      ).map(([value, label]) => (
+                        <label key={value}>
+                          <input
+                            type="radio"
+                            name="text-size"
+                            value={value}
+                            checked={
+                              (textPreview ?? settings.text_size) === value
+                            }
+                            onChange={() => {
+                              if (textSave.current) return;
+                              textSave.current = true;
+                              setTextPreview(value);
+                              setTextSaving(true);
+                              void safe(() =>
+                                saveSetting({ text_size: value }),
+                              ).finally(() => {
+                                setTextPreview(null);
+                                setTextSaving(false);
+                                textSave.current = false;
+                              });
+                            }}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    <p>按阅读习惯选择，日历预览保持紧凑。</p>
+                    <p
+                      className="text-size-status"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {textSaving ? "正在保存文字大小…" : ""}
+                    </p>
+                  </fieldset>
+                  <div className="setting-opacity">
+                    <fieldset
+                      className="appearance-setting"
+                      disabled={pending > 0}
+                    >
+                      <legend>外观模式</legend>
+                      <div className="appearance-options">
+                        {(
+                          [
+                            [
+                              "reading",
+                              "阅读优先",
+                              "稳定奶油衬底，适合长时间阅读",
+                            ],
+                            ["glass", "轻玻璃", "通透清亮，任务保留局部衬底"],
+                            [
+                              "frosted",
+                              "梦幻毛玻璃",
+                              "柔紫星光，系统支持时模糊桌面",
+                            ],
+                          ] as const
+                        ).map(([value, label, hint]) => (
+                          <label key={value}>
+                            <input
+                              type="radio"
+                              name="appearance"
+                              value={value}
+                              checked={settings.appearance_mode === value}
+                              onChange={() => {
+                                void safe(() =>
+                                  saveSetting({
+                                    appearance_mode: value as Appearance,
+                                  }),
+                                );
+                              }}
+                            />
+                            <span>
+                              {label}
+                              <small>{hint}</small>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      <p>
+                        外观决定材质，下面的滑块调整通透程度。文字和输入保持清晰。
+                      </p>
+                      {settings.appearance_mode === "frosted" && (
+                        <p className="material-hint">
+                          {!nativeTransparent || settings.opaque_fallback
+                            ? "实色回退保留柔紫配色，关闭桌面模糊与透视。"
+                            : (opacity ?? settings.background_opacity) === 1
+                              ? "100% 使用实色材质，关闭桌面模糊。"
+                              : frostState === "applied"
+                                ? "已启用稳定毛玻璃；Windows 透明效果、电源与硬件策略仍可能影响材质。"
+                                : frostState === "pending"
+                                  ? "正在应用材质，阅读衬底保持保护。"
+                                  : "本机未启用原生毛玻璃，已使用更清晰的柔紫玻璃衬底。"}
+                        </p>
+                      )}
+                    </fieldset>
+                    <label htmlFor="opacity">
+                      背景不透明度{" "}
+                      <strong>
+                        {Math.round(
+                          (nativeTransparent
+                            ? (opacity ?? settings.background_opacity)
+                            : 1) * 100,
+                        )}
+                        %
+                      </strong>
+                    </label>
                     <input
-                      type="radio"
-                      name="header-layout"
-                      value={value}
-                      checked={
-                        (headerPreview ?? settings.header_layout) === value
-                      }
-                      onChange={() => {
-                        if (headerSave.current) return;
-                        headerSave.current = true;
-                        setHeaderPreview(value);
-                        setHeaderSaving(true);
+                      id="opacity"
+                      type="range"
+                      min="40"
+                      max="100"
+                      value={Math.round(
+                        (opacity ?? settings.background_opacity) * 100,
+                      )}
+                      disabled={settings.opaque_fallback || !nativeTransparent}
+                      onChange={(e) => setOpacity(Number(e.target.value) / 100)}
+                      onPointerUp={(e) => {
+                        const value = Number(e.currentTarget.value) / 100;
                         void safe(() =>
-                          saveSetting({ header_layout: value }),
-                        ).finally(() => {
-                          setHeaderPreview(null);
-                          setHeaderSaving(false);
-                          headerSave.current = false;
-                        });
+                          saveSetting({ background_opacity: value }),
+                        ).finally(() => setOpacity(null));
+                      }}
+                      onKeyUp={(e) => {
+                        const value = Number(e.currentTarget.value) / 100;
+                        void safe(() =>
+                          saveSetting({ background_opacity: value }),
+                        ).finally(() => setOpacity(null));
                       }}
                     />
-                    <span>
-                      {label}
-                      <small>{hint}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <p>即时预览，重启后保留；不影响字号与外观。</p>
-              <p className="text-size-status" role="status" aria-live="polite">
-                {headerSaving ? "正在保存顶部布局…" : ""}
-              </p>
-            </fieldset>
-            <WaterSettings key={settings.water_goal} />
-            <fieldset
-              className="text-size-setting"
-              disabled={textSaving || pending > 0}
-            >
-              <legend>文字大小</legend>
-              <div className="text-size-options">
-                {(
-                  [
-                    ["small", "小"],
-                    ["standard", "标准（默认）"],
-                    ["large", "大"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <label key={value}>
-                    <input
-                      type="radio"
-                      name="text-size"
-                      value={value}
-                      checked={(textPreview ?? settings.text_size) === value}
-                      onChange={() => {
-                        if (textSave.current) return;
-                        textSave.current = true;
-                        setTextPreview(value);
-                        setTextSaving(true);
-                        void safe(() =>
-                          saveSetting({ text_size: value }),
-                        ).finally(() => {
-                          setTextPreview(null);
-                          setTextSaving(false);
-                          textSave.current = false;
-                        });
-                      }}
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-              <p>按阅读习惯选择，日历预览保持紧凑。即时预览，重启后保留。</p>
-              <p className="text-size-status" role="status" aria-live="polite">
-                {textSaving ? "正在保存文字大小…" : ""}
-              </p>
-            </fieldset>
-            <div className="setting-opacity">
-              <fieldset className="appearance-setting" disabled={pending > 0}>
-                <legend>外观模式</legend>
-                <div className="appearance-options">
+                    <p>
+                      {nativeTransparent
+                        ? "外壳随透明度融入桌面，阅读区保留稳定衬底。"
+                        : "此版本使用原生不透明窗口，背景不会透视桌面。"}
+                    </p>
+                  </div>
                   {(
                     [
-                      ["reading", "阅读优先", "稳定奶油衬底，适合长时间阅读"],
-                      ["glass", "轻玻璃", "通透清亮，任务保留局部衬底"],
-                      ["frosted", "梦幻毛玻璃", "柔紫星光，系统支持时模糊桌面"],
+                      ["always_on_top", "始终置顶", "让日历留在其他窗口上方"],
+                      [
+                        "animations_enabled",
+                        "柔和动画",
+                        "完成与展开时的小小反馈",
+                      ],
+                      [
+                        "show_holidays",
+                        "官方节假日",
+                        "内置 2026 年中国大陆假期与补班",
+                      ],
+                      ["show_weekends", "周末底色", "给普通周末一点温柔的区别"],
+                      [
+                        "opaque_fallback",
+                        "实色背景回退",
+                        "透明显示异常时，使用完全不透明背景",
+                      ],
                     ] as const
-                  ).map(([value, label, hint]) => (
-                    <label key={value}>
-                      <input
-                        type="radio"
-                        name="appearance"
-                        value={value}
-                        checked={settings.appearance_mode === value}
-                        onChange={() => {
-                          void safe(() =>
-                            saveSetting({
-                              appearance_mode: value as Appearance,
-                            }),
-                          );
-                        }}
-                      />
-                      <span>
-                        {label}
-                        <small>{hint}</small>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <p>
-                  外观决定材质，下面的滑块调整通透程度。文字和输入保持清晰。
-                </p>
-                {settings.appearance_mode === "frosted" && (
-                  <p className="material-hint">
-                    {!nativeTransparent || settings.opaque_fallback
-                      ? "实色回退保留柔紫配色，关闭桌面模糊与透视。"
-                      : (opacity ?? settings.background_opacity) === 1
-                        ? "100% 使用实色材质，关闭桌面模糊。"
-                        : frostState === "applied"
-                          ? "已启用稳定毛玻璃；Windows 透明效果、电源与硬件策略仍可能影响材质。"
-                          : frostState === "pending"
-                            ? "正在应用材质，阅读衬底保持保护。"
-                            : "本机未启用原生毛玻璃，已使用更清晰的柔紫玻璃衬底。"}
-                  </p>
-                )}
-              </fieldset>
-              <label htmlFor="opacity">
-                背景不透明度{" "}
-                <strong>
-                  {Math.round(
-                    (nativeTransparent
-                      ? (opacity ?? settings.background_opacity)
-                      : 1) * 100,
-                  )}
-                  %
-                </strong>
-              </label>
-              <input
-                id="opacity"
-                type="range"
-                min="40"
-                max="100"
-                value={Math.round(
-                  (opacity ?? settings.background_opacity) * 100,
-                )}
-                disabled={settings.opaque_fallback || !nativeTransparent}
-                onChange={(e) => setOpacity(Number(e.target.value) / 100)}
-                onPointerUp={(e) => {
-                  const value = Number(e.currentTarget.value) / 100;
-                  void safe(() =>
-                    saveSetting({ background_opacity: value }),
-                  ).finally(() => setOpacity(null));
-                }}
-                onKeyUp={(e) => {
-                  const value = Number(e.currentTarget.value) / 100;
-                  void safe(() =>
-                    saveSetting({ background_opacity: value }),
-                  ).finally(() => setOpacity(null));
-                }}
-              />
-              <p>
-                {nativeTransparent
-                  ? "外壳随透明度融入桌面，阅读区保留稳定衬底。"
-                  : "此版本使用原生不透明窗口，背景不会透视桌面。"}
-              </p>
-            </div>
-            {(
-              [
-                ["always_on_top", "始终置顶", "让日历留在其他窗口上方"],
-                ["animations_enabled", "柔和动画", "完成与展开时的小小反馈"],
-                [
-                  "show_holidays",
-                  "官方节假日",
-                  "内置 2026 年中国大陆假期与补班",
-                ],
-                ["show_weekends", "周末底色", "给普通周末一点温柔的区别"],
-                [
-                  "opaque_fallback",
-                  "实色背景回退",
-                  "透明显示异常时，使用完全不透明背景",
-                ],
-              ] as const
-            ).map(([key, label, hint]) => (
-              <label className="setting-row" key={key}>
-                <span>
-                  {label}
-                  <small>{hint}</small>
-                </span>
-                <input
-                  type="checkbox"
-                  className="toggle"
-                  checked={settings[key]}
-                  disabled={pending > 0}
-                  onChange={(e) =>
-                    void safe(() => saveSetting({ [key]: e.target.checked }))
-                  }
-                />
-              </label>
-            ))}
-            <div className="backup-section">
-              <h3>数据备份</h3>
-              <p>
-                JSON
-                包含喝水开关与目标，不含饮水明细；导入（含覆盖）保留本机饮水明细。
-              </p>
-              <p>一份属于你的 JSON。导入默认合并，不覆盖已有任务。</p>
-              <div className="backup-buttons">
-                <button
-                  disabled={fileBusy || pending > 0}
-                  onClick={() =>
-                    void safe(async () => {
-                      setFileBusy(true);
-                      try {
-                        if (await repository.exportBackup())
-                          setNotice("备份已导出");
-                      } finally {
-                        setFileBusy(false);
-                      }
-                    })
-                  }
-                >
-                  <Download size={15} />
-                  导出 JSON
-                </button>
-                <button
-                  disabled={fileBusy || pending > 0}
-                  onClick={() =>
-                    void safe(async () => {
-                      setFileBusy(true);
-                      try {
-                        const b = await repository.readBackup();
-                        if (b) {
-                          setBackup(b);
-                          setReplace(false);
-                          setReplaceWord("");
+                  )
+                    .filter(([key]) => key === "opaque_fallback")
+                    .map(([key, label, hint]) => (
+                      <label className="setting-row" key={key}>
+                        <span>
+                          {label}
+                          <small>{hint}</small>
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="toggle"
+                          checked={settings[key]}
+                          disabled={pending > 0}
+                          onChange={(e) =>
+                            void safe(() =>
+                              saveSetting({ [key]: e.target.checked }),
+                            )
+                          }
+                        />
+                      </label>
+                    ))}
+                </>
+              ),
+              usage: (
+                <>
+                  {" "}
+                  {(
+                    [
+                      ["always_on_top", "始终置顶", "让日历留在其他窗口上方"],
+                      [
+                        "animations_enabled",
+                        "柔和动画",
+                        "完成与展开时的小小反馈",
+                      ],
+                      [
+                        "show_holidays",
+                        "官方节假日",
+                        "内置 2026 年中国大陆假期与补班",
+                      ],
+                      ["show_weekends", "周末底色", "给普通周末一点温柔的区别"],
+                      [
+                        "opaque_fallback",
+                        "实色背景回退",
+                        "透明显示异常时，使用完全不透明背景",
+                      ],
+                    ] as const
+                  )
+                    .filter(([key]) => key !== "opaque_fallback")
+                    .map(([key, label, hint]) => (
+                      <label className="setting-row" key={key}>
+                        <span>
+                          {label}
+                          <small>{hint}</small>
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="toggle"
+                          checked={settings[key]}
+                          disabled={pending > 0}
+                          onChange={(e) =>
+                            void safe(() =>
+                              saveSetting({ [key]: e.target.checked }),
+                            )
+                          }
+                        />
+                      </label>
+                    ))}
+                </>
+              ),
+              water: <WaterSettings key={settings.water_goal} />,
+              data: (
+                <>
+                  {" "}
+                  <div className="backup-section">
+                    <h3>数据备份</h3>
+                    <p>
+                      JSON
+                      包含喝水开关与目标，不含饮水明细；导入（含覆盖）保留本机饮水明细。
+                    </p>
+                    <p>
+                      导入默认合并；完整饮水历史请在正常退出后备份整个应用数据目录。
+                    </p>
+                    <p className="backup-location">
+                      数据位置：%APPDATA%\app.starrylist.desktop
+                    </p>
+                    <div className="backup-buttons">
+                      <button
+                        disabled={fileBusy || pending > 0}
+                        onClick={() =>
+                          void safe(async () => {
+                            setFileBusy(true);
+                            try {
+                              if (await repository.exportBackup())
+                                setNotice("备份已导出");
+                            } finally {
+                              setFileBusy(false);
+                            }
+                          })
                         }
-                      } finally {
-                        setFileBusy(false);
-                      }
-                    })
-                  }
-                >
-                  <Upload size={15} />
-                  导入 JSON
-                </button>
-              </div>
-            </div>
-            <div className="about">
-              <Orbit size={27} />
-              <div>
-                <strong>星轨日历 · Starry List</strong>
-                <span>版本 1.0.0 · MIT 开源</span>
-                <p>
-                  美观，舒适，方便。无需账号，无联网请求。
-                  <br />
-                  数据存储于系统应用数据目录，请定期导出备份。
-                </p>
-              </div>
-            </div>
-          </div>
+                      >
+                        <Download size={15} />
+                        导出 JSON
+                      </button>
+                      <button
+                        disabled={fileBusy || pending > 0}
+                        onClick={() =>
+                          void safe(async () => {
+                            setFileBusy(true);
+                            try {
+                              const b = await repository.readBackup();
+                              if (b) {
+                                setBackup(b);
+                                setReplace(false);
+                                setReplaceWord("");
+                              }
+                            } finally {
+                              setFileBusy(false);
+                            }
+                          })
+                        }
+                      >
+                        <Upload size={15} />
+                        导入 JSON
+                      </button>
+                    </div>
+                  </div>
+                  <div className="about">
+                    <Orbit size={27} />
+                    <div>
+                      <strong>星轨日历 · Starry List</strong>
+                      <span>版本 1.0.0 · MIT 开源</span>
+                      <p>
+                        美观，舒适，方便。无需账号，无联网请求。
+                        <br />
+                        数据存储于系统应用数据目录，请定期导出备份。
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ),
+            }}
+          />
         </Dialog>
       )}
       {backup && (

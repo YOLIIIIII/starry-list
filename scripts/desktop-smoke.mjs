@@ -941,6 +941,7 @@ try {
   await page.getByRole("region", { name: "任务详情阅读" }).waitFor();
   await page.screenshot({ path: resolve(screenshots, "focus.png") });
   await click("设置");
+  await page.getByRole("tab", { name: "日历与使用" }).click();
   await page.getByRole("checkbox", { name: /^始终置顶/ }).click();
   await page.waitForFunction(
     () => document.querySelector('[aria-label="取消置顶"]') !== null,
@@ -955,6 +956,7 @@ try {
       document.querySelector('.window-buttons [aria-label="始终置顶"]') !==
       null,
   );
+  await page.getByRole("tab", { name: "外观与布局" }).click();
   const slider = page.getByRole("slider", { name: /背景不透明度/ });
   await slider.focus();
   await slider.press("Home");

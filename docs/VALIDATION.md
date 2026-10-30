@@ -34,6 +34,8 @@
 校验文件 `SL024-C-PREVIEW-20261030-SHA256SUMS.txt`。旧A哈希仍 `7537d2b99ec7caa8a1f9a9a3111594fec2033d81672a91ebd6f5fcec6f95aefd`，旧B仍 `7c2660f9cd6bc8e33458074f2e668127a6ebc5db4d26387f091ba9728274941b`，复核未覆盖。正常退出、导出JSON任务备份、备份完整本地数据目录后再安装；不删除原数据、不直接降级v1，无Tag/Release。
 
 
+C实现 [`f9c0d5f`](https://github.com/YOLIIIIII/starry-list/commit/f9c0d5f7f5547d6387f9263675c245c4870e0225) 已普通Push main；[代码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/40996515098) 在交付记录时运行中，最终状态以Actions及交付报告为准。作者/提交者已核实维护者既有GitHub noreply身份，暂存不含数据库、安装器、私人资料；仅命令级使用系统本机代理，没有改Git配置，无force push/Tag/Release。
+
 ## SL-024-B
 
 2026-10-30，起始main与origin/main一致、工作区干净。正式授权UI/UX精修；SL-020核对全部必要标准、既有170前端/16Rust/10组真实OS/72布局/25回归及A开启喝水后的回归，结合用户安装后「这个功能还不错」的确认，标记Done（未发布）；未认证系统硬件范围仍保留。SL-024/A/B继续In Review，等待视觉与交互验收；SL-006保持Research，不开发驻留。

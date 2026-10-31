@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>星河设计室 · Starry List</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="brandbar">
+      <div class="brand">
+        <span class="brand-orbit">✧</span>
+        <div>星轨日历<small>STARRY LIST · 星河设计室</small></div>
+      </div>
+      <span class="demo-label">隔离原型 · 合成数据</span
+      ><button id="back" hidden>返回方案入口</button>
+    </header>
+    <section id="lobby">
+      <p class="eyebrow">A LITTLE SPACE FOR YOUR EVERYDAY LIGHT</p>
+      <h1>把认真生活的日子，<br />慢慢连成星河。</h1>
+      <p>三种回顾方式，同一个十月。点进喜欢的一张，走走看。</p>
+      <div class="entry-cards">
+        <button data-enter="A">
+          <span class="mini paper-mini">✧　✦　✧<br />　✦　　✦</span
+          ><b>A · 纸上星图</b><small>像翻开一页安静的星图纸</small></button
+        ><button data-enter="B">
+          <span class="mini orbit-mini">◌ ✦ ◌<br />　🪐</span><b>B · 行星轨道</b
+          ><small>让每一天围绕自己的小星球</small></button
+        ><button data-enter="C">
+          <span class="mini journal-mini">✦ ─ ✧ ─ ✦<br />　◡　　✦</span
+          ><b>C · 星河手账</b><small>沿着生活的段落，一点点回看</small>
+        </button>
+      </div>
+      <p class="isolation-note">
+        只在此页演示，不读取本地任务、不保存数据，也不会加入正式应用导航。
+      </p>
+    </section>
+    <main id="studio" hidden>
+      <nav class="directions" aria-label="设计方向">
+        <button id="scheme-A" data-scheme="A">A · 纸上星图</button
+        ><button id="scheme-B" data-scheme="B">B · 行星轨道</button
+        ><button id="scheme-C" data-scheme="C">C · 星河手账</button>
+      </nav>
+      <section class="toolbar" aria-label="回顾选择">
+        <div class="period">
+          <button id="previous" aria-label="上一个月或年份">‹</button
+          ><label
+            ><span class="sr-only">年份</span
+            ><select id="year">
+              <option>2025</option>
+              <option selected>2026</option>
+              <option>2027</option>
+            </select></label
+          ><label id="month-label"
+            ><span class="sr-only">月份</span
+            ><select id="month"></select></label
+          ><button id="next" aria-label="下一个月或年份">›</button>
+        </div>
+        <div class="view-switch" aria-label="回顾范围">
+          <button id="monthly" data-view="month">月度星图</button
+          ><button id="yearly" data-view="year">年度回顾</button>
+        </div>
+        <button id="relation">与日历、清单的关系 ↗</button>
+      </section>
+      <section class="workspace">
+        <article class="chart-area">
+          <div class="scene-heading">
+            <div>
+              <p id="kicker" class="eyebrow"></p>
+              <h1 id="scene-title"></h1>
+              <p id="subtitle"></p>
+            </div>
+            <span id="scene-stamp" aria-hidden="true">✦</span>
+          </div>
+          <div id="chart"></div>
+          <div class="legend">
+            <span>留白日：只有日期</span
+            ><span><i class="star planned"></i> 有计划</span
+            ><span><i class="star completed"></i> 全部完成</span>
+          </div>
+        </article>
+        <aside id="details" aria-live="polite"></aside>
+      </section>
+      <footer class="reflection">
+        <span id="reflection"></span
+        ><small>没有连续打卡，没有扣星。历史会随任务修改而变化。</small>
+      </footer>
+    </main>
+    <details class="preview-settings">
+      <summary>比较设置</summary>
+      <div>
+        <label
+          >字号
+          <select id="size">
+            <option value="small">小</option>
+            <option value="standard" selected>标准</option>
+            <option value="large">大</option>
+          </select></label
+        ><label
+          >材质示意
+          <select id="skin">
+            <option value="reading">阅读优先</option>
+            <option value="glass">轻玻璃</option>
+            <option value="frosted">梦幻毛玻璃</option>
+          </select></label
+        ><label
+          >顶部
+          <select id="header">
+            <option value="classic">经典</option>
+            <option value="compact">紧凑</option>
+          </select></label
+        ><label
+          >合成样本
+          <select id="sample">
+            <option value="normal">日常计划</option>
+            <option value="sparse">少量计划</option>
+            <option value="empty">空白月</option>
+          </select></label
+        ><label
+          >演示时点
+          <select id="asof">
+            <option>2026-10-15</option>
+            <option selected>2026-10-31</option>
+            <option>2026-12-31</option>
+          </select></label
+        >
+      </div>
+      <p>
+        网页材质仅作视觉示意，不代表 Windows 原生毛玻璃。所有日期点都可用 Tab
+        访问，方向键切换日期。
+      </p>
+    </details>
+    <dialog id="relation-dialog">
+      <button id="close-dialog" aria-label="关闭说明">×</button>
+      <p class="eyebrow">未来的信息架构 · 候选</p>
+      <h2>安排、执行、回顾，各有自己的空间。</h2>
+      <p>
+        统筹总览负责安排日期；专注编辑负责执行计划。星河可以从月历的“回顾”入口进入，选中日期后再回到那一天的清单。
+      </p>
+      <p>补水仍是独立的照顾自己的记录，不影响任务星星，也不作为成长条件。</p>
+      <p>
+        此页只演示关系，未增加正式第三视图。永久纪念、成长机制和奖励门槛仍待决定。
+      </p>
+    </dialog>
+    <script type="module" src="app.mjs"></script>
+  </body>
+</html>

@@ -1,3 +1,4 @@
+import { focusWaterSummary } from "./water-layout";
 import { useEffect, useId, useRef, useState } from "react";
 import { format } from "date-fns";
 import { Droplets, Star, Trash2, Undo2 } from "lucide-react";
@@ -182,25 +183,84 @@ export function WaterCard({
     ]
       .map((s) => focus.querySelector<HTMLElement>(s))
       .filter((e): e is HTMLElement => Boolean(e));
+    let frame = 0;
     const measure = () => {
-      const occupied = parts.reduce((sum, part) => {
+      // Probe the full card at the current width, even when its controls are hidden.
+      // This is a transient inert DOM measurement, not another React/data instance.
+      const probe = el.cloneNode(true) as HTMLElement;
+      probe.removeAttribute("data-water-summary");
+      probe.setAttribute("aria-hidden", "true");
+      probe.inert = true;
+      Object.assign(probe.style, {
+        position: "fixed",
+        left: "-10000px",
+        top: "0",
+        visibility: "hidden",
+        width: `${el.getBoundingClientRect().width}px`,
+        height: "auto",
+        margin: "0",
+        pointerEvents: "none",
+      });
+      for (const node of probe.querySelectorAll("[id]"))
+        node.removeAttribute("id");
+      for (const node of probe.querySelectorAll("[fill],[clip-path]")) {
+        for (const attr of ["fill", "clip-path"]) {
+          if (node.getAttribute(attr)?.startsWith("url(#"))
+            node.removeAttribute(attr);
+        }
+      }
+      let fullHeight = 0;
+      try {
+        focus.append(probe);
+        fullHeight = probe.getBoundingClientRect().height;
+      } finally {
+        probe.remove();
+      }
+      const verticalSpace = (part: HTMLElement, marginsOnly = false) => {
         const css = getComputedStyle(part);
         return (
-          sum +
-          part.getBoundingClientRect().height +
-          parseFloat(css.marginTop) +
-          parseFloat(css.marginBottom)
+          (marginsOnly ? 0 : part.getBoundingClientRect().height) +
+          (parseFloat(css.marginTop) || 0) +
+          (parseFloat(css.marginBottom) || 0)
         );
-      }, 0);
-      const large = data.settings.text_size === "large";
-      const narrow = el.clientWidth < 580;
-      const full = narrow ? (large ? 218 : 195) : large ? 164 : 126;
-      setSummary(focus.clientHeight - occupied - 12 < full + 70);
+      };
+      const css = getComputedStyle(focus);
+      const scroll = focus.querySelector<HTMLElement>(".focus-scroll");
+      const available =
+        focus.clientHeight -
+        parts.reduce((sum, part) => sum + verticalSpace(part), 0) -
+        (parseFloat(css.paddingTop) || 0) -
+        (parseFloat(css.paddingBottom) || 0) -
+        verticalSpace(el, true) -
+        (scroll ? verticalSpace(scroll, true) : 0);
+      setSummary((previous) =>
+        focusWaterSummary(
+          available,
+          fullHeight,
+          el.clientWidth,
+          data.settings.text_size === "large",
+          previous,
+        ),
+      );
     };
-    const observer = new ResizeObserver(measure);
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    const observer = new ResizeObserver(schedule);
     [focus, el, ...parts].forEach((part) => observer.observe(part));
-    measure();
-    return () => observer.disconnect();
+    const mutations = new MutationObserver(schedule);
+    mutations.observe(el, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    schedule();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      mutations.disconnect();
+    };
   }, [compact, data.settings.text_size, data.settings.water_goal]);
   const entries = (data.water_entries ?? [])
     .filter((e) => e.date === date)

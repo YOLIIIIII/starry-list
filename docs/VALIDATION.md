@@ -1,5 +1,24 @@
 # V1.0 验证记录
 
+## SL-023-A / 专注补水维护
+
+2026-10-31，起始main `d17691e`、工作区干净、fetch后与origin/main一致。本轮正式代码只修WaterCard布局判定；星河仅独立原型，不接正式导航/数据层。详细比较、阈值、量化表及边界见 [评审报告](research/SL-023-A-GALAXY-PROTOTYPES.md)。
+
+- TypeScript、ESLint、默认前端 **213/213，15文件**（原210+3），生产构建通过。新增空间预算/窄高占比/20px退出阈值单元；原草稿/输入/删除撤销/排序/星星/备份/饮水回归保留。
+- Rust **27/27**，fmt --check、Clippy --locked -- -D warnings通过。SQLite v2/迁移/Task/WaterEntry/JSON V2与V1兼容/store/IPC/设置/版本标识及正式星星计算无变更。
+- 正式补水专项使用独立test标识、SQLite/profile和相同2500目标/750合成记录：修改前 `.cache/water-space-1793431832093/results.json`，修改后 `.cache/water-space-1793432435648/results.json`；760×680大字任务92.31→179.31px（+87），980×680标准仍完整，760×1200逻辑模拟完整且任务501.81px；500×620/380×480/980×480保留原摘要、固定新增和≥60px任务。高窗原生请求可能回到852px，900/1200比较使用CDP逻辑视口模拟，原生实测另存；不能泛称大屏硬件认证。
+- 380×900在同一隔离DOM暂时显示完整布局作为参考，实际5杯换行/2×2按钮311px、任务95.81px；自动摘要89px、任务317.81px（+222）。此为受控布局对照，非旧版独立二进制；原始旧版9场景实测另列。8次间隔状态检查稳定，无摘要来回振荡；展开快捷记录/关闭返回摘要通过。
+- 原型单独Edge检查 **72状态**，`.cache/galaxy-prototype-1793433271126/results.json`：三方案/三指定尺寸/月年18状态，三字号×三材质×两顶部×三方向54状态；三态、选日、内存补完取消、键盘、年月切换、空月、无动画、无水平溢出及按钮无交叠；2x浏览器像素比通过，最终月度抽样265元素/0动画（此前年度抽样572元素）。只请求本地4资源，localStorage为空，正式源码路径404。初测入口名称/innerText调用错误和B轨道命中区交叠分别修正，失败不算通过；最终2025年起点/2027年终点与跨年边界复核通过。
+
+- Windows星星/专注原专项 **180布局**通过，`.cache/starlight-1793432517851/results.json`；补水全回归 **360布局**、自定义/快捷/明细/目标/历史未来/删除恢复/100条列表/SQL失败重试与重启通过，`.cache/sl024c-1793432553435/results.json`。
+- 原桌面 **25/25**通过，`.cache/desktop-smoke-1793432646268/results.json`：Enter连续新增、真实Edge失焦、草稿/行内/抽屉/删除撤销/备份/日期范围与偏好/正常重启。真实OS拖动 **10组、72布局**通过，`.cache/sl020-1793432835009/results.json`；跨组阻止、箭头、长任务、45任务边缘滚动、故障重试/Escape及重启。
+- 原生Save/Open与异库全量JSON恢复回归通过，`.cache/sl024d-1793432996518/results.json`，含V1两模式/V2幂等与冲突/最后SQL失败整笔回滚/36空态/正常重启。初次OS拖动“把手被其他窗口覆盖”、一次备份输入“前台非测试进程”由原保护检查中止，没有向其他窗口注入；保持保护不变，重新启动独立测试后完整通过，失败不计通过。
+- Windows x64默认透明NSIS构建通过，版本1.0.0、BUNDLEID仍正式值；独立包 `artifacts/Starry-List_1.0.0_x64-focus-water-summary-preview-20261031-setup.exe`，5344241字节，SHA256 `16d9f080dbb105a6280025328ef31ca69d246a3e094bfd4ef71556dce30e1c3d`，校验 `artifacts/FOCUS-WATER-SUMMARY-PREVIEW-20261031-SHA256SUMS.txt`。旧B/E包仍 `3fdeb5b7a6968272ebe7514b89641833c14e59312ed10f8f4ca4a695f3a33f53`，未覆盖。
+- WaterCup函数逐字比对无变化；App导航、dailyStarState、domain/store/platform/Rust/配置/锁文件无差异；正式生产JS不含“纸上星图/星河设计室/prototypes/galaxy”文本，原型不进入正式导航或运行逻辑。Markdown路径与差异检查通过。
+
+Commit/Push/CI在交付前补录。原型截图与真实桌面截图明确分组，均合成数据；原型不是正式星河发布，材质只是网页示意。无Tag/Release，不自动关闭/卸载正式版；安装前导出JSON V2、正常退出、备份完整数据目录。
+
+
 ## SL-022-B / SL-024-E
 
 2026-10-31，起始main `3faf7ae`，工作区干净、fetch与origin/main一致。用户明确授权小范围UI/UX精修、测试、预览包、Commit和普通Push；未执行安装器，不关闭当前正式应用。

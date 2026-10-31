@@ -8,6 +8,8 @@ A纸上星图、B行星轨道、C星河手账已制作成独立可交互原型�
 
 正式代码只调整专注补水的完整高度测量/空间预算/稳定摘要阈值；标准正常窗保留完整，大字空间不足采用现有摘要与Dialog，E/父项In Review待安装。用户B/E「别的不错」结合已知缺口逐项复核，SL-022-A/B/父项Done，E水杯主体认可但空间维护仍未验收；SL-024-A/B/C/D Done。SL-006 Research、SL-020 Done保持，无发布。下方保留历史交付。
 
+本轮 [`48d4cb0`](https://github.com/YOLIIIIII/starry-list/commit/48d4cb00268af367767a76775fac283ad556a684) 已普通Push main，[对应CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41182644481)已触发；独立补水预览包、SHA256和原型启动说明见验证记录。正式软件1.0.0与标识保持，未Tag/Release。
+
 ## SL-022-B / SL-024-E 历史交付
 
 每日星星去除圆框、专注日期条复用同一派生状态替换任务小圆点；原创圆肚水杯只改SVG。B/E开发后In Review，等待安装；SL-022-A记录功能正面、视觉待精修，父项继续In Review。见 [视觉报告](SL_022_B_VISUAL_REVIEW.md) / [验证记录](VALIDATION.md#sl-022-b--sl-024-e)。

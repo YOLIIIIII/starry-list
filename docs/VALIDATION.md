@@ -16,7 +16,7 @@
 - Windows x64默认透明NSIS构建通过，版本1.0.0、BUNDLEID仍正式值；独立包 `artifacts/Starry-List_1.0.0_x64-focus-water-summary-preview-20261031-setup.exe`，5344241字节，SHA256 `16d9f080dbb105a6280025328ef31ca69d246a3e094bfd4ef71556dce30e1c3d`，校验 `artifacts/FOCUS-WATER-SUMMARY-PREVIEW-20261031-SHA256SUMS.txt`。旧B/E包仍 `3fdeb5b7a6968272ebe7514b89641833c14e59312ed10f8f4ca4a695f3a33f53`，未覆盖。
 - WaterCup函数逐字比对无变化；App导航、dailyStarState、domain/store/platform/Rust/配置/锁文件无差异；正式生产JS不含“纸上星图/星河设计室/prototypes/galaxy”文本，原型不进入正式导航或运行逻辑。Markdown路径与差异检查通过。
 
-Commit/Push/CI在交付前补录。原型截图与真实桌面截图明确分组，均合成数据；原型不是正式星河发布，材质只是网页示意。无Tag/Release，不自动关闭/卸载正式版；安装前导出JSON V2、正常退出、备份完整数据目录。
+实现/原型/测试/文档与合成截图提交 [`48d4cb0`](https://github.com/YOLIIIIII/starry-list/commit/48d4cb00268af367767a76775fac283ad556a684) 已普通Push main；[源码CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41182644481)已触发，最终状态按对应SHA的Actions及最终交付报告核实。后续提交仅补录交付链接，不改产品与预览包。无PR/Issue/Tag/Release，不强推/改历史；提交前作者与提交者核实为原有GitHub noreply配置，未修改本地/全局身份。原型截图与真实桌面截图明确分组，均合成数据；原型不是正式星河发布，材质只是网页示意。无Tag/Release，不自动关闭/卸载正式版；安装前导出JSON V2、正常退出、备份完整数据目录。
 
 
 ## SL-022-B / SL-024-E

@@ -997,19 +997,26 @@ export default function App() {
             </div>
           </div>
           <nav className="focus-week" aria-label="七天日期导航">
-            {weekDays(shiftDay(selected, -3)).map((date) => (
-              <button
-                key={date}
-                className={`${date === selected ? "active" : ""} ${date === today ? "is-today" : ""}`}
-                aria-label={`专注 ${date}`}
-                aria-current={date === selected ? "date" : undefined}
-                onClick={() => select(date)}
-              >
-                <span>{pretty(date, "EEE")}</span>
-                <strong>{Number(date.slice(-2))}</strong>
-                <i className={byDate.has(date) ? "has-tasks" : ""} />
-              </button>
-            ))}
+            {weekDays(shiftDay(selected, -3)).map((date) => {
+              const star = dailyStarState(byDate.get(date) ?? []);
+              return (
+                <button
+                  key={date}
+                  className={`${date === selected ? "active" : ""} ${date === today ? "is-today" : ""}`}
+                  aria-label={`专注 ${date}`}
+                  aria-description={dailyStarDescription[star] || undefined}
+                  title={dailyStarDescription[star] || undefined}
+                  aria-current={date === selected ? "date" : undefined}
+                  onClick={() => select(date)}
+                >
+                  <span className="focus-weekday">{pretty(date, "EEE")}</span>
+                  <strong>{Number(date.slice(-2))}</strong>
+                  <span className="focus-star-slot">
+                    <DailyStar state={star} />
+                  </span>
+                </button>
+              );
+            })}
           </nav>
           {settings.water_enabled && (
             <WaterCard

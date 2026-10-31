@@ -78,40 +78,55 @@ export function WaterCup({
     <svg className="water-cup" viewBox="0 0 64 56" aria-hidden="true">
       <defs>
         <clipPath id={`cup-${id}`}>
-          <path d="M10 13 C10 7 47 7 47 13 C48 23 47 36 43 42 C38 51 18 51 13 42 C9 35 9 22 10 13Z" />
+          <path d="M11 13 C8 23 8 36 14 43 C20 51 39 51 45 42 C50 34 49 23 46 13Z" />
         </clipPath>
+        <linearGradient id={`body-${id}`} x2="1" y2="1">
+          <stop stopColor="#fffdf5" />
+          <stop offset=".6" stopColor="#f6effb" />
+          <stop offset="1" stopColor="#e3d7ed" />
+        </linearGradient>
         <linearGradient id={`water-${id}`} x2="0" y2="1">
           <stop stopColor="#c7def3" />
           <stop offset="1" stopColor="#b6ade1" />
         </linearGradient>
       </defs>
       <path
-        d="M47 18 C64 12 65 39 46 37"
-        fill="none"
-        stroke="#b29dcc"
-        strokeWidth="3"
+        d="M46 20 C63 13 65 39 46 36"
+        fill="#faf4ff"
+        stroke="#ae95c4"
+        strokeWidth="2"
       />
       <path
-        d="M10 13 C10 7 47 7 47 13 C48 23 47 36 43 42 C38 51 18 51 13 42 C9 35 9 22 10 13Z"
-        fill="#fffcf6"
-        stroke="#b9a4cf"
-        strokeWidth="2"
+        d="M11 13 C8 23 8 36 14 43 C20 51 39 51 45 42 C50 34 49 23 46 13Z"
+        fill={`url(#body-${id})`}
+        stroke="#ae95c4"
+        strokeWidth="1.7"
       />
       <g clipPath={`url(#cup-${id})`}>
         {fill > 0 && (
           <path
             className="water-fill"
-            d={`M9 ${top} Q18 ${top - 3} 29 ${top} T49 ${top} V52 H9Z`}
+            d={`M9 ${top} Q18 ${top - 1.5} 29 ${top} T49 ${top} V52 H9Z`}
             fill={`url(#water-${id})`}
           />
         )}
         <path
-          d="M16 22 Q15 30 18 35"
+          d="M15 22 Q12 31 17 38"
+          fill="none"
           stroke="white"
           strokeOpacity=".8"
           strokeWidth="3"
           strokeLinecap="round"
         />
+        {fill > 0.2 && (
+          <circle
+            cx="38"
+            cy={Math.min(43, top + 7)}
+            r="1.5"
+            fill="#f6faff"
+            fillOpacity=".65"
+          />
+        )}
         {target < 500 && (
           <path
             d={`M13 ${46 - (target / 500) * 32} H46`}
@@ -122,9 +137,9 @@ export function WaterCup({
         )}
       </g>
       <path
-        d="M10 13 C14 19 43 19 47 13 M10 13 C14 7 43 7 47 13"
-        fill="none"
-        stroke="#b9a4cf"
+        d="M11 13 C13 6 43 6 46 13 C43 19 14 19 11 13Z"
+        fill="#fff9ee"
+        stroke="#ae95c4"
         strokeWidth="1.4"
       />
       {fill >= 1 && (

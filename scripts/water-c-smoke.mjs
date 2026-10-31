@@ -314,7 +314,7 @@ try {
   });
   await page.reload();
   await page.locator(".water-card").waitFor();
-  for (const amount of [0, 125, 150, 250, 375, 500, 750, 1500, 2000, 2300]) {
+  for (const amount of [0, 100, 125, 150, 250, 350, 375, 500, 750, 1500, 2000, 2300, 2500]) {
     for (const entry of (await invoke("load_snapshot")).water_entries)
       await invoke("delete_water", { id: entry.id });
     if (amount)
@@ -328,9 +328,34 @@ try {
       });
     await page.reload();
     await page.locator(".water-card").waitFor();
-    await page.screenshot({ path: resolve(shots, `cups-${amount}.png`) });
+    const svgIssues = await page.evaluate(() => {
+        const ids = [...document.querySelectorAll(".water-cup [id]")].map(
+            (el) => el.id,
+          ),
+          issues = [];
+        if (new Set(ids).size !== ids.length) issues.push("duplicate SVG IDs");
+        for (const el of document.querySelectorAll(
+          ".water-cup [fill],.water-cup [clip-path]",
+        )) {
+          const value = el.getAttribute("clip-path") ?? el.getAttribute("fill");
+          if (
+            value?.startsWith("url(#") &&
+            !document.getElementById(value.slice(5, -1))
+          )
+            issues.push("missing reference");
+        }
+        const boxes = [...document.querySelectorAll(".water-cup")]
+          .map((el) => el.getBoundingClientRect())
+          .filter((b) => b.width > 0);
+        for (let i = 1; i < boxes.length; i++)
+          if (boxes[i].left < boxes[i - 1].right - 0.5)
+            issues.push("cup collision");
+        return issues;
+      });
+      assert.deepEqual(svgIssues, []);
+      await page.screenshot({ path: resolve(shots, `cups-${amount}.png`) });
   }
-  for (const goal of [1, 2500, 20000]) {
+  for (const goal of [1, 1750, 2000, 2500, 20000]) {
     await invoke("save_settings", {
       settings: {
         ...base,

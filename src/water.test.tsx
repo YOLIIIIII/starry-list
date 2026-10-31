@@ -38,7 +38,7 @@ vi.mock("./platform", () => ({
   },
 }));
 import { store } from "./store";
-import { WaterCard, WaterSettings, cupLevels } from "./water";
+import { WaterCard, WaterSettings, WaterCup, cupLevels } from "./water";
 const today = dayKey(new Date());
 beforeEach(async () => {
   backend.fail = false;
@@ -185,4 +185,28 @@ it("record panel keeps quick actions open, updates total, and retains focus isol
   expect(screen.getByLabelText("自定义饮水容量")).toBeTruthy();
   await u.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("SL-024-E cup instances have unique SVG references and precise low/half/full levels", () => {
+  const { container } = render(
+    <>
+      {[0, 100, 150, 250, 350, 500].map((amount) => (
+        <WaterCup key={amount} fill={amount / 500} target={250} />
+      ))}
+    </>,
+  );
+  const ids = [...container.querySelectorAll("[id]")].map((e) => e.id);
+  expect(new Set(ids).size).toBe(ids.length);
+  const cups = container.querySelectorAll("svg");
+  expect(cups[0].querySelector(".water-fill")).toBeNull();
+  [100, 150, 250, 350, 500].forEach((amount, i) => {
+    expect(cups[i + 1].querySelector(".water-fill")?.getAttribute("d")).toMatch(
+      new RegExp("^M9 " + (46 - (amount / 500) * 32)),
+    );
+    const clip = cups[i + 1].querySelector("g")!.getAttribute("clip-path")!;
+    expect(ids).toContain(clip.slice(5, -1));
+  });
+  expect(cups[3].querySelector("[stroke-dasharray]")?.getAttribute("d")).toBe(
+    "M13 30 H46",
+  );
 });

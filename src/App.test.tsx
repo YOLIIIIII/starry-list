@@ -1887,3 +1887,75 @@ describe("SL-022-A snapshot-derived calendar stars", () => {
     },
   );
 });
+
+it("SL-022-B focus stars share snapshot rules, reserve alignment and refresh after imports", async () => {
+  const { store } = await import("./store");
+  const { repository } = await import("./platform");
+  backend.data!.tasks = [makeTask({ completed: true })];
+  const user = await startFocus();
+  const day = () => screen.getByRole("button", { name: "专注 2026-10-14" });
+  expect(day().querySelector(".completed")).toBeTruthy();
+  expect(day().querySelector("i")).toBeNull();
+  expect(day().getAttribute("aria-description")).toBe("当天计划已全部完成");
+  const check = async (state: string | null) => {
+    expect(Boolean(day().querySelector(".daily-star"))).toBe(state !== null);
+    if (state) expect(day().querySelector("." + state)).toBeTruthy();
+  };
+  await act(async () => {
+    await store.patchTask("a", { completed: false });
+  });
+  await check("planned");
+  await act(async () => {
+    await store.patchTask("a", { completed: true });
+  });
+  await check("completed");
+  await act(async () => {
+    await store.add(makeTask({ id: "new" }));
+  });
+  await check("planned");
+  await act(async () => {
+    await store.remove("new");
+  });
+  await check("completed");
+  await act(async () => {
+    await store.restore(makeTask({ id: "new" }));
+  });
+  await check("planned");
+  await act(async () => {
+    await store.patchTask("new", { date: "2026-10-15" });
+  });
+  await check("completed");
+  expect(
+    screen
+      .getByRole("button", { name: "专注 2026-10-15" })
+      .querySelector(".planned"),
+  ).toBeTruthy();
+  await act(async () => {
+    await store.remove("a");
+  });
+  await check(null);
+  for (const version of [1, 2]) {
+    const snapshot = {
+      ...backend.data!,
+      tasks: [makeTask({ completed: version === 2 })],
+    };
+    vi.mocked(repository.importBackup).mockResolvedValueOnce(snapshot);
+    const backup = backupSchema.parse({
+      ...snapshot,
+      format: "starry-list",
+      version,
+      exported_at: "2026-10-14T00:00:00Z",
+      ...(version === 2 ? { water_entries: [] } : {}),
+    });
+    await act(async () => {
+      await store.importBackup(backup, true);
+    });
+    await check(version === 2 ? "completed" : "planned");
+  }
+  await user.click(screen.getByRole("button", { name: "统筹总览" }));
+  expect(
+    screen
+      .getByRole("button", { name: "选择 2026-10-14" })
+      .querySelector(".completed"),
+  ).toBeTruthy();
+});

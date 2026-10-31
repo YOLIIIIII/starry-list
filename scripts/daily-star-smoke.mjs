@@ -52,7 +52,9 @@ try {
     "app.starrylist.desktop.sl020-test",
   );
   const settings = (await invoke("load_snapshot")).settings;
-  const dates = ["2021-02-10", "2026-10-01", "2026-08-10"];
+  const dates = process.argv.includes("--nearby")
+    ? ["2027-02-10", "2026-10-01", "2026-08-10"]
+    : ["2021-02-10", "2026-10-01", "2026-08-10"];
   for (const date of dates) {
     for (let i = 0; i < 3; i++)
       await invoke("save_task", {

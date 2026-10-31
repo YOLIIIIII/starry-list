@@ -25,7 +25,7 @@ export function DailyStar({ state }: { state: DailyStarState }) {
       title={dailyStarDescription[state]}
       aria-hidden="true"
     >
-      <Star size={13} strokeWidth={1.8} />
+      <Star size={15} strokeWidth={1.6} />
     </span>
   );
 }

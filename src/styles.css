@@ -659,24 +659,19 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 17px;
-  width: 17px;
-  height: 17px;
-  border: 1px solid #b8a0d04d;
-  border-radius: 50%;
-  background: #faf6ff;
-  color: #8870a6;
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  color: #8263a6;
 }
 .daily-star svg {
   fill: none;
 }
 .daily-star.completed {
-  color: #a67e2c;
-  border-color: #dec78a99;
-  background: #fff8e5;
+  color: #a37a28;
 }
 .daily-star.completed svg {
-  fill: #f2d681;
+  fill: #f3d580;
 }
 .day-badges {
   min-width: 0;
@@ -1190,7 +1185,7 @@ h1 {
   border-radius: 9px;
   color: #8c7a9c;
 }
-.focus-week button span {
+.focus-week button > .focus-weekday {
   font-size: var(--text-caption);
 }
 .focus-week button strong {
@@ -1206,14 +1201,23 @@ h1 {
   color: var(--purple-dark);
   font-weight: 700;
 }
-.focus-week i {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: transparent;
+.focus-star-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 15px;
 }
-.focus-week .has-tasks {
-  background: currentColor;
+.focus-week button strong {
+  line-height: 1.2;
+}
+.focus-week .active .daily-star {
+  color: #f0e4ff;
+}
+.focus-week .active .daily-star.completed {
+  color: #ffe5a2;
+}
+.focus-week .active .daily-star.completed svg {
+  fill: #ffe5a2;
 }
 .focus-list-heading {
   display: flex;
@@ -3363,7 +3367,7 @@ svg.water-cup {
   .focus-heading .eyebrow {
     display: none;
   }
-  .focus-week button span {
+  .focus-week button > .focus-weekday {
     display: none;
   }
   .focus-week button {
@@ -3632,4 +3636,40 @@ svg.water-cup {
   display: block;
   padding: 12px;
   white-space: nowrap;
+}
+/* SL-022-B: in very short windows reserve the existing task viewport and composer. */
+@media (max-height: 560px) {
+  .focus {
+    padding-top: 2px;
+  }
+  .focus-heading {
+    padding-block: 0;
+  }
+  .focus-heading h1 {
+    font-size: var(--text-page-compact);
+  }
+  .focus-week {
+    padding-block: 1px;
+  }
+  .focus-week button {
+    padding-block: 0;
+    gap: 1px;
+  }
+  .focus-week button strong {
+    font-size: var(--text-ui);
+    line-height: 1.1;
+  }
+  .focus-list-heading {
+    padding-block: 2px;
+  }
+  .focus-scroll {
+    margin-bottom: 0;
+  }
+  .focus-composer {
+    padding-bottom: 0;
+  }
+  .focus-composer .quick-add {
+    margin-block: 2px;
+    padding-block: 4px;
+  }
 }

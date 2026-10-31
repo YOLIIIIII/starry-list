@@ -24,7 +24,7 @@
 - 原生材质实际失焦回归通过，`.cache/visual-materials-1793429096110/focus-results.json`：40%/70%×两视图×3次切换，共12组激活/失焦，采样最大RGB差 **0**（原阈值≤8不变）；原生模糊/清除对照能量0.327/9.969，确认真实模糊。程序化背景与窗口归属校验，截图仅缓存，不采集私人壁纸。标准字号测材质，三字号布局由其他矩阵覆盖。
 - Markdown本地链接、格式、差异检查通过；明确暂存范围只含授权源码/测试/文档与合成截图，未含数据库、个人JSON、网络参考图、安装器或本机路径。每次提交前验证现有GitHub noreply作者/提交者，不改本地/全局身份。
 
-Commit/Push/CI在交付前补录。三材质布局不等于所有GPU认证；透明版opaque_fallback偏好不是独立不透明二进制，未另建该包；未执行安装器、升级/卸载或Win10/混合DPI/其他硬件/读屏认证。安装前导出JSON V2、正常退出、备份完整数据目录，不降级数据库v1软件。无Tag/Release。
+实现提交 [`348f76d`](https://github.com/YOLIIIIII/starry-list/commit/348f76d347deb6051b4996fcfcd9d28eb5b9459e) 已普通Push main；[首次CI](https://github.com/YOLIIIIII/starry-list/actions/runs/41177986300) TypeScript/ESLint通过、前端209/210，既有SL-020待写排序用例在第二次拖动时失败。检查其模拟延迟Promise释放未在act中等待React状态/被阻止标志的副作用；仅修正测试同步，保留全部断言和默认超时，不改变产品代码/安装包。后续提交同时补录交付证据；最终本地/CI结果见后续记录与交付报告。没有force push/历史重写/Tag/Release。三材质布局不等于所有GPU认证；透明版opaque_fallback偏好不是独立不透明二进制，未另建该包；未执行安装器、升级/卸载或Win10/混合DPI/其他硬件/读屏认证。安装前导出JSON V2、正常退出、备份完整数据目录，不降级数据库v1软件。无Tag/Release。
 
 
 ## SL-022-A
@@ -979,3 +979,5 @@ npm run test:release
 - 未配置 Windows 代码签名，安装器会有未知发布者或 SmartScreen 提示。macOS 未验证，属于后续版本。
 
 构建中的 Zod `@__PURE__` 注释提示来自上游依赖，Rollup 已移除该注释；不影响构建成功。没有伪称完成物理交互或未执行的安装测试。
+
+2026-10-31 CI复核续记：仅将旧SL-020用例的延迟写入release包进await act，等待状态与副作用完成；全部原断言/默认超时保留。专项连续3次通过，默认全量再次 **210/210**，TypeScript/ESLint通过。后续提交只含这一测试同步与交付文档，无产品源码变化，因此安装包/原生验证保持有效、SHA256不变；最终CI按交付报告对应SHA核实。

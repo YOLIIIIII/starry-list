@@ -8,6 +8,8 @@
 
 用户「之前的导入和导出我试过了，没有问题」结合既有异库完整往返/V1/V2/事务/原生文件与重启证据，D复核Done；不虚构用户亲自隔离覆盖或故障验证。A/B/C继续Done，父项因E视觉待验收保持In Review。SL-023仅Idea/Design、SL-006 Research、SL-020 Done。不改数据协议/数据库/版本/标识，无Tag/Release；下方为历史。
 
+本轮实现 [`348f76d`](https://github.com/YOLIIIIII/starry-list/commit/348f76d347deb6051b4996fcfcd9d28eb5b9459e) 已普通Push main；独立预览包5344258字节与SHA256见验证记录，旧A/D保留。首次CI失败及后续测试同步修正、最终CI分别记录，不以源码Push或CI代替视觉验收。
+
 ## SL-022-A 历史交付
 
 每日星星 MVP 已开发，SL-022/A **In Review**，等待用户安装体验：无任务无星、有任务未全完成柔紫空心、全部完成淡金实心。基于当前任务快照，历史修改即时重算；不持久化奖励、不改数据库 v2/JSON V2/版本/标识。测试、独立预览安装包及提交/CI见 [验证记录](VALIDATION.md#sl-022-a)。

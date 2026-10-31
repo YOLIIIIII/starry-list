@@ -1697,7 +1697,9 @@ it("SL-020 pending sort blocks duplicate drags and serial retry uses the current
     { dataTransfer: second },
   );
   expect(second.setData).not.toHaveBeenCalled();
-  release();
+  await act(async () => {
+    release();
+  });
   await waitFor(() =>
     expect(
       screen
